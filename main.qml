@@ -3,20 +3,18 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
 
-
 ApplicationWindow {
     id: win
     visible: true
-    width: 480       // ✅ Lock width for 3.5-4" portrait screen
-    height: 800      // ✅ Lock height (aspect ~16:9 portrait)
-    minimumWidth: 480
-    minimumHeight: 800
-    maximumWidth: 480
-    maximumHeight: 800
-    color: "#f5f7fa" // (Optional: light background)
+    width: 800
+    height: 480
+    minimumWidth: 800
+    minimumHeight: 480
+    maximumWidth: 800
+    maximumHeight: 480
+    color: "#f5f7fa"
     title: "ProfilerV1"
 
-    // Optional (prevents resize)
     flags: Qt.Window | Qt.MSWindowsFixedSizeDialogHint
     
     Material.theme: Material.Dark
