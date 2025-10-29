@@ -189,7 +189,7 @@ Item {
                     }
                 }
                 
-                // Profile/Settings buttons
+                // Profile/Settings buttons (Profile contains My Bag)
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
@@ -354,31 +354,6 @@ Item {
                                     border.width: 2
                                     radius: 10
                                 }
-                            }
-                        }
-                        
-                        Button {
-                            text: "⚙ Edit Bag"
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 50
-                            
-                            background: Rectangle {
-                                color: parent.pressed ? "#E5E7EB" : "#F5F7FA"
-                                radius: 10
-                            }
-                            
-                            contentItem: Text {
-                                text: parent.text
-                                color: text
-                                font.pixelSize: 15
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            
-                            onClicked: {
-                                soundManager.playClick()
-                                stack.push(Qt.resolvedUrl("MyBag.qml"), { win: win })
                             }
                         }
                         

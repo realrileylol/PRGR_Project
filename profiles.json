@@ -1,0 +1,49 @@
+{
+  "active_profile": "Riley",
+  "profiles": [
+    "Guest",
+    "Riley"
+  ],
+  "bags": {
+    "Guest": {
+      "Default Set": {
+        "Driver": 10.5,
+        "3 Wood": 15.0,
+        "5 Wood": 18.0,
+        "3 Hybrid": 19.0,
+        "4 Iron": 21.0,
+        "5 Iron": 24.0,
+        "6 Iron": 28.0,
+        "7 Iron": 34.0,
+        "8 Iron": 38.0,
+        "9 Iron": 42.0,
+        "PW": 46.0,
+        "GW": 50.0,
+        "SW": 56.0,
+        "LW": 60.0
+      }
+    },
+    "Riley": {
+      "Default Set": {
+        "Driver": 10.5,
+        "3 Wood": 15.0,
+        "5 Wood": 18.0,
+        "3 Hybrid": 19.0,
+        "4 Iron": 21.0,
+        "5 Iron": 24.0,
+        "6 Iron": 28.0,
+        "7 Iron": 34.0,
+        "8 Iron": 38.0,
+        "9 Iron": 42.0,
+        "PW": 46.0,
+        "GW": 50.0,
+        "SW": 56.0,
+        "LW": 60.0
+      }
+    }
+  },
+  "active_presets": {
+    "Guest": "Default Set",
+    "Riley": "Default Set"
+  }
+}

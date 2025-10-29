@@ -51,6 +51,12 @@ ApplicationWindow {
     property string activePreset: "Default Set"
     property var activeClubBag: clubPresets["Default Set"] || {}
 
+
+
+    // Club session state
+    property string currentClub: "7 Iron"  // ADD THIS LINE
+    property real currentLoft: 34.0     
+
     // Ball flight metrics
     property real ballSpeed: 132.1
     property real clubSpeed: 94.0

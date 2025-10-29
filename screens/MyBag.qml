@@ -5,8 +5,7 @@ import Qt.labs.settings 1.1
 
 Item {
     id: myBag
-    width: 480
-    height: 800
+    anchors.fill: parent
 
     property var win
 
@@ -14,6 +13,17 @@ Item {
     property var presets: ({})
     property string currentPreset: "Default Set"
     property var currentClubs: ({})
+
+    // Theme colors matching main GUI
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
 
     Settings {
         id: clubStorage
@@ -76,7 +86,6 @@ Item {
             win.activePreset = currentPreset
             win.activeClubBag = currentClubs
         }
-        console.log("Saved presets:", currentPreset)
     }
 
     function switchPreset(presetName) {
@@ -89,12 +98,11 @@ Item {
 
     function createNewPreset(name) {
         if (name && !presets[name]) {
-            presets[name] = JSON.parse(JSON.stringify(currentClubs)) // Deep copy
+            presets[name] = JSON.parse(JSON.stringify(currentClubs))
             currentPreset = name
             currentClubs = presets[name]
             savePresets()
             
-            // Update dropdown
             presetSelector.model = Object.keys(presets)
             presetSelector.currentIndex = Object.keys(presets).indexOf(name)
         }
@@ -112,150 +120,407 @@ Item {
         }
     }
 
-    Rectangle { 
+    Rectangle {
         anchors.fill: parent
-        color: "#0D1117" 
-    }
-
-    // ENTIRE SCREEN IS NOW SCROLLABLE
-    ScrollView {
-        anchors.fill: parent
-        clip: true
-        contentWidth: availableWidth
-
+        color: bg
+        
         ColumnLayout {
-            width: parent.width
-            spacing: 20
+            anchors.fill: parent
+            spacing: 0
             
-            // Add top padding
-            Item { height: 24 }
-
-            // --- Header ---
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                spacing: 12
-                
-                Button {
-                    text: "← Back"
-                    implicitWidth: 100
-                    implicitHeight: 48
-                    background: Rectangle { color: "#238636"; radius: 6 }
-                    contentItem: Text { 
-                        text: parent.text
-                        color: "white"
-                        font.pixelSize: 16
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    onClicked: {
-                        soundManager.playClick()
-                        savePresets()
-                        stack.goBack()
-                    }
-                }
-                
-                Label {
-                    text: "My Bag"
-                    color: "#F0F6FC"
-                    font.pixelSize: 24
-                    font.bold: true
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignHCenter
-                }
-            }
-
-            // --- Preset Selector ---
+            // Header Bar
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                Layout.preferredHeight: 70
-                radius: 10
-                color: "#161B22"
-                border.color: "#30363D"
+                height: 70
+                color: card
                 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
+                    anchors.margins: 20
+                    spacing: 15
                     
-                    Label {
-                        text: "Preset:"
-                        color: "#F0F6FC"
-                        font.pixelSize: 16
-                        font.bold: true
-                    }
-                    
-                    ComboBox {
-                        id: presetSelector
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 50
-                        
-                        model: Object.keys(presets)
-                        
-                        onCurrentTextChanged: {
-                            if (currentText && currentText !== currentPreset) {
-                                switchPreset(currentText)
-                            }
-                        }
+                    Button {
+                        text: "← Back"
+                        implicitHeight: 45
+                        implicitWidth: 100
                         
                         background: Rectangle {
-                            color: "#1C2128"
-                            radius: 6
-                            border.color: presetSelector.pressed ? "#58A6FF" : "#30363D"
-                            border.width: 2
+                            color: parent.pressed ? "#2D9A4F" : success
+                            radius: 8
                         }
                         
                         contentItem: Text {
-                            leftPadding: 12
-                            text: presetSelector.displayText
+                            text: parent.text
+                            color: "white"
                             font.pixelSize: 16
                             font.bold: true
-                            color: "#F0F6FC"
+                            horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
                         
-                        delegate: ItemDelegate {
-                            width: presetSelector.width
-                            height: 45
-                            
-                            contentItem: Text {
-                                text: modelData
-                                color: "#F0F6FC"
-                                font.pixelSize: 15
-                                verticalAlignment: Text.AlignVCenter
-                                leftPadding: 12
-                            }
-                            
-                            background: Rectangle {
-                                color: parent.highlighted ? "#1F6FEB" : "#1C2128"
-                            }
+                        onClicked: {
+                            soundManager.playClick()
+                            savePresets()
+                            stack.goBack()
+                        }
+                    }
+                    
+                    Label {
+                        text: "My Bag"
+                        color: text
+                        font.pixelSize: 26
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+                    
+                    Button {
+                        text: "Reset"
+                        implicitHeight: 45
+                        implicitWidth: 90
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#B02A2A" : danger
+                            radius: 8
                         }
                         
-                        popup: Popup {
-                            y: presetSelector.height + 2
-                            width: presetSelector.width
-                            implicitHeight: contentItem.implicitHeight
-                            padding: 1
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        
+                        onClicked: {
+                            soundManager.playClick()
+                            resetDialog.open()
+                        }
+                    }
+                }
+            }
+            
+            // Main Content
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentWidth: availableWidth
+                
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 15
+                    
+                    Item { height: 20 }
+                    
+                    // Preset Selector
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 20
+                        Layout.rightMargin: 20
+                        height: 60
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+                        
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 10
                             
-                            contentItem: ListView {
-                                clip: true
-                                implicitHeight: contentHeight
-                                model: presetSelector.popup.visible ? presetSelector.delegateModel : null
-                                currentIndex: presetSelector.highlightedIndex
-                                
-                                ScrollIndicator.vertical: ScrollIndicator { }
+                            Label {
+                                text: "Preset:"
+                                color: text
+                                font.pixelSize: 16
+                                font.bold: true
                             }
                             
-                            background: Rectangle {
-                                color: "#1C2128"
-                                border.color: "#30363D"
-                                border.width: 2
-                                radius: 6
+                            ComboBox {
+                                id: presetSelector
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 40
+                                
+                                model: Object.keys(presets)
+                                
+                                onCurrentTextChanged: {
+                                    if (currentText && currentText !== currentPreset) {
+                                        switchPreset(currentText)
+                                    }
+                                }
+                                
+                                background: Rectangle {
+                                    color: "#F5F7FA"
+                                    radius: 6
+                                    border.color: presetSelector.pressed ? accent : edge
+                                    border.width: 2
+                                }
+                                
+                                contentItem: Text {
+                                    leftPadding: 12
+                                    text: presetSelector.displayText
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    color: text
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                delegate: ItemDelegate {
+                                    width: presetSelector.width
+                                    height: 40
+                                    
+                                    contentItem: Text {
+                                        text: modelData
+                                        color: text
+                                        font.pixelSize: 14
+                                        verticalAlignment: Text.AlignVCenter
+                                        leftPadding: 12
+                                    }
+                                    
+                                    background: Rectangle {
+                                        color: parent.highlighted ? "#E8F0FE" : "white"
+                                    }
+                                }
+                                
+                                popup: Popup {
+                                    y: presetSelector.height + 2
+                                    width: presetSelector.width
+                                    implicitHeight: contentItem.implicitHeight
+                                    padding: 1
+                                    
+                                    contentItem: ListView {
+                                        clip: true
+                                        implicitHeight: contentHeight
+                                        model: presetSelector.popup.visible ? presetSelector.delegateModel : null
+                                        currentIndex: presetSelector.highlightedIndex
+                                        ScrollIndicator.vertical: ScrollIndicator { }
+                                    }
+                                    
+                                    background: Rectangle {
+                                        color: card
+                                        border.color: edge
+                                        border.width: 2
+                                        radius: 6
+                                    }
+                                }
+                            }
+                            
+                            Button {
+                                text: "+"
+                                implicitWidth: 40
+                                implicitHeight: 40
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 6
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 20
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    newPresetDialog.open()
+                                }
+                            }
+                            
+                            Button {
+                                text: "Delete"
+                                implicitWidth: 70
+                                implicitHeight: 40
+                                visible: currentPreset !== "Default Set" && Object.keys(presets).length > 1
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? "#B02A2A" : danger
+                                    radius: 6
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    deletePresetDialog.open()
+                                }
                             }
                         }
+                    }
+                    
+                    // Info hint
+                    Label {
+                        text: "Click any club to edit its loft angle"
+                        color: hint
+                        font.pixelSize: 13
+                        Layout.leftMargin: 20
+                    }
+                    
+                    // Clubs Grid
+                    GridLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 20
+                        Layout.rightMargin: 20
+                        columns: 2
+                        rowSpacing: 12
+                        columnSpacing: 12
+                        
+                        Repeater {
+                            model: Object.keys(currentClubs)
+                            
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 70
+                                radius: 10
+                                color: clubMouseArea.containsMouse ? cardHover : card
+                                border.color: clubMouseArea.containsMouse ? accent : edge
+                                border.width: 2
+                                
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
+                                
+                                MouseArea {
+                                    id: clubMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        editDialog.clubName = modelData
+                                        editDialog.currentLoft = currentClubs[modelData] || 34.0
+                                        editDialog.open()
+                                    }
+                                }
+                                
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 15
+                                    spacing: 12
+                                    
+                                    // Club info
+                                    ColumnLayout {
+                                        spacing: 4
+                                        Layout.fillWidth: true
+                                        
+                                        Label {
+                                            text: modelData
+                                            color: text
+                                            font.pixelSize: 17
+                                            font.bold: true
+                                        }
+                                        
+                                        Label {
+                                            text: (currentClubs[modelData] || 0).toFixed(1) + "° loft"
+                                            color: hint
+                                            font.pixelSize: 14
+                                        }
+                                    }
+                                    
+                                    // Edit indicator
+                                    Label {
+                                        text: "Edit"
+                                        color: clubMouseArea.containsMouse ? accent : hint
+                                        font.pixelSize: 13
+                                        font.bold: clubMouseArea.containsMouse
+                                        
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Item { height: 20 }
+                }
+            }
+        }
+    }
+
+    // Edit Club Dialog
+    Dialog {
+        id: editDialog
+        anchors.centerIn: parent
+        width: 400
+        height: 300
+        modal: true
+        
+        property string clubName: ""
+        property real currentLoft: 0
+        
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
+        }
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 25
+            spacing: 20
+            
+            Label {
+                text: "Edit " + editDialog.clubName
+                color: text
+                font.pixelSize: 24
+                font.bold: true
+            }
+            
+            Rectangle {
+                Layout.fillWidth: true
+                height: 100
+                radius: 10
+                color: "#F5F7FA"
+                border.color: accent
+                border.width: 2
+                
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 20
+                    
+                    Button {
+                        text: "−"
+                        implicitWidth: 50
+                        implicitHeight: 50
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#B02A2A" : danger
+                            radius: 8
+                        }
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 28
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        
+                        onClicked: {
+                            soundManager.playClick()
+                            editDialog.currentLoft = Math.max(5, editDialog.currentLoft - 0.5)
+                        }
+                    }
+                    
+                    Label {
+                        text: editDialog.currentLoft.toFixed(1) + "°"
+                        color: text
+                        font.pixelSize: 40
+                        font.bold: true
+                        Layout.preferredWidth: 120
+                        horizontalAlignment: Text.AlignHCenter
                     }
                     
                     Button {
@@ -264,14 +529,14 @@ Item {
                         implicitHeight: 50
                         
                         background: Rectangle {
-                            color: parent.pressed ? "#1558B8" : "#1F6FEB"
-                            radius: 6
+                            color: parent.pressed ? "#2D9A4F" : success
+                            radius: 8
                         }
                         
                         contentItem: Text {
                             text: parent.text
                             color: "white"
-                            font.pixelSize: 24
+                            font.pixelSize: 28
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -279,125 +544,92 @@ Item {
                         
                         onClicked: {
                             soundManager.playClick()
-                            newPresetDialog.open()
+                            editDialog.currentLoft = Math.min(70, editDialog.currentLoft + 0.5)
                         }
                     }
-                    
-                    Button {
-                        text: "🗑"
-                        implicitWidth: 50
-                        implicitHeight: 50
-                        visible: currentPreset !== "Default Set"
-                        
-                        background: Rectangle {
-                            color: parent.pressed ? "#B02A2A" : "#DA3633"
-                            radius: 6
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 20
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        
-                        onClicked: {
-                            soundManager.playClick()
-                            deletePreset(currentPreset)
-                        }
-                    }
-                }
-            }
-
-            Label {
-                text: "Tap any club to edit its loft"
-                color: "#8B949E"
-                font.pixelSize: 13
-                Layout.leftMargin: 24
-            }
-
-            // All club categories
-            ClubCategory {
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                title: "Driver & Woods"
-                clubNames: ["Driver", "3 Wood", "5 Wood"]
-            }
-
-            ClubCategory {
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                title: "Hybrids / Long Irons"
-                clubNames: ["3 Hybrid", "4 Iron", "5 Iron"]
-            }
-
-            ClubCategory {
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                title: "Irons"
-                clubNames: ["6 Iron", "7 Iron", "8 Iron", "9 Iron"]
-            }
-
-            ClubCategory {
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                title: "Wedges"
-                clubNames: ["PW", "GW", "SW", "LW"]
-            }
-
-            // --- Save Button ---
-            Button {
-                text: "💾 Save & Return"
-                Layout.alignment: Qt.AlignHCenter
-                Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                implicitHeight: 56
-                
-                background: Rectangle {
-                    color: parent.pressed ? "#1D6F2F" : "#238636"
-                    radius: 12
-                }
-                
-                contentItem: Text {
-                    text: parent.text
-                    color: "white"
-                    font.pixelSize: 18
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                
-                onClicked: {
-                    soundManager.playClick()
-                    savePresets()
-                    stack.goBack()
                 }
             }
             
-            // Add bottom padding
-            Item { height: 24 }
+            Label {
+                text: "Range: 5° - 70°"
+                color: hint
+                font.pixelSize: 12
+                Layout.alignment: Qt.AlignHCenter
+            }
+            
+            Item { Layout.fillHeight: true }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                
+                Button {
+                    text: "Cancel"
+                    Layout.fillWidth: true
+                    implicitHeight: 50
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: text
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        editDialog.close()
+                    }
+                }
+                
+                Button {
+                    text: "Save"
+                    Layout.fillWidth: true
+                    implicitHeight: 50
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#2D9A4F" : success
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        currentClubs[editDialog.clubName] = editDialog.currentLoft
+                        currentClubs = currentClubs // Force refresh
+                        savePresets()
+                        editDialog.close()
+                    }
+                }
+            }
         }
     }
 
-    // --- New Preset Dialog ---
+    // New Preset Dialog
     Dialog {
         id: newPresetDialog
         anchors.centerIn: parent
         width: 380
         height: 220
         modal: true
-        title: "Create New Preset"
         
         background: Rectangle {
-            color: "#161B22"
-            radius: 10
-            border.color: "#30363D"
+            color: card
+            radius: 12
+            border.color: edge
             border.width: 2
         }
         
@@ -407,44 +639,47 @@ Item {
             spacing: 20
             
             Label {
-                text: "Preset Name:"
-                color: "#F0F6FC"
-                font.pixelSize: 16
+                text: "Create New Preset"
+                color: text
+                font.pixelSize: 22
+                font.bold: true
             }
             
             TextField {
                 id: presetNameInput
                 Layout.fillWidth: true
                 Layout.preferredHeight: 50
-                placeholderText: "e.g., Blade Irons, Backup Set"
-                font.pixelSize: 16
-                color: "#F0F6FC"
+                placeholderText: "Enter preset name..."
+                font.pixelSize: 15
+                color: text
                 
                 background: Rectangle {
-                    color: "#1C2128"
-                    radius: 6
-                    border.color: presetNameInput.activeFocus ? "#58A6FF" : "#30363D"
+                    color: "#F5F7FA"
+                    radius: 8
+                    border.color: presetNameInput.activeFocus ? accent : edge
                     border.width: 2
                 }
             }
             
+            Item { Layout.fillHeight: true }
+            
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 12
                 
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
-                    implicitHeight: 48
+                    implicitHeight: 50
                     
                     background: Rectangle {
-                        color: parent.pressed ? "#5A6168" : "#6C757D"
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
                     }
                     
                     contentItem: Text {
                         text: parent.text
-                        color: "white"
+                        color: text
                         font.pixelSize: 16
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -460,10 +695,10 @@ Item {
                 Button {
                     text: "Create"
                     Layout.fillWidth: true
-                    implicitHeight: 48
+                    implicitHeight: 50
                     
                     background: Rectangle {
-                        color: parent.pressed ? "#1558B8" : "#1F6FEB"
+                        color: parent.pressed ? "#2563EB" : accent
                         radius: 8
                     }
                     
@@ -490,210 +725,189 @@ Item {
         }
     }
 
-    // --- Club Category Component ---
-    component ClubCategory: Rectangle {
-        property string title: ""
-        property var clubNames: []
+    // Delete Preset Dialog
+    Dialog {
+        id: deletePresetDialog
+        anchors.centerIn: parent
+        width: 380
+        height: 200
+        modal: true
         
-        implicitHeight: col.implicitHeight + 30
-        radius: 10
-        color: "#161B22"
-        border.color: "#30363D"
-
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
+        }
+        
         ColumnLayout {
-            id: col
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 8
-
+            anchors.margins: 20
+            spacing: 15
+            
             Label {
-                text: title
-                color: "#F0F6FC"
-                font.pixelSize: 16
+                text: "Delete Preset?"
+                color: text
+                font.pixelSize: 22
                 font.bold: true
             }
-
-            Repeater {
-                model: clubNames
+            
+            Label {
+                text: "Delete \"" + currentPreset + "\"? This cannot be undone."
+                color: hint
+                font.pixelSize: 14
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            
+            Item { Layout.fillHeight: true }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
                 
-                ClubRow {
+                Button {
+                    text: "Cancel"
                     Layout.fillWidth: true
-                    clubName: modelData
+                    implicitHeight: 50
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: text
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        deletePresetDialog.close()
+                    }
+                }
+                
+                Button {
+                    text: "Delete"
+                    Layout.fillWidth: true
+                    implicitHeight: 50
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A2A" : danger
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        deletePreset(currentPreset)
+                        deletePresetDialog.close()
+                    }
                 }
             }
         }
     }
 
-    // --- Individual Club Row Component ---
-    component ClubRow: Rectangle {
-        property string clubName: ""
+    // Reset Dialog
+    Dialog {
+        id: resetDialog
+        anchors.centerIn: parent
+        width: 380
+        height: 220
+        modal: true
         
-        implicitHeight: 45
-        radius: 6
-        color: "#1C2128"
-        border.color: clubMouseArea.containsMouse ? "#58A6FF" : "#30363D"
-        
-        MouseArea {
-            id: clubMouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {
-                soundManager.playClick()
-                editDialog.open()
-            }
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
         }
         
-        RowLayout {
+        ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 10
-            spacing: 10
+            anchors.margins: 20
+            spacing: 15
             
             Label {
-                text: clubName
-                color: "#F0F6FC"
-                font.pixelSize: 15
-                Layout.fillWidth: true
-            }
-            
-            Label {
-                text: (currentClubs[clubName] || 0).toFixed(1) + "°"
-                color: "#A6D189"
-                font.pixelSize: 15
+                text: "Reset to Defaults?"
+                color: text
+                font.pixelSize: 22
                 font.bold: true
             }
             
             Label {
-                text: "✏️"
+                text: "Reset all clubs in \"" + currentPreset + "\" to default loft values?"
+                color: hint
                 font.pixelSize: 14
-            }
-        }
-        
-        // Edit Dialog
-        Dialog {
-            id: editDialog
-            anchors.centerIn: Overlay.overlay
-            width: 350
-            height: 280
-            modal: true
-            
-            background: Rectangle {
-                color: "#161B22"
-                radius: 10
-                border.color: "#30363D"
-                border.width: 2
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
             
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 20
+            Item { Layout.fillHeight: true }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
                 
-                Label {
-                    text: "Edit " + clubName
-                    color: "#F0F6FC"
-                    font.pixelSize: 20
-                    font.bold: true
-                }
-                
-                Label {
-                    text: loftSlider.value.toFixed(1) + "°"
-                    color: "#A6D189"
-                    font.pixelSize: 36
-                    font.bold: true
-                    Layout.alignment: Qt.AlignHCenter
-                }
-                
-                Slider {
-                    id: loftSlider
+                Button {
+                    text: "Cancel"
                     Layout.fillWidth: true
-                    from: 8
-                    to: 65
-                    stepSize: 0.5
-                    value: currentClubs[clubName] || 34.0
+                    implicitHeight: 50
                     
                     background: Rectangle {
-                        x: loftSlider.leftPadding
-                        y: loftSlider.topPadding + loftSlider.availableHeight / 2 - height / 2
-                        implicitWidth: 200
-                        implicitHeight: 6
-                        width: loftSlider.availableWidth
-                        height: implicitHeight
-                        radius: 3
-                        color: "#30363D"
-
-                        Rectangle {
-                            width: loftSlider.visualPosition * parent.width
-                            height: parent.height
-                            color: "#1F6FEB"
-                            radius: 3
-                        }
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                        radius: 8
                     }
-
-                    handle: Rectangle {
-                        x: loftSlider.leftPadding + loftSlider.visualPosition * (loftSlider.availableWidth - width)
-                        y: loftSlider.topPadding + loftSlider.availableHeight / 2 - height / 2
-                        implicitWidth: 26
-                        implicitHeight: 26
-                        radius: 13
-                        color: loftSlider.pressed ? "#58A6FF" : "#1F6FEB"
-                        border.color: "#F0F6FC"
-                        border.width: 2
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: text
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        resetDialog.close()
                     }
                 }
                 
-                RowLayout {
+                Button {
+                    text: "Reset"
                     Layout.fillWidth: true
-                    spacing: 10
+                    implicitHeight: 50
                     
-                    Button {
-                        text: "Cancel"
-                        Layout.fillWidth: true
-                        implicitHeight: 48
-                        
-                        background: Rectangle {
-                            color: parent.pressed ? "#5A6168" : "#6C757D"
-                            radius: 8
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 16
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        
-                        onClicked: {
-                            soundManager.playClick()
-                            editDialog.close()
-                        }
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A2A" : danger
+                        radius: 8
                     }
                     
-                    Button {
-                        text: "Save"
-                        Layout.fillWidth: true
-                        implicitHeight: 48
-                        
-                        background: Rectangle {
-                            color: parent.pressed ? "#1D6F2F" : "#238636"
-                            radius: 8
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 16
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        
-                        onClicked: {
-                            soundManager.playClick()
-                            currentClubs[clubName] = loftSlider.value
-                            currentClubs = currentClubs // Force refresh
-                            editDialog.close()
-                        }
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        currentClubs = getDefaultClubs()
+                        savePresets()
+                        resetDialog.close()
                     }
                 }
             }

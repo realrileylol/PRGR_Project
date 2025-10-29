@@ -7,6 +7,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl
 from PySide6.QtMultimedia import QSoundEffect
+from ProfileManager import ProfileManager  # Import the new class
 
 # ============================================
 # Sound Manager Class
@@ -65,14 +66,16 @@ qInstallMessageHandler(handler)
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
     
-    # Create sound manager
+    # Create managers
     sound_manager = SoundManager()
+    profile_manager = ProfileManager()
     
     # Create QML engine
     engine = QQmlApplicationEngine()
     
-    # Expose sound manager to QML
+    # Expose managers to QML
     engine.rootContext().setContextProperty("soundManager", sound_manager)
+    engine.rootContext().setContextProperty("profileManager", profile_manager)
     
     # Load main QML
     engine.load('main.qml')

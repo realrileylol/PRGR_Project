@@ -9,349 +9,469 @@ Item {
 
     property var win
 
+    // Theme colors matching main GUI
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+
     Rectangle {
         anchors.fill: parent
-        color: "#F5F7FA"
+        color: bg
 
-        ScrollView {
-            id: scroller
+        ColumnLayout {
             anchors.fill: parent
-            clip: true
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
-            contentWidth: availableWidth
-
-            ColumnLayout {
-                id: content
-                width: scroller.availableWidth
-                spacing: 20
+            spacing: 0
+            
+            // --- Header Bar ---
+            Rectangle {
+                Layout.fillWidth: true
+                height: 70
+                color: card
                 
-                // Top padding
-                Item { 
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 24 
-                }
-
-                // --- Header ---
                 RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    spacing: 12
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 15
+                    
+                    Button {
+                        text: "← Back"
+                        implicitHeight: 45
+                        implicitWidth: 100
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#2D9A4F" : success
+                            radius: 8
+                        }
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        
+                        onClicked: {
+                            soundManager.playClick()
+                            
+                            // Save all settings
+                            if (win) {
+                                win.useWind = windToggle.checked
+                                win.useTemp = tempToggle.checked
+                                win.useBallType = ballToggle.checked
+                                win.useLaunchEst = launchToggle.checked
+                                win.useSimulateButton = simulateToggle.checked
+                            }
+                            
+                            stack.goBack()
+                        }
+                    }
+                    
+                    Item { Layout.fillWidth: true }
                     
                     Label {
-                        text: "⚙️ Settings"
-                        font.pixelSize: 28
+                        text: "Settings"
+                        color: text
+                        font.pixelSize: 26
                         font.bold: true
-                        color: "#1C1C1C"
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-                }
-
-                Label {
-                    text: "Enable or configure simulation effects below:"
-                    font.pixelSize: 16
-                    color: "#3A3A3A"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
-                Item { 
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 20 
-                }
-
-                // ---- WIND ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    height: 80
-                    radius: 10
-                    color: "white"
-                    border.color: "#D0D5DD"
-                    border.width: 2
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
-
-                        CheckBox {
-                            id: windToggle
-                            checked: win ? win.useWind : false
-                        }
-
-                        Label {
-                            text: "Wind Effects"
-                            font.pixelSize: 18
-                            color: "#1C1C1C"
-                            Layout.fillWidth: true
-                        }
-
-                        Button {
-                            text: "⚙"
-                            implicitWidth: 60
-                            implicitHeight: 60
-                            background: Rectangle { 
-                                color: parent.pressed ? "#3A7BC8" : "#4A90E2"
-                                radius: 10 
-                            }
-                            contentItem: Text {
-                                text: parent.text
-                                color: "white"
-                                font.pixelSize: 24
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: {
-                                soundManager.playClick()
-                                stack.push(Qt.resolvedUrl("WindSettings.qml"), { win: win })
-                            }
-                        }
-                    }
-                }
-
-                // ---- TEMPERATURE ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    height: 80
-                    radius: 10
-                    color: "white"
-                    border.color: "#D0D5DD"
-                    border.width: 2
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
-
-                        CheckBox { 
-                            id: tempToggle
-                            checked: win ? win.useTemp : false 
-                        }
-                        
-                        Label { 
-                            text: "Temperature Effects"
-                            font.pixelSize: 18
-                            color: "#1C1C1C"
-                            Layout.fillWidth: true 
-                        }
-
-                        Button {
-                            text: "⚙"
-                            implicitWidth: 60
-                            implicitHeight: 60
-                            background: Rectangle { 
-                                color: parent.pressed ? "#3A7BC8" : "#4A90E2"
-                                radius: 10 
-                            }
-                            contentItem: Text {
-                                text: parent.text
-                                color: "white"
-                                font.pixelSize: 24
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: {
-                                soundManager.playClick()
-                                stack.push(Qt.resolvedUrl("TempSettings.qml"), { win: win })
-                            }
-                        }
-                    }
-                }
-
-                // ---- BALL TYPE ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    height: 80
-                    radius: 10
-                    color: "white"
-                    border.color: "#D0D5DD"
-                    border.width: 2
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
-
-                        CheckBox { 
-                            id: ballToggle
-                            checked: win ? win.useBallType : false 
-                        }
-                        
-                        Label { 
-                            text: "Ball Type"
-                            font.pixelSize: 18
-                            color: "#1C1C1C"
-                            Layout.fillWidth: true 
-                        }
-
-                        Button {
-                            text: "⚙"
-                            implicitWidth: 60
-                            implicitHeight: 60
-                            background: Rectangle { 
-                                color: parent.pressed ? "#3A7BC8" : "#4A90E2"
-                                radius: 10 
-                            }
-                            contentItem: Text {
-                                text: parent.text
-                                color: "white"
-                                font.pixelSize: 24
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: {
-                                soundManager.playClick()
-                                stack.push(Qt.resolvedUrl("BallSettings.qml"), { win: win })
-                            }
-                        }
-                    }
-                }
-
-                // ---- LAUNCH SETTINGS ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    height: 80
-                    radius: 10
-                    color: "white"
-                    border.color: "#D0D5DD"
-                    border.width: 2
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
-
-                        CheckBox { 
-                            id: launchToggle
-                            checked: win ? win.useLaunchEst : true 
-                        }
-                        
-                        Label { 
-                            text: "Launch Settings"
-                            font.pixelSize: 18
-                            color: "#1C1C1C"
-                            Layout.fillWidth: true 
-                        }
-
-                        Button {
-                            text: "⚙"
-                            implicitWidth: 60
-                            implicitHeight: 60
-                            background: Rectangle { 
-                                color: parent.pressed ? "#3A7BC8" : "#4A90E2"
-                                radius: 10 
-                            }
-                            contentItem: Text {
-                                text: parent.text
-                                color: "white"
-                                font.pixelSize: 24
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: {
-                                soundManager.playClick()
-                                stack.push(Qt.resolvedUrl("LaunchSettings.qml"), { win: win })
-                            }
-                        }
-                    }
-                }
-
-                // ---- SIMULATE BUTTON ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    height: 80
-                    radius: 10
-                    color: "white"
-                    border.color: "#D0D5DD"
-                    border.width: 2
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
-
-                        CheckBox { 
-                            id: simulateToggle
-                            checked: win ? win.useSimulateButton : true 
-                        }
-                        
-                        Label { 
-                            text: "Show Simulate Button"
-                            font.pixelSize: 18
-                            color: "#1C1C1C"
-                            Layout.fillWidth: true 
-                        }
-
-                        Label {
-                            text: "📊"
-                            font.pixelSize: 24
-                            opacity: 0.6
-                        }
-                    }
-                }
-
-                // Spacer
-                Item { 
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 12 
-                }
-
-                // --- Save & Return Button ---
-                Button {
-                    text: "💾 Save & Return"
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    implicitHeight: 56
-                    
-                    background: Rectangle { 
-                        color: parent.pressed ? "#3A7BC8" : "#4A90E2"
-                        radius: 12 
                     }
                     
-                    contentItem: Text {
-                        text: parent.text
-                        color: "white"
-                        font.pixelSize: 18
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    
-                    onClicked: {
-                        soundManager.playClick()
-                        if (win) {
-                            win.useWind = windToggle.checked
-                            win.useTemp = tempToggle.checked
-                            win.useBallType = ballToggle.checked
-                            win.useLaunchEst = launchToggle.checked
-                            win.useSimulateButton = simulateToggle.checked
-                        }
-                        stack.goBack()
-                    }
-                }
-                
-                // Bottom padding
-                Item { 
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 24 
+                    Item { Layout.fillWidth: true }
                 }
             }
+            
+            // --- Main Content ---
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentWidth: availableWidth
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 15
+                    
+                    Item { height: 20 }
+                    
+                    Label {
+                        text: "Enable or configure simulation effects:"
+                        font.pixelSize: 15
+                        color: hint
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                    }
+
+                    // ---- WIND ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            CheckBox {
+                                id: windToggle
+                                checked: false
+                                
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 4
+                                    border.color: windToggle.checked ? accent : edge
+                                    border.width: 2
+                                    color: windToggle.checked ? accent : "transparent"
+                                    
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        visible: windToggle.checked
+                                    }
+                                }
+                            }
+
+                            Label {
+                                text: "Wind Effects"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                
+                                background: Rectangle { 
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("WindSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
+                    // ---- TEMPERATURE ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            CheckBox { 
+                                id: tempToggle
+                                checked: false
+                                
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 4
+                                    border.color: tempToggle.checked ? accent : edge
+                                    border.width: 2
+                                    color: tempToggle.checked ? accent : "transparent"
+                                    
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        visible: tempToggle.checked
+                                    }
+                                }
+                            }
+                            
+                            Label { 
+                                text: "Temperature Effects"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true 
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                
+                                background: Rectangle { 
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("TempSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
+                    // ---- BALL TYPE ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            CheckBox { 
+                                id: ballToggle
+                                checked: false
+                                
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 4
+                                    border.color: ballToggle.checked ? accent : edge
+                                    border.width: 2
+                                    color: ballToggle.checked ? accent : "transparent"
+                                    
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        visible: ballToggle.checked
+                                    }
+                                }
+                            }
+                            
+                            Label { 
+                                text: "Ball Type"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true 
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                
+                                background: Rectangle { 
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("BallSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
+                    // ---- LAUNCH SETTINGS ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            CheckBox { 
+                                id: launchToggle
+                                checked: false
+                                
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 4
+                                    border.color: launchToggle.checked ? accent : edge
+                                    border.width: 2
+                                    color: launchToggle.checked ? accent : "transparent"
+                                    
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        visible: launchToggle.checked
+                                    }
+                                }
+                            }
+                            
+                            Label { 
+                                text: "Launch Settings"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true 
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                
+                                background: Rectangle { 
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("LaunchSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
+                    // ---- SIMULATE BUTTON ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            CheckBox { 
+                                id: simulateToggle
+                                checked: true  // This one defaults to checked
+                                
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 4
+                                    border.color: simulateToggle.checked ? accent : edge
+                                    border.width: 2
+                                    color: simulateToggle.checked ? accent : "transparent"
+                                    
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        visible: simulateToggle.checked
+                                    }
+                                }
+                            }
+                            
+                            Label { 
+                                text: "Show Simulate Button"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true 
+                            }
+
+                            Label {
+                                text: "On Metrics Page"
+                                color: hint
+                                font.pixelSize: 14
+                                Layout.rightMargin: 10
+                            }
+                        }
+                    }
+                    
+                    Item { height: 20 }
+                }
+            }
+        }
+    }
+    
+    // Load current settings when opening
+    Component.onCompleted: {
+        if (win) {
+            windToggle.checked = win.useWind || false
+            tempToggle.checked = win.useTemp || false
+            ballToggle.checked = win.useBallType || false
+            launchToggle.checked = win.useLaunchEst || false
+            simulateToggle.checked = win.useSimulateButton !== undefined ? win.useSimulateButton : true
         }
     }
 }
