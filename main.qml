@@ -27,7 +27,6 @@ ApplicationWindow {
     property string activeProfile: "Guest"
     property int batteryPercent: 87
 
-
     // Club session state
     // Club presets system - multiple sets per profile
     property var clubPresets: ({
@@ -64,6 +63,7 @@ ApplicationWindow {
     property real launchDeg: 16.2
 
     // Settings State
+    property bool useSimulateButton: true
     property bool useWind: false
     property bool useTemp: false
     property bool useBallType: false

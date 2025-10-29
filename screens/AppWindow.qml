@@ -18,6 +18,104 @@ Item {
     readonly property color accent: "#3A86FF"
     readonly property color ok: "#34C759"
 
+    // ORDERED metrics - always displayed in this order
+    property var orderedMetrics: [
+        { id: "clubSpeed", label: "CLUB SPEED", unit: "mph", getValue: function() { return win ? win.clubSpeed.toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "ballSpeed", label: "BALL SPEED", unit: "mph", getValue: function() { return win ? win.ballSpeed.toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "smash", label: "SMASH", unit: "factor", getValue: function() { return win ? win.smash.toFixed(2) : "0.00" }, color: "#F5F7FA", borderColor: edge },
+        { id: "launch", label: "LAUNCH", unit: "degrees", getValue: function() { return win ? win.launchDeg.toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "spin", label: "SPIN", unit: "rpm", getValue: function() { return win ? win.spinEst : 0 }, color: "#F5F7FA", borderColor: edge },
+        { id: "carry", label: "CARRY", unit: "yards", getValue: function() { return win ? win.carry : 0 }, color: "#FFF8E1", borderColor: "#FFD54F", textColor: "#F57F17", valueColor: "#E65100" },
+        { id: "total", label: "TOTAL", unit: "yards", getValue: function() { return win ? win.total : 0 }, color: "#E8F5E9", borderColor: "#66BB6A", textColor: "#2E7D32", valueColor: "#1B5E20" },
+        { id: "apex", label: "APEX", unit: "yards", getValue: function() { return win ? (win.carry * 0.7).toFixed(0) : "0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "descent", label: "DESCENT", unit: "degrees", getValue: function() { return win ? (win.launchDeg * 1.3).toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "hangTime", label: "HANG TIME", unit: "sec", getValue: function() { return win ? ((win.carry / 180) * 5.2).toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "efficiency", label: "EFFICIENCY", unit: "%", getValue: function() { return win ? ((win.smash / 1.50) * 100).toFixed(0) : "0" }, color: "#F5F7FA", borderColor: edge },
+        { id: "spinLoft", label: "SPIN LOFT", unit: "degrees", getValue: function() { return win ? (win.launchDeg + 3).toFixed(1) : "0.0" }, color: "#F5F7FA", borderColor: edge }
+    ]
+
+    // Track which metrics are active (initially all main ones)
+    property var activeMetricIds: ["clubSpeed", "ballSpeed", "smash", "launch", "spin", "carry", "total"]
+
+    // Calculate dynamic sizing based on number of active metrics and available space
+    function getMetricSize(availableWidth, availableHeight) {
+        var count = activeMetricIds.length
+        if (count === 0) return { width: 200, height: 200, fontSize: 48, labelSize: 14, unitSize: 12 }
+        
+        var spacing = 10
+        var maxWidth = availableWidth - 28 // Account for margins
+        
+        // Try different column configurations to find the best fit
+        var bestSize = 0
+        var bestCols = 1
+        
+        for (var cols = 1; cols <= count; cols++) {
+            var rows = Math.ceil(count / cols)
+            var itemWidth = (maxWidth - (cols - 1) * spacing) / cols
+            var itemHeight = (availableHeight - (rows - 1) * spacing) / rows
+            
+            // Use the smaller dimension to keep squares
+            var size = Math.min(itemWidth, itemHeight)
+            
+            if (size > bestSize) {
+                bestSize = size
+                bestCols = cols
+            }
+        }
+        
+        // Clamp size to reasonable bounds
+        bestSize = Math.max(bestSize, 80)
+        bestSize = Math.min(bestSize, 400)
+        
+        var fontSize = Math.max(24, Math.min(64, bestSize * 0.28))
+        var labelSize = Math.max(9, Math.min(16, bestSize * 0.08))
+        var unitSize = Math.max(8, Math.min(14, bestSize * 0.07))
+        
+        return { width: bestSize, height: bestSize, fontSize: fontSize, labelSize: labelSize, unitSize: unitSize }
+    }
+
+    // Get active metrics in order
+    function getActiveMetrics() {
+        var active = []
+        for (var i = 0; i < orderedMetrics.length; i++) {
+            if (activeMetricIds.indexOf(orderedMetrics[i].id) !== -1) {
+                active.push(orderedMetrics[i])
+            }
+        }
+        return active
+    }
+
+    // Get available metrics (not active) in order
+    function getAvailableMetrics() {
+        var available = []
+        for (var i = 0; i < orderedMetrics.length; i++) {
+            if (activeMetricIds.indexOf(orderedMetrics[i].id) === -1) {
+                available.push(orderedMetrics[i])
+            }
+        }
+        return available
+    }
+
+    function removeMetric(metricId) {
+        var newMetrics = []
+        for (var i = 0; i < activeMetricIds.length; i++) {
+            if (activeMetricIds[i] !== metricId) {
+                newMetrics.push(activeMetricIds[i])
+            }
+        }
+        activeMetricIds = newMetrics
+    }
+
+    function addMetrics(metricIds) {
+        var newMetrics = activeMetricIds.slice()
+        for (var i = 0; i < metricIds.length; i++) {
+            if (newMetrics.indexOf(metricIds[i]) === -1) {
+                newMetrics.push(metricIds[i])
+            }
+        }
+        activeMetricIds = newMetrics
+    }
+
     Rectangle { anchors.fill: parent; color: bg }
 
     // ---------- Calculations ----------
@@ -288,86 +386,6 @@ Item {
                     }
                 }
 
-                // SIMULATE SHOT BUTTON (replaces quick stats)
-                Button {
-                    Layout.fillWidth: true
-                    height: 80
-                    text: "SIMULATE SHOT"
-                    
-                    scale: pressed ? 0.97 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 100 } }
-                    
-                    background: Rectangle { 
-                        color: parent.pressed ? "#2563EB" : accent
-                        radius: 14
-                    }
-                    
-                    contentItem: Text {
-                        text: parent.text
-                        color: "white"
-                        font.pixelSize: 22
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-
-                    onClicked: {
-                        if (!win) return
-                        
-                        soundManager.playClick()
-
-                        function rand(min, max) { return min + Math.random() * (max - min) }
-
-                        win.clubSpeed = rand(90, 96)
-                        win.smash = rand(1.37, 1.41)
-                        win.ballSpeed = win.clubSpeed * win.smash
-                        win.spinEst = Math.round(rand(5800, 6700))
-                        win.launchDeg = rand(14, 18)
-
-                        var carryCalc = estimateCarry7i(win.clubSpeed, win.spinEst)
-                        
-                        if (win.useTemp && win.temperature) {
-                            var temp = win.temperature
-                            var tempDiff = temp - 75.0
-                            var tempEffect = 0
-                            
-                            if (temp < 50) {
-                                tempEffect = tempDiff * 0.35
-                            } else if (temp < 65) {
-                                tempEffect = tempDiff * 0.20
-                            } else if (temp < 85) {
-                                tempEffect = tempDiff * 0.10
-                            } else {
-                                tempEffect = tempDiff * 0.15
-                            }
-                            
-                            var compressionMod = 1.0
-                            if (win.useBallType && win.ballCompression) {
-                                var comp = win.ballCompression.toLowerCase()
-                                if (comp.includes("low") || comp.includes("soft")) {
-                                    compressionMod = 0.7
-                                } else if (comp.includes("mid")) {
-                                    compressionMod = 1.0
-                                } else if (comp.includes("high") || comp.includes("firm")) {
-                                    compressionMod = 1.3
-                                } else if (comp.includes("range")) {
-                                    compressionMod = 0.5
-                                }
-                            }
-                            
-                            carryCalc += (tempEffect * compressionMod)
-                        }
-                        
-                        win.carry = Math.max(0, Math.round(carryCalc))
-                        win.total = estimateTotal(win.carry, "normal")
-                        
-                        soundManager.playSuccess()
-                        
-                        // Auto-swipe to metrics page to see results
-                        swipeView.currentIndex = 1
-                    }
-                }
-
                 // Status
                 Rectangle {
                     Layout.fillWidth: true
@@ -402,7 +420,7 @@ Item {
             }
         }
 
-        // ========== PAGE 2: METRICS ONLY ==========
+        // ========== PAGE 2: METRICS ==========
         Item {
             Rectangle {
                 anchors.fill: parent
@@ -446,285 +464,448 @@ Item {
                             
                             Item { Layout.fillWidth: true }
                             
-                            Label {
-                                text: (win ? win.currentClub : "7 Iron")
-                                color: "white"
-                                font.pixelSize: 13
-                                opacity: 0.85
+                            Button {
+                                text: "+"
+                                implicitWidth: 36
+                                implicitHeight: 36
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : "white"
+                                    radius: 8
+                                    opacity: 0.9
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: parent.pressed ? "white" : accent
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                
+                                onClicked: {
+                                    soundManager.playClick()
+                                    addMetricDialog.selectedMetrics = []
+                                    addMetricDialog.open()
+                                }
                             }
                         }
                     }
 
-                    // Metrics Grid
-                    GridLayout {
+                    // Metrics Grid - FILLS SPACE BETWEEN HEADER AND BUTTON
+                    Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.margins: 14
-                        Layout.topMargin: 10
-                        Layout.bottomMargin: 10
-                        columns: 2
-                        rows: 4
-                        columnSpacing: 12
-                        rowSpacing: 10
+                        
+                        Flow {
+                            id: metricsFlow
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 10
+                            
+                            property var sizing: getMetricSize(width, height)
+                            
+                            Repeater {
+                                model: getActiveMetrics()
+                                
+                                Rectangle {
+                                    property var metric: modelData
+                                    
+                                    width: metricsFlow.sizing.width
+                                    height: metricsFlow.sizing.height
+                                    radius: 12
+                                    
+                                    color: metric.color || "#F5F7FA"
+                                    border.color: metric.borderColor || edge
+                                    border.width: 2
+                                    
+                                    Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                    
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onPressAndHold: {
+                                            soundManager.playClick()
+                                            deleteDialog.metricToDelete = metric.id
+                                            deleteDialog.metricLabel = metric.label
+                                            deleteDialog.open()
+                                        }
+                                    }
+                                    
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 4
+                                        
+                                        Label { 
+                                            text: metric.label
+                                            color: metric.textColor || hint
+                                            font.pixelSize: metricsFlow.sizing.labelSize
+                                            font.bold: true
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                        Label { 
+                                            text: metric.getValue()
+                                            color: metric.valueColor || text
+                                            font.pixelSize: metricsFlow.sizing.fontSize
+                                            font.bold: true
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                        Label {
+                                            text: metric.unit
+                                            color: metric.textColor || hint
+                                            font.pixelSize: metricsFlow.sizing.unitSize
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
-                        // BALL SPEED
+                    // SIMULATE SHOT BUTTON
+                    Button {
+                        visible: win ? win.useSimulateButton : false
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 14
+                        Layout.rightMargin: 14
+                        Layout.bottomMargin: 14
+                        Layout.preferredHeight: visible ? 70 : 0
+                        text: "SIMULATE SHOT"
+                        
+                        scale: pressed ? 0.97 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+                        
+                        background: Rectangle { 
+                            color: parent.pressed ? "#2563EB" : accent
+                            radius: 14
+                        }
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 20
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            if (!win) return
+                            
+                            soundManager.playClick()
+
+                            function rand(min, max) { return min + Math.random() * (max - min) }
+
+                            win.clubSpeed = rand(90, 96)
+                            win.smash = rand(1.37, 1.41)
+                            win.ballSpeed = win.clubSpeed * win.smash
+                            win.spinEst = Math.round(rand(5800, 6700))
+                            win.launchDeg = rand(14, 18)
+
+                            var carryCalc = estimateCarry7i(win.clubSpeed, win.spinEst)
+                            
+                            if (win.useTemp && win.temperature) {
+                                var temp = win.temperature
+                                var tempDiff = temp - 75.0
+                                var tempEffect = 0
+                                
+                                if (temp < 50) {
+                                    tempEffect = tempDiff * 0.35
+                                } else if (temp < 65) {
+                                    tempEffect = tempDiff * 0.20
+                                } else if (temp < 85) {
+                                    tempEffect = tempDiff * 0.10
+                                } else {
+                                    tempEffect = tempDiff * 0.15
+                                }
+                                
+                                var compressionMod = 1.0
+                                if (win.useBallType && win.ballCompression) {
+                                    var comp = win.ballCompression.toLowerCase()
+                                    if (comp.includes("low") || comp.includes("soft")) {
+                                        compressionMod = 0.7
+                                    } else if (comp.includes("mid")) {
+                                        compressionMod = 1.0
+                                    } else if (comp.includes("high") || comp.includes("firm")) {
+                                        compressionMod = 1.3
+                                    } else if (comp.includes("range")) {
+                                        compressionMod = 0.5
+                                    }
+                                }
+                                
+                                carryCalc += (tempEffect * compressionMod)
+                            }
+                            
+                            win.carry = Math.max(0, Math.round(carryCalc))
+                            win.total = estimateTotal(win.carry, "normal")
+                            
+                            soundManager.playSuccess()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Delete Metric Dialog
+    Dialog {
+        id: deleteDialog
+        anchors.centerIn: parent
+        width: 350
+        height: 200
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        property string metricToDelete: ""
+        property string metricLabel: ""
+        
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
+        }
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 20
+            
+            Label {
+                text: "Remove Metric?"
+                color: text
+                font.pixelSize: 20
+                font.bold: true
+            }
+            
+            Label {
+                text: "Remove \"" + deleteDialog.metricLabel + "\" from your metrics view?"
+                color: hint
+                font.pixelSize: 14
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            
+            Item { Layout.fillHeight: true }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                
+                Button {
+                    text: "Cancel"
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#E5E7EB" : "#F5F7FA"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: text
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        deleteDialog.close()
+                    }
+                }
+                
+                Button {
+                    text: "Remove"
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A2A" : "#DA3633"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        removeMetric(deleteDialog.metricToDelete)
+                        deleteDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Add Metric Dialog with Multi-Select
+    Dialog {
+        id: addMetricDialog
+        anchors.centerIn: parent
+        width: 450
+        height: 450
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        property var selectedMetrics: []
+        
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
+        }
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 15
+            
+            Label {
+                text: "Add Metrics"
+                color: text
+                font.pixelSize: 22
+                font.bold: true
+            }
+            
+            Label {
+                text: "Select metrics to add (will be added in order):"
+                color: hint
+                font.pixelSize: 14
+            }
+            
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 8
+                    
+                    Repeater {
+                        model: getAvailableMetrics()
+                        
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#F5F7FA"
+                            height: 55
+                            radius: 8
+                            color: checkBox.checked ? "#E8F0FE" : "#F5F7FA"
                             border.color: edge
-                            border.width: 2
+                            border.width: 1
                             
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 10
                                 
-                                Label { 
-                                    text: "BALL SPEED"
-                                    color: hint
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
+                                CheckBox {
+                                    id: checkBox
+                                    checked: addMetricDialog.selectedMetrics.indexOf(modelData.id) !== -1
+                                    
+                                    onCheckedChanged: {
+                                        var selected = addMetricDialog.selectedMetrics.slice()
+                                        var idx = selected.indexOf(modelData.id)
+                                        
+                                        if (checked && idx === -1) {
+                                            selected.push(modelData.id)
+                                        } else if (!checked && idx !== -1) {
+                                            selected.splice(idx, 1)
+                                        }
+                                        
+                                        addMetricDialog.selectedMetrics = selected
+                                    }
                                 }
-                                Label { 
-                                    text: (win ? win.ballSpeed.toFixed(1) : "0.0")
+                                
+                                Label {
+                                    text: modelData.label
                                     color: text
-                                    font.pixelSize: 38
+                                    font.pixelSize: 16
                                     font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
+                                    Layout.fillWidth: true
                                 }
-                                Label {
-                                    text: "mph"
-                                    color: hint
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                            }
-                        }
-
-                        // CLUB SPEED
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#F5F7FA"
-                            border.color: edge
-                            border.width: 2
-                            
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
                                 
-                                Label { 
-                                    text: "CLUB SPEED"
-                                    color: hint
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.clubSpeed.toFixed(1) : "0.0")
-                                    color: text
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
                                 Label {
-                                    text: "mph"
+                                    text: modelData.unit
                                     color: hint
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
+                                    font.pixelSize: 13
                                 }
                             }
-                        }
-
-                        // LAUNCH
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#F5F7FA"
-                            border.color: edge
-                            border.width: 2
                             
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                
-                                Label { 
-                                    text: "LAUNCH"
-                                    color: hint
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.launchDeg.toFixed(1) : "0.0")
-                                    color: text
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label {
-                                    text: "degrees"
-                                    color: hint
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    soundManager.playClick()
+                                    checkBox.checked = !checkBox.checked
                                 }
                             }
                         }
-
-                        // SPIN
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#F5F7FA"
-                            border.color: edge
-                            border.width: 2
-                            
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                
-                                Label { 
-                                    text: "SPIN"
-                                    color: hint
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.spinEst : 0)
-                                    color: text
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label {
-                                    text: "rpm"
-                                    color: hint
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                            }
-                        }
-
-                        // SMASH
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#F5F7FA"
-                            border.color: edge
-                            border.width: 2
-                            
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                
-                                Label { 
-                                    text: "SMASH"
-                                    color: hint
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.smash.toFixed(2) : "0.00")
-                                    color: text
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label {
-                                    text: "factor"
-                                    color: hint
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                            }
-                        }
-
-                        // CARRY
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#FFF8E1"
-                            border.color: "#FFD54F"
-                            border.width: 2
-                            
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                
-                                Label { 
-                                    text: "CARRY"
-                                    color: "#F57F17"
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.carry : 0)
-                                    color: "#E65100"
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label {
-                                    text: "yards"
-                                    color: "#F57F17"
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                            }
-                        }
-
-                        // TOTAL
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: 90
-                            radius: 12
-                            color: "#E8F5E9"
-                            border.color: "#66BB6A"
-                            border.width: 2
-                            
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                
-                                Label { 
-                                    text: "TOTAL"
-                                    color: "#2E7D32"
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label { 
-                                    text: (win ? win.total : 0)
-                                    color: "#1B5E20"
-                                    font.pixelSize: 38
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Label {
-                                    text: "yards"
-                                    color: "#2E7D32"
-                                    font.pixelSize: 11
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                            }
-                        }
+                    }
+                }
+            }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                
+                Button {
+                    text: "Cancel"
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#E5E7EB" : "#F5F7FA"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: text
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        addMetricDialog.close()
+                    }
+                }
+                
+                Button {
+                    text: "Add Selected (" + addMetricDialog.selectedMetrics.length + ")"
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    enabled: addMetricDialog.selectedMetrics.length > 0
+                    
+                    background: Rectangle {
+                        color: parent.enabled ? (parent.pressed ? "#2563EB" : accent) : "#C8CCD4"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.enabled ? "white" : "#5F6B7A"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        soundManager.playClick()
+                        addMetrics(addMetricDialog.selectedMetrics)
+                        addMetricDialog.close()
                     }
                 }
             }
