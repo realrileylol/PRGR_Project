@@ -114,38 +114,46 @@ Item {
                         border.width: 2
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
                             spacing: 15
 
-                            CheckBox {
+                            Rectangle {
                                 id: windToggle
-                                checked: false
+                                property bool checked: false
                                 
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 4
-                                    border.color: windToggle.checked ? accent : edge
-                                    border.width: 2
-                                    color: windToggle.checked ? accent : "transparent"
-                                    
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        visible: windToggle.checked
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? accent : edge
+                                border.width: 2
+                                color: checked ? accent : "transparent"
+                                
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        parent.checked = !parent.checked
                                     }
                                 }
                             }
 
-                            Text {  // CHANGED TO Text AND WHITE
+                            Text {
                                 text: "Wind Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"  // WHITE
+                                color: "#F0F6FC"
                                 Layout.fillWidth: true
                             }
 
@@ -186,39 +194,47 @@ Item {
                         border.width: 2
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
                             spacing: 15
 
-                            CheckBox { 
+                            Rectangle {
                                 id: tempToggle
-                                checked: false
+                                property bool checked: false
                                 
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 4
-                                    border.color: tempToggle.checked ? accent : edge
-                                    border.width: 2
-                                    color: tempToggle.checked ? accent : "transparent"
-                                    
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        visible: tempToggle.checked
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? accent : edge
+                                border.width: 2
+                                color: checked ? accent : "transparent"
+                                
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        parent.checked = !parent.checked
                                     }
                                 }
                             }
-                            
-                            Text {  // CHANGED TO Text AND WHITE
+
+                            Text {
                                 text: "Temperature Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"  // WHITE
-                                Layout.fillWidth: true 
+                                color: "#F0F6FC"
+                                Layout.fillWidth: true
                             }
 
                             Button {
@@ -258,39 +274,47 @@ Item {
                         border.width: 2
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
                             spacing: 15
 
-                            CheckBox { 
+                            Rectangle {
                                 id: ballToggle
-                                checked: false
+                                property bool checked: false
                                 
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 4
-                                    border.color: ballToggle.checked ? accent : edge
-                                    border.width: 2
-                                    color: ballToggle.checked ? accent : "transparent"
-                                    
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        visible: ballToggle.checked
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? accent : edge
+                                border.width: 2
+                                color: checked ? accent : "transparent"
+                                
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        parent.checked = !parent.checked
                                     }
                                 }
                             }
-                            
-                            Text {  // CHANGED TO Text AND WHITE
+
+                            Text {
                                 text: "Ball Type"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"  // WHITE
-                                Layout.fillWidth: true 
+                                color: "#F0F6FC"
+                                Layout.fillWidth: true
                             }
 
                             Button {
@@ -330,39 +354,47 @@ Item {
                         border.width: 2
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
                             spacing: 15
 
-                            CheckBox { 
+                            Rectangle {
                                 id: launchToggle
-                                checked: false
+                                property bool checked: false
                                 
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 4
-                                    border.color: launchToggle.checked ? accent : edge
-                                    border.width: 2
-                                    color: launchToggle.checked ? accent : "transparent"
-                                    
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        visible: launchToggle.checked
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? accent : edge
+                                border.width: 2
+                                color: checked ? accent : "transparent"
+                                
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        parent.checked = !parent.checked
                                     }
                                 }
                             }
-                            
-                            Text {  // CHANGED TO Text AND WHITE
+
+                            Text {
                                 text: "Launch Settings"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"  // WHITE
-                                Layout.fillWidth: true 
+                                color: "#F0F6FC"
+                                Layout.fillWidth: true
                             }
 
                             Button {
@@ -402,42 +434,50 @@ Item {
                         border.width: 2
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
                             spacing: 15
 
-                            CheckBox { 
+                            Rectangle {
                                 id: simulateToggle
-                                checked: false
+                                property bool checked: false
                                 
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 4
-                                    border.color: simulateToggle.checked ? accent : edge
-                                    border.width: 2
-                                    color: simulateToggle.checked ? accent : "transparent"
-                                    
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        visible: simulateToggle.checked
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? accent : edge
+                                border.width: 2
+                                color: checked ? accent : "transparent"
+                                
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        parent.checked = !parent.checked
                                     }
                                 }
                             }
-                            
-                            Text {  // CHANGED TO Text AND WHITE
+
+                            Text {
                                 text: "Show Simulate Button"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"  // WHITE
-                                Layout.fillWidth: true 
+                                color: "#F0F6FC"
+                                Layout.fillWidth: true
                             }
 
-                            Text {  // CHANGED TO Text
+                            Text {
                                 text: "On Metrics Page"
                                 color: hint
                                 font.pixelSize: 14
@@ -458,7 +498,7 @@ Item {
             tempToggle.checked = win.useTemp || false
             ballToggle.checked = win.useBallType || false
             launchToggle.checked = win.useLaunchEst || false
-            simulateToggle.checked = win.useSimulateButton !== undefined ? win.useSimulateButton : false
+            simulateToggle.checked = win.useSimulateButton || false
         }
     }
 }

@@ -69,11 +69,11 @@ ApplicationWindow {
     property real launchDeg: 16.2
 
     // Settings State
-    property bool useSimulateButton: true
+    property bool useSimulateButton: false
     property bool useWind: false
     property bool useTemp: false
     property bool useBallType: false
-    property bool useLaunchEst: true
+    property bool useLaunchEst: false
     property real temperature: 75
     property real windSpeed: 0
     property real windDirection: 0
