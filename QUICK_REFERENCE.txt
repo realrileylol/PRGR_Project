@@ -1,0 +1,174 @@
+╔══════════════════════════════════════════════════════════════╗
+║         ProfilerV1 - Raspberry Pi Quick Reference            ║
+╚══════════════════════════════════════════════════════════════╝
+
+📦 INSTALLATION (Run these commands on your Raspberry Pi)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Make scripts executable:
+   chmod +x setup_raspi.sh run.sh
+
+2. Run automated setup:
+   ./setup_raspi.sh
+
+3. Generate sound files:
+   cd sounds
+   python3 Download.py
+   cd ..
+
+4. Run the app:
+   ./run.sh
+   
+   OR
+   
+   python3 main.py
+
+
+⚠️  COMMON ERRORS & FIXES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ERROR: "ModuleNotFoundError: No module named 'PySide6'"
+FIX:   pip3 install --break-system-packages PySide6
+
+ERROR: "Could not load the Qt platform plugin"  
+FIX:   export QT_QPA_PLATFORM=xcb
+       python3 main.py
+
+ERROR: "ImportError: libQt6Multimedia.so.6"
+FIX:   sudo apt-get install -y libqt6multimedia6 qt6-multimedia-dev
+
+ERROR: Sound not working
+FIX:   cd sounds && python3 Download.py && cd ..
+       pulseaudio --start
+
+ERROR: Blank/black window
+FIX:   export QT_QUICK_BACKEND=software
+       python3 main.py
+
+
+🔧 MANUAL INSTALLATION (If script fails)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Update system
+sudo apt-get update
+
+# Install system packages
+sudo apt-get install -y python3 python3-pip python3-dev \
+    qt6-base-dev libqt6multimedia6 qt6-multimedia-dev \
+    libgles2-mesa-dev libegl1-mesa-dev libgbm-dev libdrm-dev \
+    libxkbcommon-x11-0 libxcb-xinerama0 libxcb-cursor0 \
+    libasound2-dev pulseaudio libpulse-dev
+
+# Install Python packages
+pip3 install --break-system-packages PySide6 numpy
+
+
+🚀 DIFFERENT WAYS TO RUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Method 1: Quick start script (recommended)
+./run.sh
+
+# Method 2: Direct Python
+python3 main.py
+
+# Method 3: With platform specified
+QT_QPA_PLATFORM=xcb python3 main.py
+
+# Method 4: Software rendering (slowest, most compatible)
+QT_QUICK_BACKEND=software python3 main.py
+
+# Method 5: Basic style (better performance)
+QT_QUICK_CONTROLS_STYLE=Basic python3 main.py
+
+
+⚡ PERFORMANCE TIPS FOR RASPBERRY PI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Close other apps to free memory
+2. Use wired network instead of WiFi
+3. Edit main.py, change line 4 to:
+   os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
+4. For Pi 3: Reduce window size in main.qml
+5. Ensure Pi is properly cooled (fan/heatsink)
+
+
+✅ VERIFY INSTALLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+python3 << EOF
+try:
+    import PySide6.QtCore
+    print("✓ PySide6: OK")
+except ImportError:
+    print("✗ PySide6: MISSING")
+    
+try:
+    import PySide6.QtMultimedia
+    print("✓ QtMultimedia: OK")
+except ImportError:
+    print("✗ QtMultimedia: MISSING")
+    
+try:
+    import numpy
+    print("✓ NumPy: OK")
+except ImportError:
+    print("✗ NumPy: MISSING")
+EOF
+
+
+📁 FILES YOU NEED ON RASPBERRY PI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ProfilerV1/
+├── main.py .......................... Main application file
+├── ProfileManager.py ................ Profile data manager
+├── main.qml ......................... Main window
+├── profiles.json .................... Saved data (created automatically)
+├── setup_raspi.sh ................... Setup script (NEW)
+├── run.sh ........................... Quick start script (NEW)
+├── requirements.txt ................. Python dependencies (NEW)
+├── screens/
+│   ├── AppWindow.qml
+│   ├── ProfileScreen.qml
+│   ├── MyBag.qml
+│   ├── SettingsScreen.qml
+│   └── ... (all other .qml files)
+└── sounds/
+    ├── Download.py .................. Sound generator
+    ├── click.wav .................... (generated)
+    └── success.wav .................. (generated)
+
+
+🆘 GETTING HELP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Read TROUBLESHOOTING.md for detailed solutions
+2. Check Python version: python3 --version
+3. Check Raspberry Pi model: cat /proc/device-tree/model
+4. Check OS version: cat /etc/os-release
+5. Check memory: free -h
+6. Check Qt installation: dpkg -l | grep qt6
+
+
+💡 ONE-LINE FIX (Try this first!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+sudo apt-get update && sudo apt-get install -y python3-pip qt6-base-dev libqt6multimedia6 && pip3 install --break-system-packages PySide6 numpy && cd sounds && python3 Download.py && cd .. && python3 main.py
+
+
+📊 MINIMUM REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Raspberry Pi 3 or newer (Pi 4/5 recommended)
+• Raspberry Pi OS (Debian-based)
+• 1GB RAM minimum (2GB+ recommended)
+• Display (800x480 minimum)
+• Python 3.7+
+• 500MB free disk space
+
+
+═══════════════════════════════════════════════════════════════
+For complete documentation, see README.md
+For detailed troubleshooting, see TROUBLESHOOTING.md
+═══════════════════════════════════════════════════════════════
