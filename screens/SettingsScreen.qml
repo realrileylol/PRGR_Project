@@ -9,14 +9,17 @@ Item {
 
     property var win
 
-    // DARK THEME COLORS
+    // DARK THEME COLORS - MATCHING TEMPSETTINGS EXACTLY
     readonly property color bg: "#0D1117"
     readonly property color card: "#161B22"
     readonly property color edge: "#30363D"
     readonly property color text: "#F0F6FC"
     readonly property color hint: "#8B949E"
+    readonly property color successText: "#A6D189"
     readonly property color accent: "#1F6FEB"
+    readonly property color accentHover: "#1558B8"
     readonly property color success: "#238636"
+    readonly property color successHover: "#1D6F2F"
 
     Rectangle {
         anchors.fill: parent
@@ -24,73 +27,72 @@ Item {
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 0
+            anchors.margins: 24
+            spacing: 24
             
-            // Header Bar
-            Rectangle {
+            // --- Header --- PERFECTLY CENTERED
+            RowLayout {
                 Layout.fillWidth: true
-                height: 70
-                color: card
+                spacing: 12
                 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 20
-                    anchors.rightMargin: 20
-                    spacing: 0
+                Button {
+                    text: "← Back"
+                    implicitWidth: 100
+                    implicitHeight: 48
                     
-                    Button {
-                        text: "← Back"
-                        implicitHeight: 45
-                        implicitWidth: 100
-                        
-                        background: Rectangle {
-                            color: parent.pressed ? "#1D6F2F" : success
-                            radius: 8
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 16
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        
-                        onClicked: {
-                            soundManager.playClick()
-                            
-                            if (win) {
-                                win.useWind = windToggle.checked
-                                win.useTemp = tempToggle.checked
-                                win.useBallType = ballToggle.checked
-                                win.useLaunchEst = launchToggle.checked
-                                win.useSimulateButton = simulateToggle.checked
-                            }
-                            
-                            stack.goBack()
-                        }
+                    background: Rectangle { 
+                        color: parent.pressed ? successHover : success
+                        radius: 6 
                     }
                     
-                    Item { Layout.fillWidth: true }
-                    
-                    Label {
-                        text: "Settings"
-                        color: text
-                        font.pixelSize: 26
-                        font.bold: true
-                        Layout.alignment: Qt.AlignHCenter
+                    contentItem: Text { 
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     
-                    Item { Layout.fillWidth: true }
-                    
-                    // Invisible spacer to balance the back button
-                    Item {
-                        implicitWidth: 100
+                    onClicked: {
+                        soundManager.playClick()
+                        
+                        if (win) {
+                            win.useWind = windToggle.checked
+                            win.useTemp = tempToggle.checked
+                            win.useBallType = ballToggle.checked
+                            win.useLaunchEst = launchToggle.checked
+                            win.useSimulateButton = simulateToggle.checked
+                        }
+                        
+                        stack.goBack()
                     }
+                }
+                
+                Item { Layout.fillWidth: true }
+                
+                Text {
+                    text: "Settings"
+                    color: "#F0F6FC"
+                    font.pixelSize: 24
+                    font.bold: true
+                }
+                
+                Item { Layout.fillWidth: true }
+                
+                Item {
+                    implicitWidth: 100
+                    implicitHeight: 48
                 }
             }
             
+            Text {
+                text: "Enable or configure simulation effects:"
+                font.pixelSize: 14
+                color: hint
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
             // Main Content
             ScrollView {
                 Layout.fillWidth: true
@@ -101,22 +103,10 @@ Item {
                 ColumnLayout {
                     width: parent.width
                     spacing: 15
-                    
-                    Item { height: 20 }
-                    
-                    Label {
-                        text: "Enable or configure simulation effects:"
-                        font.pixelSize: 15
-                        color: hint
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
-                    }
 
                     // WIND
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
                         height: 80
                         radius: 10
                         color: card
@@ -151,11 +141,11 @@ Item {
                                 }
                             }
 
-                            Label {
+                            Text {  // CHANGED TO Text AND WHITE
                                 text: "Wind Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: text
+                                color: "#F0F6FC"  // WHITE
                                 Layout.fillWidth: true
                             }
 
@@ -165,7 +155,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#1558B8" : accent
+                                    color: parent.pressed ? accentHover : accent
                                     radius: 8
                                 }
                                 
@@ -189,8 +179,6 @@ Item {
                     // TEMPERATURE
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
                         height: 80
                         radius: 10
                         color: card
@@ -225,11 +213,11 @@ Item {
                                 }
                             }
                             
-                            Label { 
+                            Text {  // CHANGED TO Text AND WHITE
                                 text: "Temperature Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: text
+                                color: "#F0F6FC"  // WHITE
                                 Layout.fillWidth: true 
                             }
 
@@ -239,7 +227,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#1558B8" : accent
+                                    color: parent.pressed ? accentHover : accent
                                     radius: 8
                                 }
                                 
@@ -263,8 +251,6 @@ Item {
                     // BALL TYPE
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
                         height: 80
                         radius: 10
                         color: card
@@ -299,11 +285,11 @@ Item {
                                 }
                             }
                             
-                            Label { 
+                            Text {  // CHANGED TO Text AND WHITE
                                 text: "Ball Type"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: text
+                                color: "#F0F6FC"  // WHITE
                                 Layout.fillWidth: true 
                             }
 
@@ -313,7 +299,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#1558B8" : accent
+                                    color: parent.pressed ? accentHover : accent
                                     radius: 8
                                 }
                                 
@@ -337,8 +323,6 @@ Item {
                     // LAUNCH SETTINGS
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
                         height: 80
                         radius: 10
                         color: card
@@ -373,11 +357,11 @@ Item {
                                 }
                             }
                             
-                            Label { 
+                            Text {  // CHANGED TO Text AND WHITE
                                 text: "Launch Settings"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: text
+                                color: "#F0F6FC"  // WHITE
                                 Layout.fillWidth: true 
                             }
 
@@ -387,7 +371,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#1558B8" : accent
+                                    color: parent.pressed ? accentHover : accent
                                     radius: 8
                                 }
                                 
@@ -411,8 +395,6 @@ Item {
                     // SIMULATE BUTTON
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 24
-                        Layout.rightMargin: 24
                         height: 80
                         radius: 10
                         color: card
@@ -447,15 +429,15 @@ Item {
                                 }
                             }
                             
-                            Label { 
+                            Text {  // CHANGED TO Text AND WHITE
                                 text: "Show Simulate Button"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: text
+                                color: "#F0F6FC"  // WHITE
                                 Layout.fillWidth: true 
                             }
 
-                            Label {
+                            Text {  // CHANGED TO Text
                                 text: "On Metrics Page"
                                 color: hint
                                 font.pixelSize: 14

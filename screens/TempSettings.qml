@@ -4,13 +4,12 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: tempSettings
-    width: 480
-    height: 800
+    width: 800
+    height: 480
 
     property var win
     property real temperature: 72.0
 
-    // Load current value when screen opens
     Component.onCompleted: {
         if (win) {
             temperature = win.temperature || 72.0
@@ -24,38 +23,53 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 24
+        anchors.margins: 20
+        spacing: 12
 
         // --- Header ---
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
+            
             Button {
                 text: "← Back"
-                implicitWidth: 100
-                implicitHeight: 48
+                implicitWidth: 90
+                implicitHeight: 42
                 background: Rectangle { color: "#238636"; radius: 6 }
-                contentItem: Text { text: parent.text; color: "white"; font.pixelSize: 16 }
+                contentItem: Text { 
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 15
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
                 onClicked: {
                     soundManager.playClick()
+                    if (win) {
+                        win.temperature = temperature
+                    }
                     stack.goBack()
                 }
             }
-            Label {
+            
+            Item { Layout.fillWidth: true }
+            
+            Text {
                 text: "Temperature Settings"
                 color: "#F0F6FC"
-                font.pixelSize: 24
+                font.pixelSize: 22
                 font.bold: true
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
             }
+            
+            Item { Layout.fillWidth: true }
+            
+            Item { implicitWidth: 90; implicitHeight: 42 }
         }
 
-        Label {
-            text: "Adjust temperature to simulate real-world ball flight conditions. Temperature affects air density, ball compression, and carry distance."
+        Text {
+            text: "Adjust temperature to simulate real-world ball flight conditions."
             color: "#8B949E"
-            font.pixelSize: 14
+            font.pixelSize: 13
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -63,20 +77,21 @@ Item {
         // --- Temperature Slider ---
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 200
+            Layout.preferredHeight: 140
             radius: 10
             color: "#161B22"
             border.color: "#30363D"
+            border.width: 2
             
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 20
-                spacing: 15
+                anchors.margins: 15
+                spacing: 10
 
-                Label {
+                Text {
                     text: "Temperature: " + temperature.toFixed(1) + " °F"
                     color: "#F0F6FC"
-                    font.pixelSize: 28
+                    font.pixelSize: 22
                     font.bold: true
                 }
 
@@ -113,16 +128,16 @@ Item {
                     handle: Rectangle {
                         x: tempSlider.leftPadding + tempSlider.visualPosition * (tempSlider.availableWidth - width)
                         y: tempSlider.topPadding + tempSlider.availableHeight / 2 - height / 2
-                        implicitWidth: 26
-                        implicitHeight: 26
-                        radius: 13
+                        implicitWidth: 24
+                        implicitHeight: 24
+                        radius: 12
                         color: tempSlider.pressed ? "#58A6FF" : "#1F6FEB"
                         border.color: "#F0F6FC"
                         border.width: 2
                     }
                 }
 
-                Label {
+                Text {
                     text: {
                         if (temperature < 50) return "❄️ Cold – Ball loses ~2-5 yards per 10°F"
                         else if (temperature < 65) return "🌤️ Cool – Ball loses ~1-2 yards per 10°F"
@@ -130,7 +145,7 @@ Item {
                         else return "🔥 Hot – Ball gains ~1-2 yards per 10°F"
                     }
                     color: "#A6D189"
-                    font.pixelSize: 16
+                    font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -140,45 +155,44 @@ Item {
         // --- Ball Compression Info ---
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 180
+            Layout.preferredHeight: 140
             radius: 10
             color: "#161B22"
             border.color: "#30363D"
+            border.width: 2
             
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
+                anchors.margins: 15
+                spacing: 8
 
-                Label {
+                Text {
                     text: "How Temperature Affects Different Balls:"
                     color: "#F0F6FC"
-                    font.pixelSize: 18
+                    font.pixelSize: 16
                     font.bold: true
                 }
 
-                Label {
-                    text: "• Tour Balls (High Compression): Most affected by cold\n• Mid Compression: Moderate temperature sensitivity\n• Low Compression/Soft: Less affected by temperature\n• Range Balls: Minimal temperature effect (harder core)"
+                Text {
+                    text: "• Tour Balls: Most affected by cold\n• Mid Compression: Moderate sensitivity\n• Low Compression/Soft: Less affected\n• Range Balls: Minimal temperature effect"
                     color: "#8B949E"
-                    font.pixelSize: 14
+                    font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                    lineHeight: 1.3
                 }
             }
         }
 
-        // Spacer
-        Item { Layout.fillHeight: true }
-
         // --- Buttons ---
         RowLayout {
             Layout.fillWidth: true
-            spacing: 15
+            spacing: 12
 
             Button {
                 text: "Save & Return"
                 Layout.fillWidth: true
-                implicitHeight: 56
+                implicitHeight: 48
                 
                 background: Rectangle { 
                     color: parent.pressed ? "#1D6F2F" : "#238636"
@@ -188,7 +202,7 @@ Item {
                 contentItem: Text { 
                     text: parent.text
                     color: "white"
-                    font.pixelSize: 18
+                    font.pixelSize: 16
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -196,10 +210,8 @@ Item {
                 
                 onClicked: {
                     soundManager.playClick()
-                    // SAVE TO WIN
                     if (win) {
                         win.temperature = temperature
-                        console.log("Saved temperature:", temperature)
                     }
                     stack.goBack()
                 }
@@ -208,7 +220,7 @@ Item {
             Button {
                 text: "Save & Home"
                 Layout.fillWidth: true
-                implicitHeight: 56
+                implicitHeight: 48
                 
                 background: Rectangle { 
                     color: parent.pressed ? "#1558B8" : "#1F6FEB"
@@ -218,7 +230,7 @@ Item {
                 contentItem: Text { 
                     text: parent.text
                     color: "white"
-                    font.pixelSize: 18
+                    font.pixelSize: 16
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -226,12 +238,9 @@ Item {
                 
                 onClicked: {
                     soundManager.playClick()
-                    // SAVE TO WIN
                     if (win) {
                         win.temperature = temperature
-                        console.log("Saved temperature:", temperature)
                     }
-                    // Go back to main screen (pop all)
                     while (stack.depth > 1) {
                         stack.pop()
                     }
