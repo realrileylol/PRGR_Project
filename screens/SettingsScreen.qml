@@ -9,14 +9,14 @@ Item {
 
     property var win
 
-    // Theme colors matching main GUI
-    readonly property color bg: "#F5F7FA"
-    readonly property color card: "#FFFFFF"
-    readonly property color edge: "#D0D5DD"
-    readonly property color text: "#1A1D23"
-    readonly property color hint: "#5F6B7A"
-    readonly property color accent: "#3A86FF"
-    readonly property color success: "#34C759"
+    // DARK THEME COLORS
+    readonly property color bg: "#0D1117"
+    readonly property color card: "#161B22"
+    readonly property color edge: "#30363D"
+    readonly property color text: "#F0F6FC"
+    readonly property color hint: "#8B949E"
+    readonly property color accent: "#1F6FEB"
+    readonly property color success: "#238636"
 
     Rectangle {
         anchors.fill: parent
@@ -26,7 +26,7 @@ Item {
             anchors.fill: parent
             spacing: 0
             
-            // --- Header Bar ---
+            // Header Bar
             Rectangle {
                 Layout.fillWidth: true
                 height: 70
@@ -34,8 +34,9 @@ Item {
                 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 15
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    spacing: 0
                     
                     Button {
                         text: "← Back"
@@ -43,7 +44,7 @@ Item {
                         implicitWidth: 100
                         
                         background: Rectangle {
-                            color: parent.pressed ? "#2D9A4F" : success
+                            color: parent.pressed ? "#1D6F2F" : success
                             radius: 8
                         }
                         
@@ -59,7 +60,6 @@ Item {
                         onClicked: {
                             soundManager.playClick()
                             
-                            // Save all settings
                             if (win) {
                                 win.useWind = windToggle.checked
                                 win.useTemp = tempToggle.checked
@@ -79,13 +79,19 @@ Item {
                         color: text
                         font.pixelSize: 26
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
                     }
                     
                     Item { Layout.fillWidth: true }
+                    
+                    // Invisible spacer to balance the back button
+                    Item {
+                        implicitWidth: 100
+                    }
                 }
             }
             
-            // --- Main Content ---
+            // Main Content
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -106,7 +112,7 @@ Item {
                         Layout.rightMargin: 24
                     }
 
-                    // ---- WIND ----
+                    // WIND
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: 24
@@ -159,7 +165,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#2563EB" : accent
+                                    color: parent.pressed ? "#1558B8" : accent
                                     radius: 8
                                 }
                                 
@@ -180,7 +186,7 @@ Item {
                         }
                     }
 
-                    // ---- TEMPERATURE ----
+                    // TEMPERATURE
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: 24
@@ -233,7 +239,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#2563EB" : accent
+                                    color: parent.pressed ? "#1558B8" : accent
                                     radius: 8
                                 }
                                 
@@ -254,7 +260,7 @@ Item {
                         }
                     }
 
-                    // ---- BALL TYPE ----
+                    // BALL TYPE
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: 24
@@ -307,7 +313,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#2563EB" : accent
+                                    color: parent.pressed ? "#1558B8" : accent
                                     radius: 8
                                 }
                                 
@@ -328,7 +334,7 @@ Item {
                         }
                     }
 
-                    // ---- LAUNCH SETTINGS ----
+                    // LAUNCH SETTINGS
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: 24
@@ -381,7 +387,7 @@ Item {
                                 implicitHeight: 50
                                 
                                 background: Rectangle { 
-                                    color: parent.pressed ? "#2563EB" : accent
+                                    color: parent.pressed ? "#1558B8" : accent
                                     radius: 8
                                 }
                                 
@@ -402,7 +408,7 @@ Item {
                         }
                     }
 
-                    // ---- SIMULATE BUTTON ----
+                    // SIMULATE BUTTON
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: 24
@@ -420,7 +426,7 @@ Item {
 
                             CheckBox { 
                                 id: simulateToggle
-                                checked: true  // This one defaults to checked
+                                checked: false
                                 
                                 indicator: Rectangle {
                                     implicitWidth: 24
@@ -464,14 +470,13 @@ Item {
         }
     }
     
-    // Load current settings when opening
     Component.onCompleted: {
         if (win) {
             windToggle.checked = win.useWind || false
             tempToggle.checked = win.useTemp || false
             ballToggle.checked = win.useBallType || false
             launchToggle.checked = win.useLaunchEst || false
-            simulateToggle.checked = win.useSimulateButton !== undefined ? win.useSimulateButton : true
+            simulateToggle.checked = win.useSimulateButton !== undefined ? win.useSimulateButton : false
         }
     }
 }
