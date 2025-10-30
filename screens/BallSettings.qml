@@ -10,6 +10,17 @@ Item {
     property var win
     property string ballCompression: "Mid (80–90)"
 
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
+
     Component.onCompleted: {
         if (win) {
             ballCompression = win.ballCompression || "Mid (80–90)"
@@ -22,9 +33,9 @@ Item {
         }
     }
 
-    Rectangle { 
+    Rectangle {
         anchors.fill: parent
-        color: "#0D1117" 
+        color: bg
     }
 
     ColumnLayout {
@@ -41,7 +52,7 @@ Item {
                 text: "← Back"
                 implicitWidth: 90
                 implicitHeight: 42
-                background: Rectangle { color: "#238636"; radius: 6 }
+                background: Rectangle { color: success; radius: 6 }
                 contentItem: Text { 
                     text: parent.text
                     color: "white"
@@ -59,7 +70,7 @@ Item {
             
             Text {
                 text: "Ball Settings"
-                color: "#F0F6FC"
+                color: text
                 font.pixelSize: 22
                 font.bold: true
             }
@@ -71,7 +82,7 @@ Item {
 
         Text {
             text: "Ball compression affects how the ball reacts to club impact."
-            color: "#8B949E"
+            color: hint
             font.pixelSize: 13
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -82,8 +93,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 140
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
             
             ColumnLayout {
@@ -93,7 +104,7 @@ Item {
 
                 Text {
                     text: "Ball Compression:"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 18
                     font.bold: true
                 }
@@ -117,9 +128,9 @@ Item {
                     }
 
                     background: Rectangle {
-                        color: "#1C2128"
+                        color: "#F5F7FA"
                         radius: 8
-                        border.color: compressionSelect.pressed ? "#58A6FF" : "#30363D"
+                        border.color: compressionSelect.pressed ? accent : edge
                         border.width: 2
                     }
 
@@ -127,7 +138,7 @@ Item {
                         leftPadding: 12
                         text: compressionSelect.displayText
                         font.pixelSize: 14
-                        color: "#F0F6FC"
+                        color: text
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                     }
@@ -138,14 +149,14 @@ Item {
                         
                         contentItem: Text {
                             text: modelData
-                            color: "#F0F6FC"
+                            color: text
                             font.pixelSize: 13
                             verticalAlignment: Text.AlignVCenter
                             leftPadding: 12
                         }
-                        
+
                         background: Rectangle {
-                            color: parent.highlighted ? "#1F6FEB" : "#1C2128"
+                            color: parent.highlighted ? "#E8F0FE" : "white"
                         }
                     }
 
@@ -164,8 +175,8 @@ Item {
                         }
 
                         background: Rectangle {
-                            color: "#1C2128"
-                            border.color: "#30363D"
+                            color: card
+                            border.color: edge
                             border.width: 2
                             radius: 8
                         }
@@ -179,8 +190,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
             
             ColumnLayout {
@@ -190,7 +201,7 @@ Item {
 
                 Text {
                     text: "How Compression Affects Your Shots:"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 16
                     font.bold: true
                 }
@@ -201,7 +212,7 @@ Item {
                     
                     Text {
                         text: "🟢 Low (<70): Higher launch, less spin, slower swing speeds"
-                        color: "#8B949E"
+                        color: hint
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -209,7 +220,7 @@ Item {
                     
                     Text {
                         text: "🟡 Mid (80-90): Balanced performance, most versatile"
-                        color: "#8B949E"
+                        color: hint
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -217,7 +228,7 @@ Item {
                     
                     Text {
                         text: "🔴 High (90+): Lower launch, more spin, faster swing speeds"
-                        color: "#8B949E"
+                        color: hint
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -225,7 +236,7 @@ Item {
                     
                     Text {
                         text: "⚪ Range: Very firm, durable, less temperature sensitivity"
-                        color: "#8B949E"
+                        color: hint
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -244,9 +255,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1D6F2F" : "#238636"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
+                    radius: 8
                 }
                 
                 contentItem: Text { 
@@ -272,9 +283,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1558B8" : "#1F6FEB"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
                 }
                 
                 contentItem: Text { 

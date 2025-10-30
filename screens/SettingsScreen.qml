@@ -9,17 +9,16 @@ Item {
 
     property var win
 
-    // DARK THEME COLORS - MATCHING TEMPSETTINGS EXACTLY
-    readonly property color bg: "#0D1117"
-    readonly property color card: "#161B22"
-    readonly property color edge: "#30363D"
-    readonly property color text: "#F0F6FC"
-    readonly property color hint: "#8B949E"
-    readonly property color successText: "#A6D189"
-    readonly property color accent: "#1F6FEB"
-    readonly property color accentHover: "#1558B8"
-    readonly property color success: "#238636"
-    readonly property color successHover: "#1D6F2F"
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
 
     Rectangle {
         anchors.fill: parent
@@ -40,9 +39,9 @@ Item {
                     implicitWidth: 100
                     implicitHeight: 48
                     
-                    background: Rectangle { 
-                        color: parent.pressed ? successHover : success
-                        radius: 6 
+                    background: Rectangle {
+                        color: parent.pressed ? "#2D9A4F" : success
+                        radius: 6
                     }
                     
                     contentItem: Text { 
@@ -72,7 +71,7 @@ Item {
                 
                 Text {
                     text: "Settings"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 24
                     font.bold: true
                 }
@@ -153,7 +152,7 @@ Item {
                                 text: "Wind Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -162,8 +161,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -233,7 +232,7 @@ Item {
                                 text: "Temperature Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -242,8 +241,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -313,7 +312,7 @@ Item {
                                 text: "Ball Type"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -322,8 +321,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -393,7 +392,7 @@ Item {
                                 text: "Launch Settings"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -402,8 +401,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -473,7 +472,7 @@ Item {
                                 text: "Show Simulate Button"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 

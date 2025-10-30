@@ -9,14 +9,15 @@ Item {
 
     property var win: null
 
-    // DARK THEME COLORS
-    readonly property color bg: "#0D1117"
-    readonly property color card: "#161B22"
-    readonly property color edge: "#30363D"
-    readonly property color text: "#F0F6FC"
-    readonly property color hint: "#8B949E"
-    readonly property color accent: "#1F6FEB"
-    readonly property color success: "#238636"
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
     readonly property color danger: "#DA3633"
 
     // Local model
@@ -131,8 +132,8 @@ Item {
                 text: "← Back"
                 implicitWidth: 100
                 implicitHeight: 48
-                background: Rectangle { 
-                    color: parent.pressed ? "#1D6F2F" : success
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
                     radius: 8
                 }
                 contentItem: Text { 
@@ -178,7 +179,7 @@ Item {
                 implicitHeight: 48
                 
                 background: Rectangle {
-                    color: parent.pressed ? "#1558B8" : accent
+                    color: parent.pressed ? "#2563EB" : accent
                     radius: 8
                 }
                 
@@ -312,7 +313,7 @@ Item {
                                         
                                         Label {
                                             text: profileScreen.activeProfile === modelData ? "● Active Profile" : "Click 'Set Active' to use"
-                                            color: profileScreen.activeProfile === modelData ? "#A6D189" : hint
+                                            color: profileScreen.activeProfile === modelData ? "#2D9A4F" : hint
                                             font.pixelSize: 13
                                         }
                                     }
@@ -328,7 +329,7 @@ Item {
                                             visible: profileScreen.activeProfile !== modelData
                                             
                                             background: Rectangle {
-                                                color: parent.pressed ? "#1D6F2F" : profileScreen.success
+                                                color: parent.pressed ? "#2D9A4F" : profileScreen.success
                                                 radius: 6
                                             }
                                             
@@ -355,7 +356,7 @@ Item {
                                             implicitHeight: 40
                                             
                                             background: Rectangle {
-                                                color: parent.pressed ? "#1558B8" : profileScreen.accent
+                                                color: parent.pressed ? "#2563EB" : profileScreen.accent
                                                 radius: 6
                                             }
                                             
@@ -472,7 +473,7 @@ Item {
                     maximumLength: 20
                     
                     background: Rectangle {
-                        color: "#0D1117"
+                        color: "#F5F7FA"
                         radius: 8
                         border.color: nameInput.activeFocus ? accent : edge
                         border.width: 2
@@ -513,7 +514,7 @@ Item {
                             var n = nameInput.text.trim()
                             if (n.length === 0) return ""
                             if (n.length < 2) return "⚠ Too short (min 2 characters)"
-                            
+
                             for (var i = 0; i < profiles.length; i++) {
                                 if (profiles[i].toLowerCase() === n.toLowerCase()) {
                                     return "⚠ Profile already exists"
@@ -521,7 +522,7 @@ Item {
                             }
                             return "✓ Valid name"
                         }
-                        color: nameInput.isValid ? "#A6D189" : danger
+                        color: nameInput.isValid ? "#2D9A4F" : danger
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -538,12 +539,12 @@ Item {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 55
-                    
+
                     background: Rectangle {
-                        color: parent.pressed ? "#21262D" : "#30363D"
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -551,7 +552,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         createProfileDialog.close()
@@ -566,7 +567,7 @@ Item {
                     enabled: nameInput.isValid
                     
                     background: Rectangle {
-                        color: parent.enabled ? (parent.pressed ? "#1D6F2F" : success) : "#30363D"
+                        color: parent.enabled ? (parent.pressed ? "#2D9A4F" : success) : "#C8CCD4"
                         radius: 8
                     }
                     
@@ -657,12 +658,12 @@ Item {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 55
-                    
+
                     background: Rectangle {
-                        color: parent.pressed ? "#21262D" : "#30363D"
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -671,7 +672,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         deleteDialog.close()

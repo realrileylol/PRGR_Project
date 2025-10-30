@@ -9,14 +9,16 @@ Item {
 
     property var win
 
-    // Theme colors
+    // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
     readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
     readonly property color edge: "#D0D5DD"
     readonly property color text: "#1A1D23"
     readonly property color hint: "#5F6B7A"
     readonly property color accent: "#3A86FF"
-    readonly property color ok: "#34C759"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
 
     // ORDERED metrics - always displayed in this order
     property var orderedMetrics: [
@@ -375,11 +377,11 @@ Item {
                         anchors.margins: 12
                         spacing: 10
                         
-                        Rectangle { 
+                        Rectangle {
                             width: 14
                             height: 14
                             radius: 7
-                            color: ok
+                            color: success
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         

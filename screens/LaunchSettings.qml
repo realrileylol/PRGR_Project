@@ -11,9 +11,20 @@ Item {
     property real baseLaunchAngle: 16.0
     property real launchVariance: 2.0
 
-    Rectangle { 
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
+
+    Rectangle {
         anchors.fill: parent
-        color: "#0D1117" 
+        color: bg
     }
 
     ColumnLayout {
@@ -30,7 +41,7 @@ Item {
                 text: "← Back"
                 implicitWidth: 90
                 implicitHeight: 42
-                background: Rectangle { color: "#238636"; radius: 6 }
+                background: Rectangle { color: success; radius: 6 }
                 contentItem: Text { 
                     text: parent.text
                     color: "white"
@@ -48,7 +59,7 @@ Item {
             
             Text {
                 text: "Launch Angle Settings - ONLY USE IF CAMERA NOT WORKING"
-                color: "#F0F6FC"
+                color: text
                 font.pixelSize: 22
                 font.bold: true
             }
@@ -60,7 +71,7 @@ Item {
 
         Text {
             text: "Set your baseline launch angle and variation for realistic results."
-            color: "#8B949E"
+            color: hint
             font.pixelSize: 13
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -71,8 +82,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 140
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
 
             ColumnLayout {
@@ -82,7 +93,7 @@ Item {
 
                 Text {
                     text: "Baseline Launch Angle: " + baseLaunchAngle.toFixed(1) + "°"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 20
                     font.bold: true
                 }
@@ -104,12 +115,12 @@ Item {
                         width: baseSlider.availableWidth
                         height: implicitHeight
                         radius: 3
-                        color: "#30363D"
+                        color: edge
 
                         Rectangle {
                             width: baseSlider.visualPosition * parent.width
                             height: parent.height
-                            color: "#1F6FEB"
+                            color: accent
                             radius: 3
                         }
                     }
@@ -120,8 +131,8 @@ Item {
                         implicitWidth: 24
                         implicitHeight: 24
                         radius: 12
-                        color: baseSlider.pressed ? "#58A6FF" : "#1F6FEB"
-                        border.color: "#F0F6FC"
+                        color: baseSlider.pressed ? "#2563EB" : accent
+                        border.color: text
                         border.width: 2
                     }
                 }
@@ -132,7 +143,7 @@ Item {
                         else if (baseLaunchAngle < 17) return "Mid Launch – Balanced Carry & Roll"
                         else return "High Launch – Max Carry, Less Roll"
                     }
-                    color: "#A6D189"
+                    color: "#2D9A4F"
                     font.pixelSize: 13
                 }
             }
@@ -143,8 +154,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
 
             ColumnLayout {
@@ -154,7 +165,7 @@ Item {
 
                 Text {
                     text: "Launch Variance: ±" + launchVariance.toFixed(1) + "°"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 20
                     font.bold: true
                 }
@@ -176,12 +187,12 @@ Item {
                         width: varianceSlider.availableWidth
                         height: implicitHeight
                         radius: 3
-                        color: "#30363D"
+                        color: edge
 
                         Rectangle {
                             width: varianceSlider.visualPosition * parent.width
                             height: parent.height
-                            color: "#1F6FEB"
+                            color: accent
                             radius: 3
                         }
                     }
@@ -192,15 +203,15 @@ Item {
                         implicitWidth: 24
                         implicitHeight: 24
                         radius: 12
-                        color: varianceSlider.pressed ? "#58A6FF" : "#1F6FEB"
-                        border.color: "#F0F6FC"
+                        color: varianceSlider.pressed ? "#2563EB" : accent
+                        border.color: text
                         border.width: 2
                     }
                 }
 
                 Text {
                     text: "Higher variance = less consistent but more realistic"
-                    color: "#8B949E"
+                    color: hint
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
@@ -218,9 +229,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1D6F2F" : "#238636"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
+                    radius: 8
                 }
                 
                 contentItem: Text { 
@@ -243,9 +254,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1558B8" : "#1F6FEB"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
                 }
                 
                 contentItem: Text { 
