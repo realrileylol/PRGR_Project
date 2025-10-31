@@ -14,8 +14,10 @@ ApplicationWindow {
     maximumHeight: 480
     color: "#f5f7fa"
     title: "ProfilerV1"
+    x: 0
+    y: 0
 
-    flags: Qt.Window | Qt.MSWindowsFixedSizeDialogHint
+    flags: Qt.Window | Qt.FramelessWindowHint
     
     Material.theme: Material.Dark
 
