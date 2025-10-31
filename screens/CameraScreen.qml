@@ -1,7 +1,7 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtMultimedia 5.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtMultimedia
 
 Item {
     id: cameraScreen
@@ -24,6 +24,30 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: bg
+    }
+
+    Camera {
+        id: camera
+        
+        onErrorOccurred: function(error, errorString) {
+            console.log("Camera error:", error, errorString)
+        }
+    }
+
+    CaptureSession {
+        camera: camera
+        videoOutput: videoOutput
+    }
+
+    MediaDevices {
+        id: mediaDevices
+        
+        Component.onCompleted: {
+            console.log("Available cameras:", mediaDevices.videoInputs.length)
+            for (var i = 0; i < mediaDevices.videoInputs.length; i++) {
+                console.log("Camera", i, ":", mediaDevices.videoInputs[i].description)
+            }
+        }
     }
 
     ColumnLayout {
@@ -85,31 +109,19 @@ Item {
             border.color: edge
             border.width: 2
 
-            Camera {
-                id: camera
-                captureMode: Camera.CaptureViewfinder
-
-                Component.onCompleted: {
-                    camera.start()
-                }
-            }
-
             VideoOutput {
                 id: videoOutput
-                source: camera
                 anchors.fill: parent
                 anchors.margins: 2
-                fillMode: VideoOutput.PreserveAspectFit
-                autoOrientation: true
             }
 
             // Overlay status text
             Label {
                 anchors.centerIn: parent
-                text: camera.availability === Camera.Available ? "" : "Camera not available"
+                text: camera.cameraState !== Camera.ActiveState ? "Camera not active" : ""
                 color: "white"
                 font.pixelSize: 18
-                visible: camera.availability !== Camera.Available
+                visible: camera.cameraState !== Camera.ActiveState
                 background: Rectangle {
                     color: "#000000"
                     opacity: 0.7
@@ -144,14 +156,14 @@ Item {
                     width: 12
                     height: 12
                     radius: 6
-                    color: camera.cameraStatus === Camera.ActiveStatus ? success : danger
+                    color: camera.cameraState === Camera.ActiveState ? success : danger
                 }
 
                 Label {
-                    text: camera.cameraStatus === Camera.ActiveStatus ? "Active" :
-                          camera.cameraStatus === Camera.StartingStatus ? "Starting..." :
-                          camera.cameraStatus === Camera.StoppingStatus ? "Stopping..." :
-                          camera.cameraStatus === Camera.StandbyStatus ? "Standby" :
+                    text: camera.cameraState === Camera.ActiveState ? "Active" :
+                          camera.cameraState === Camera.LoadingState ? "Loading..." :
+                          camera.cameraState === Camera.LoadedState ? "Loaded" :
+                          camera.cameraState === Camera.UnloadedState ? "Unloaded" :
                           "Unavailable"
                     color: hint
                     font.pixelSize: 14
@@ -159,7 +171,7 @@ Item {
                 }
 
                 Button {
-                    text: camera.cameraStatus === Camera.ActiveStatus ? "Stop Camera" : "Start Camera"
+                    text: camera.cameraState === Camera.ActiveState ? "Stop Camera" : "Start Camera"
                     implicitHeight: 40
 
                     background: Rectangle {
@@ -178,7 +190,7 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        if (camera.cameraStatus === Camera.ActiveStatus) {
+                        if (camera.cameraState === Camera.ActiveState) {
                             camera.stop()
                         } else {
                             camera.start()
@@ -187,6 +199,10 @@ Item {
                 }
             }
         }
+    }
+
+    Component.onCompleted: {
+        camera.start()
     }
 
     Component.onDestruction: {
