@@ -191,21 +191,21 @@ Item {
                     }
                 }
                 
-                // Profile/Settings buttons (Profile contains My Bag)
+                // Profile/Settings/Camera buttons (Profile contains My Bag)
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
-                    
+
                     Button {
                         text: "Profile"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
-                        
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
                         }
-                        
+
                         contentItem: Text {
                             text: parent.text
                             color: "#1A1D23"
@@ -214,23 +214,23 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        
-                        onClicked: { 
+
+                        onClicked: {
                             soundManager.playClick()
                             stack.openProfile()
                         }
                     }
-                    
+
                     Button {
                         text: "Settings"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
-                        
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
                         }
-                        
+
                         contentItem: Text {
                             text: parent.text
                             color: "#1A1D23"
@@ -239,10 +239,36 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        
+
                         onClicked: {
                             soundManager.playClick()
                             stack.openSettings()
+                        }
+                    }
+
+                    Button {
+                        text: "Camera"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                            radius: 12
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#1A1D23"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            // Camera functionality to be implemented
+                            console.log("Camera button clicked")
                         }
                     }
                 }
