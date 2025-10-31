@@ -113,6 +113,11 @@ ApplicationWindow {
             stack.push(Qt.resolvedUrl("screens/MyBag.qml"), { win: win })
         }
 
+        function openCamera() {
+            console.log("Opening:", Qt.resolvedUrl("screens/CameraScreen.qml"))
+            stack.push(Qt.resolvedUrl("screens/CameraScreen.qml"), { win: win })
+        }
+
         function goBack() {
             if (stack.depth > 1) {
                 stack.pop()

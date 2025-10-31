@@ -267,8 +267,7 @@ Item {
 
                         onClicked: {
                             soundManager.playClick()
-                            // Camera functionality to be implemented
-                            console.log("Camera button clicked")
+                            stack.openCamera()
                         }
                     }
                 }
