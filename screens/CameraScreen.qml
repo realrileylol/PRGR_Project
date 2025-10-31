@@ -216,7 +216,7 @@ Item {
         // Info text
         Label {
             Layout.fillWidth: true
-            text: "Note: Live camera preview opens in a separate window when started."
+            text: "Note: Camera preview opens in a centered window (480x360) on your screen."
             color: hint
             font.pixelSize: 12
             font.italic: true
