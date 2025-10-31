@@ -107,10 +107,11 @@ Item {
                     Label {
                         id: messageText
                         anchors.centerIn: parent
-                        text: "Click 'Start Camera' to begin live preview"
+                        text: "Camera preview will appear here\n\nClick 'Start Camera' below"
                         color: "white"
-                        font.pixelSize: 18
+                        font.pixelSize: 16
                         font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
                     }
                 }
 
@@ -216,7 +217,7 @@ Item {
         // Info text
         Label {
             Layout.fillWidth: true
-            text: "Note: Camera preview opens in a centered window (480x360) on your screen."
+            text: "Camera preview appears in the black area above when active"
             color: hint
             font.pixelSize: 12
             font.italic: true

@@ -22,34 +22,34 @@ class CameraManager(QObject):
 
     @Slot()
     def startCamera(self):
-        """Start the Raspberry Pi camera preview in a window"""
+        """Start the Raspberry Pi camera preview embedded in the UI"""
         if self.camera_process is not None:
             print("⚠️ Camera is already running")
             return
 
         try:
-            # Try rpicam-vid first (newer Raspberry Pi OS)
-            # Window size: 480x360 (3-4 inch viewing area on 5" 800x480 screen)
-            # Position: centered in the screen
-            print("🎥 Starting camera with rpicam-vid...")
+            # Camera preview embedded in the black rectangle area
+            # Position matches the Camera View rectangle in CameraScreen.qml
+            # x=20 (margin), y=92 (header ~72 + spacing), width=760, height=~250
+            print("🎥 Starting embedded camera preview...")
             self.camera_process = subprocess.Popen([
                 'rpicam-vid',
-                '--timeout', '0',      # Run indefinitely
-                '--width', '480',      # 3-4 inch width
-                '--height', '360',     # Maintain aspect ratio
-                '--preview', '160,60,480,360'  # x,y,width,height - centered position
+                '--timeout', '0',           # Run indefinitely
+                '--width', '640',           # Camera resolution
+                '--height', '480',
+                '--preview', '20,92,760,250'  # x,y,width,height - embedded in UI
             ])
             print("✅ Camera started successfully")
         except FileNotFoundError:
             try:
-                # Fallback to rpicam-hello with same windowed settings
+                # Fallback to rpicam-hello with same embedded settings
                 print("🎥 Starting camera with rpicam-hello...")
                 self.camera_process = subprocess.Popen([
                     'rpicam-hello',
                     '--timeout', '0',
-                    '--width', '480',
-                    '--height', '360',
-                    '--preview', '160,60,480,360'
+                    '--width', '640',
+                    '--height', '480',
+                    '--preview', '20,92,760,250'
                 ])
                 print("✅ Camera started successfully")
             except FileNotFoundError:
