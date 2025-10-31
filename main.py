@@ -30,14 +30,14 @@ class CameraManager(QObject):
         try:
             # Camera preview embedded in the black rectangle area
             # Position matches the Camera View rectangle in CameraScreen.qml
-            # x=20 (margin), y=92 (header ~72 + spacing), width=760, height=~250
+            # x=22 (margin+border), y=82 (header+spacing+border), width=756, height=254
             print("🎥 Starting embedded camera preview...")
             self.camera_process = subprocess.Popen([
                 'rpicam-vid',
                 '--timeout', '0',           # Run indefinitely
                 '--width', '640',           # Camera resolution
                 '--height', '480',
-                '--preview', '20,92,760,250'  # x,y,width,height - embedded in UI
+                '--preview', '22,82,756,254'  # x,y,width,height - aligned with black rectangle
             ])
             print("✅ Camera started successfully")
         except FileNotFoundError:
@@ -49,7 +49,7 @@ class CameraManager(QObject):
                     '--timeout', '0',
                     '--width', '640',
                     '--height', '480',
-                    '--preview', '20,92,760,250'
+                    '--preview', '22,82,756,254'
                 ])
                 print("✅ Camera started successfully")
             except FileNotFoundError:
