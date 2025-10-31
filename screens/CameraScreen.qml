@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtMultimedia 5.15
 
 Item {
     id: cameraScreen
@@ -9,6 +8,7 @@ Item {
     height: 480
 
     property var win
+    property bool cameraActive: false
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -57,7 +57,10 @@ Item {
 
                 onClicked: {
                     soundManager.playClick()
-                    camera.stop()
+                    if (cameraActive) {
+                        cameraManager.stopCamera()
+                        cameraActive = false
+                    }
                     stack.goBack()
                 }
             }
@@ -76,7 +79,7 @@ Item {
             Item { implicitWidth: 100; implicitHeight: 48 }
         }
 
-        // Camera View
+        // Camera View Area
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -85,44 +88,56 @@ Item {
             border.color: edge
             border.width: 2
 
-            Camera {
-                id: camera
-                captureMode: Camera.CaptureViewfinder
-
-                Component.onCompleted: {
-                    camera.start()
-                }
-            }
-
-            VideoOutput {
-                id: videoOutput
-                source: camera
+            // Camera preview placeholder
+            Item {
+                id: cameraContainer
                 anchors.fill: parent
                 anchors.margins: 2
-                fillMode: VideoOutput.PreserveAspectFit
-                autoOrientation: true
-            }
 
-            // Overlay status text
-            Label {
-                anchors.centerIn: parent
-                text: camera.availability === Camera.Available ? "" : "Camera not available"
-                color: "white"
-                font.pixelSize: 18
-                visible: camera.availability !== Camera.Available
-                background: Rectangle {
+                // Message when camera is not active
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: messageText.width + 40
+                    height: messageText.height + 40
                     color: "#000000"
-                    opacity: 0.7
-                    radius: 8
+                    opacity: 0.8
+                    radius: 12
+                    visible: !cameraActive
+
+                    Label {
+                        id: messageText
+                        anchors.centerIn: parent
+                        text: "Click 'Start Camera' to begin live preview"
+                        color: "white"
+                        font.pixelSize: 18
+                        font.bold: true
+                    }
                 }
-                padding: 20
+
+                // Status when camera is active
+                Label {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 15
+                    text: "● LIVE"
+                    color: success
+                    font.pixelSize: 16
+                    font.bold: true
+                    visible: cameraActive
+                    background: Rectangle {
+                        color: "#000000"
+                        opacity: 0.7
+                        radius: 6
+                    }
+                    padding: 10
+                }
             }
         }
 
-        // Camera info
+        // Camera Controls
         Rectangle {
             Layout.fillWidth: true
-            height: 60
+            height: 80
             radius: 10
             color: card
             border.color: edge
@@ -133,44 +148,52 @@ Item {
                 anchors.margins: 15
                 spacing: 20
 
-                Label {
-                    text: "Status:"
-                    color: text
-                    font.pixelSize: 16
-                    font.bold: true
+                // Status indicator
+                ColumnLayout {
+                    spacing: 8
+
+                    Label {
+                        text: "Camera Status:"
+                        color: text
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        spacing: 10
+
+                        Rectangle {
+                            width: 14
+                            height: 14
+                            radius: 7
+                            color: cameraActive ? success : danger
+                        }
+
+                        Label {
+                            text: cameraActive ? "Active" : "Stopped"
+                            color: hint
+                            font.pixelSize: 14
+                        }
+                    }
                 }
 
-                Rectangle {
-                    width: 12
-                    height: 12
-                    radius: 6
-                    color: camera.cameraStatus === Camera.ActiveStatus ? success : danger
-                }
+                Item { Layout.fillWidth: true }
 
-                Label {
-                    text: camera.cameraStatus === Camera.ActiveStatus ? "Active" :
-                          camera.cameraStatus === Camera.StartingStatus ? "Starting..." :
-                          camera.cameraStatus === Camera.StoppingStatus ? "Stopping..." :
-                          camera.cameraStatus === Camera.StandbyStatus ? "Standby" :
-                          "Unavailable"
-                    color: hint
-                    font.pixelSize: 14
-                    Layout.fillWidth: true
-                }
-
+                // Control buttons
                 Button {
-                    text: camera.cameraStatus === Camera.ActiveStatus ? "Stop Camera" : "Start Camera"
-                    implicitHeight: 40
+                    text: cameraActive ? "Stop Camera" : "Start Camera"
+                    implicitHeight: 50
+                    implicitWidth: 150
 
                     background: Rectangle {
                         color: parent.pressed ? "#2563EB" : accent
-                        radius: 6
+                        radius: 8
                     }
 
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 14
+                        font.pixelSize: 16
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -178,18 +201,32 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        if (camera.cameraStatus === Camera.ActiveStatus) {
-                            camera.stop()
+                        if (cameraActive) {
+                            cameraManager.stopCamera()
+                            cameraActive = false
                         } else {
-                            camera.start()
+                            cameraManager.startCamera()
+                            cameraActive = true
                         }
                     }
                 }
             }
         }
+
+        // Info text
+        Label {
+            Layout.fillWidth: true
+            text: "Note: Live camera preview opens in a separate window when started."
+            color: hint
+            font.pixelSize: 12
+            font.italic: true
+            horizontalAlignment: Text.AlignHCenter
+        }
     }
 
     Component.onDestruction: {
-        camera.stop()
+        if (cameraActive) {
+            cameraManager.stopCamera()
+        }
     }
 }

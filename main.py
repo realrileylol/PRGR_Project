@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
 
@@ -8,6 +9,68 @@ from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl
 from PySide6.QtMultimedia import QSoundEffect
 from ProfileManager import ProfileManager  # Import the new class
+
+# ============================================
+# Camera Manager Class
+# ============================================
+class CameraManager(QObject):
+    """Manages Raspberry Pi camera using rpicam-vid"""
+
+    def __init__(self):
+        super().__init__()
+        self.camera_process = None
+
+    @Slot()
+    def startCamera(self):
+        """Start the Raspberry Pi camera preview"""
+        if self.camera_process is not None:
+            print("⚠️ Camera is already running")
+            return
+
+        try:
+            # Try rpicam-vid first (newer Raspberry Pi OS)
+            print("🎥 Starting camera with rpicam-vid...")
+            self.camera_process = subprocess.Popen([
+                'rpicam-vid',
+                '--timeout', '0',  # Run indefinitely
+                '--fullscreen'     # Fullscreen preview
+            ])
+            print("✅ Camera started successfully")
+        except FileNotFoundError:
+            try:
+                # Fallback to rpicam-hello
+                print("🎥 Starting camera with rpicam-hello...")
+                self.camera_process = subprocess.Popen([
+                    'rpicam-hello',
+                    '--timeout', '0',
+                    '--fullscreen'
+                ])
+                print("✅ Camera started successfully")
+            except FileNotFoundError:
+                print("❌ Camera tools not found. Install with: sudo apt install rpicam-apps")
+                self.camera_process = None
+        except Exception as e:
+            print(f"❌ Failed to start camera: {e}")
+            self.camera_process = None
+
+    @Slot()
+    def stopCamera(self):
+        """Stop the camera preview"""
+        if self.camera_process is not None:
+            print("🛑 Stopping camera...")
+            self.camera_process.terminate()
+            try:
+                self.camera_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.camera_process.kill()
+            self.camera_process = None
+            print("✅ Camera stopped")
+        else:
+            print("⚠️ Camera is not running")
+
+    def __del__(self):
+        """Cleanup on destruction"""
+        self.stopCamera()
 
 # ============================================
 # Sound Manager Class
@@ -65,15 +128,17 @@ qInstallMessageHandler(handler)
 # ============================================
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
-    
+
     # Create managers
+    camera_manager = CameraManager()
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
-    
+
     # Create QML engine
     engine = QQmlApplicationEngine()
-    
+
     # Expose managers to QML
+    engine.rootContext().setContextProperty("cameraManager", camera_manager)
     engine.rootContext().setContextProperty("soundManager", sound_manager)
     engine.rootContext().setContextProperty("profileManager", profile_manager)
     
