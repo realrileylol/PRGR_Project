@@ -21,7 +21,6 @@ Item {
     readonly property color danger: "#DA3633"
 
     property var historyData: []
-    property string activeProfile: win ? win.activeProfile : "Guest"
 
     Component.onCompleted: {
         loadHistory()
@@ -35,7 +34,7 @@ Item {
     }
 
     function loadHistory() {
-        var historyJson = historyManager.getHistoryForProfile(activeProfile)
+        var historyJson = historyManager.getAllHistory()
         historyData = JSON.parse(historyJson)
     }
 
@@ -87,7 +86,7 @@ Item {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: "Shot History - " + activeProfile
+                text: "Shot History - All Profiles"
                 color: text
                 font.pixelSize: 24
                 font.bold: true
@@ -133,76 +132,94 @@ Item {
             Row {
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 5
+                spacing: 3
 
                 Label {
-                    width: 150
+                    width: 120
                     text: "Date/Time"
                     color: text
-                    font.pixelSize: 12
-                    font.bold: true
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                Label {
-                    width: 80
-                    text: "Ball Speed"
-                    color: text
-                    font.pixelSize: 12
-                    font.bold: true
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                Label {
-                    width: 80
-                    text: "Club Speed"
-                    color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Label {
                     width: 70
+                    text: "Profile"
+                    color: text
+                    font.pixelSize: 11
+                    font.bold: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Label {
+                    width: 70
+                    text: "Club"
+                    color: text
+                    font.pixelSize: 11
+                    font.bold: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Label {
+                    width: 65
+                    text: "Ball Spd"
+                    color: text
+                    font.pixelSize: 11
+                    font.bold: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Label {
+                    width: 65
+                    text: "Club Spd"
+                    color: text
+                    font.pixelSize: 11
+                    font.bold: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Label {
+                    width: 55
                     text: "Smash"
                     color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Label {
-                    width: 70
+                    width: 55
                     text: "Launch"
                     color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Label {
-                    width: 70
+                    width: 55
                     text: "Spin"
                     color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Label {
-                    width: 70
+                    width: 55
                     text: "Carry"
                     color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Label {
-                    width: 70
+                    width: 55
                     text: "Total"
                     color: text
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     font.bold: true
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -237,70 +254,88 @@ Item {
                         Row {
                             anchors.fill: parent
                             anchors.margins: 10
-                            spacing: 5
+                            spacing: 3
 
                             Label {
-                                width: 150
+                                width: 120
                                 text: formatTimestamp(modelData.timestamp)
                                 color: hint
+                                font.pixelSize: 10
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+
+                            Label {
+                                width: 70
+                                text: modelData.profile || "Unknown"
+                                color: text
                                 font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                                 elide: Text.ElideRight
                             }
 
                             Label {
-                                width: 80
-                                text: modelData.ballSpeed.toFixed(1) + " mph"
-                                color: text
-                                font.pixelSize: 12
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            Label {
-                                width: 80
-                                text: modelData.clubSpeed.toFixed(1) + " mph"
-                                color: text
-                                font.pixelSize: 12
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            Label {
                                 width: 70
+                                text: modelData.club || "N/A"
+                                color: text
+                                font.pixelSize: 11
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+
+                            Label {
+                                width: 65
+                                text: modelData.ballSpeed.toFixed(1)
+                                color: text
+                                font.pixelSize: 11
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Label {
+                                width: 65
+                                text: modelData.clubSpeed.toFixed(1)
+                                color: text
+                                font.pixelSize: 11
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Label {
+                                width: 55
                                 text: modelData.smash.toFixed(2)
                                 color: text
-                                font.pixelSize: 12
+                                font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                             }
 
                             Label {
-                                width: 70
+                                width: 55
                                 text: modelData.launch.toFixed(1) + "°"
                                 color: text
-                                font.pixelSize: 12
+                                font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                             }
 
                             Label {
-                                width: 70
-                                text: modelData.spin + " rpm"
+                                width: 55
+                                text: modelData.spin
                                 color: text
-                                font.pixelSize: 12
+                                font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                             }
 
                             Label {
-                                width: 70
-                                text: modelData.carry + " yds"
+                                width: 55
+                                text: modelData.carry
                                 color: text
-                                font.pixelSize: 12
+                                font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                             }
 
                             Label {
-                                width: 70
-                                text: modelData.total + " yds"
+                                width: 55
+                                text: modelData.total
                                 color: text
-                                font.pixelSize: 12
+                                font.pixelSize: 11
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }
@@ -322,7 +357,7 @@ Item {
         // Info text
         Label {
             Layout.fillWidth: true
-            text: historyData.length + " shot(s) recorded for " + activeProfile
+            text: historyData.length + " total shot(s) recorded across all profiles"
             color: hint
             font.pixelSize: 12
             font.italic: true
@@ -349,7 +384,7 @@ Item {
                 spacing: 20
 
                 Label {
-                    text: "Are you sure you want to delete all shot history for " + activeProfile + "?"
+                    text: "Are you sure you want to delete all shot history for ALL profiles?\n\nThis action cannot be undone!"
                     color: text
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
@@ -406,7 +441,7 @@ Item {
 
                         onClicked: {
                             soundManager.playClick()
-                            historyManager.clearProfileHistory(activeProfile)
+                            historyManager.clearAllHistory()
                             clearConfirmDialog.close()
                         }
                     }

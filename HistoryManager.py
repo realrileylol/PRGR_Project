@@ -39,12 +39,13 @@ class HistoryManager(QObject):
         except Exception as e:
             print(f"⚠️ Error saving history: {e}")
 
-    @Slot(str, float, float, float, float, int, int, int)
-    def addShot(self, profile, clubSpeed, ballSpeed, smash, launch, spin, carry, total):
+    @Slot(str, str, float, float, float, float, int, int, int)
+    def addShot(self, profile, club, clubSpeed, ballSpeed, smash, launch, spin, carry, total):
         """Add a new shot to history"""
         shot = {
             "timestamp": datetime.now().isoformat(),
             "profile": profile,
+            "club": club,
             "clubSpeed": round(clubSpeed, 1),
             "ballSpeed": round(ballSpeed, 1),
             "smash": round(smash, 2),
@@ -57,7 +58,7 @@ class HistoryManager(QObject):
         self._history_data["shots"].append(shot)
         self._save_history()
         self.historyChanged.emit()
-        print(f"📊 Shot added to history for {profile}")
+        print(f"📊 Shot added to history for {profile} using {club}")
 
     @Slot(str, result=str)
     def getHistoryForProfile(self, profile):

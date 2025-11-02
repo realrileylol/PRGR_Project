@@ -670,6 +670,7 @@ Item {
                             // Save shot to history
                             historyManager.addShot(
                                 win.activeProfile,
+                                win.currentClub,
                                 win.clubSpeed,
                                 win.ballSpeed,
                                 win.smash,
