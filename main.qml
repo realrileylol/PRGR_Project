@@ -6,6 +6,7 @@ import QtQuick.Controls.Material 2.15
 ApplicationWindow {
     id: win
     visible: true
+    visibility: Window.FullScreen
     width: 800
     height: 480
     minimumWidth: 800
@@ -14,8 +15,6 @@ ApplicationWindow {
     maximumHeight: 480
     color: "#f5f7fa"
     title: "ProfilerV1"
-    x: 0
-    y: 0
 
     flags: Qt.Window | Qt.FramelessWindowHint
     
