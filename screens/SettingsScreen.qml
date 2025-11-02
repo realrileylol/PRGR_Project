@@ -77,10 +77,30 @@ Item {
                 }
                 
                 Item { Layout.fillWidth: true }
-                
-                Item {
-                    implicitWidth: 100
+
+                Button {
+                    text: "Reset to Default"
+                    implicitWidth: 150
                     implicitHeight: 48
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A27" : danger
+                        radius: 6
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        resetConfirmDialog.open()
+                    }
                 }
             }
             
@@ -490,7 +510,101 @@ Item {
             }
         }
     }
-    
+
+    // Reset confirmation dialog
+    Dialog {
+        id: resetConfirmDialog
+        title: "Reset All Settings"
+        anchors.centerIn: parent
+        modal: true
+
+        contentItem: Rectangle {
+            implicitWidth: 400
+            implicitHeight: 180
+            color: card
+            radius: 10
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 20
+
+                Label {
+                    text: "Are you sure you want to reset ALL settings to default values?\n\nThis will reset:\n• All checkboxes and toggles\n• Temperature, wind, and ball settings\n• Current metrics and values\n• Active profile selection\n\nThis action cannot be undone!"
+                    color: text
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Button {
+                        text: "Cancel"
+                        Layout.fillWidth: true
+                        implicitHeight: 40
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : edge
+                            radius: 8
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: text
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            resetConfirmDialog.close()
+                        }
+                    }
+
+                    Button {
+                        text: "Reset All"
+                        Layout.fillWidth: true
+                        implicitHeight: 40
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B02A27" : danger
+                            radius: 8
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            if (win) {
+                                win.resetAllSettings()
+
+                                // Reload the checkboxes from the reset values
+                                windToggle.checked = win.useWind
+                                tempToggle.checked = win.useTemp
+                                ballToggle.checked = win.useBallType
+                                launchToggle.checked = win.useLaunchEst
+                                simulateToggle.checked = win.useSimulateButton
+                            }
+                            resetConfirmDialog.close()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Component.onCompleted: {
         if (win) {
             windToggle.checked = win.useWind || false

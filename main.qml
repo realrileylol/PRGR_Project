@@ -26,7 +26,7 @@ ApplicationWindow {
     /* ==========================================================
        GLOBAL STATE
     ========================================================== */
-    property string activeProfile: "Guest"
+    property string activeProfile: ""
     property int batteryPercent: 87
 
     // Club session state
@@ -80,6 +80,68 @@ ApplicationWindow {
     property real windSpeed: 0
     property real windDirection: 0
     property string ballCompression: "Mid-High (80–90)"
+
+    // Load settings on startup
+    Component.onCompleted: {
+        loadSettings()
+    }
+
+    // Save settings when they change
+    onActiveProfileChanged: settingsManager.setString("activeProfile", activeProfile)
+    onCurrentClubChanged: settingsManager.setString("currentClub", currentClub)
+    onCurrentLoftChanged: settingsManager.setNumber("currentLoft", currentLoft)
+    onBallSpeedChanged: settingsManager.setNumber("ballSpeed", ballSpeed)
+    onClubSpeedChanged: settingsManager.setNumber("clubSpeed", clubSpeed)
+    onSmashChanged: settingsManager.setNumber("smash", smash)
+    onSpinEstChanged: settingsManager.setNumber("spinEst", spinEst)
+    onCarryChanged: settingsManager.setNumber("carry", carry)
+    onTotalChanged: settingsManager.setNumber("total", total)
+    onLaunchDegChanged: settingsManager.setNumber("launchDeg", launchDeg)
+    onUseSimulateButtonChanged: settingsManager.setBool("useSimulateButton", useSimulateButton)
+    onUseWindChanged: settingsManager.setBool("useWind", useWind)
+    onUseTempChanged: settingsManager.setBool("useTemp", useTemp)
+    onUseBallTypeChanged: settingsManager.setBool("useBallType", useBallType)
+    onUseLaunchEstChanged: settingsManager.setBool("useLaunchEst", useLaunchEst)
+    onTemperatureChanged: settingsManager.setNumber("temperature", temperature)
+    onWindSpeedChanged: settingsManager.setNumber("windSpeed", windSpeed)
+    onWindDirectionChanged: settingsManager.setNumber("windDirection", windDirection)
+    onBallCompressionChanged: settingsManager.setString("ballCompression", ballCompression)
+
+    function loadSettings() {
+        var savedProfile = settingsManager.getString("activeProfile")
+        if (savedProfile) activeProfile = savedProfile
+
+        var savedClub = settingsManager.getString("currentClub")
+        if (savedClub) currentClub = savedClub
+
+        currentLoft = settingsManager.getNumber("currentLoft")
+        ballSpeed = settingsManager.getNumber("ballSpeed")
+        clubSpeed = settingsManager.getNumber("clubSpeed")
+        smash = settingsManager.getNumber("smash")
+        spinEst = settingsManager.getNumber("spinEst")
+        carry = settingsManager.getNumber("carry")
+        total = settingsManager.getNumber("total")
+        launchDeg = settingsManager.getNumber("launchDeg")
+        useSimulateButton = settingsManager.getBool("useSimulateButton")
+        useWind = settingsManager.getBool("useWind")
+        useTemp = settingsManager.getBool("useTemp")
+        useBallType = settingsManager.getBool("useBallType")
+        useLaunchEst = settingsManager.getBool("useLaunchEst")
+        temperature = settingsManager.getNumber("temperature")
+        windSpeed = settingsManager.getNumber("windSpeed")
+        windDirection = settingsManager.getNumber("windDirection")
+
+        var savedCompression = settingsManager.getString("ballCompression")
+        if (savedCompression) ballCompression = savedCompression
+
+        console.log("✅ Settings loaded")
+    }
+
+    function resetAllSettings() {
+        settingsManager.resetToDefaults()
+        loadSettings()
+        console.log("🔄 All settings reset to default")
+    }
 
 /* ==========================================================
    MAIN UI STACK

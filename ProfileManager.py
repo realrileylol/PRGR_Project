@@ -28,31 +28,10 @@ class ProfileManager(QObject):
     def _get_default_data(self):
         """Return default profile structure"""
         return {
-            "active_profile": "Guest",
-            "profiles": ["Guest"],
-            "bags": {
-                "Guest": {
-                    "Default Set": {
-                        "Driver": 10.5,
-                        "3 Wood": 15.0,
-                        "5 Wood": 18.0,
-                        "3 Hybrid": 19.0,
-                        "4 Iron": 21.0,
-                        "5 Iron": 24.0,
-                        "6 Iron": 28.0,
-                        "7 Iron": 34.0,
-                        "8 Iron": 38.0,
-                        "9 Iron": 42.0,
-                        "PW": 46.0,
-                        "GW": 50.0,
-                        "SW": 56.0,
-                        "LW": 60.0
-                    }
-                }
-            },
-            "active_presets": {
-                "Guest": "Default Set"
-            }
+            "active_profile": "",
+            "profiles": [],
+            "bags": {},
+            "active_presets": {}
         }
     
     def _save_profiles(self):
@@ -99,39 +78,60 @@ class ProfileManager(QObject):
         """Get the active profile name"""
         return self._active_profile
     
+    def _get_default_bag(self):
+        """Return default bag structure"""
+        return {
+            "Driver": 10.5,
+            "3 Wood": 15.0,
+            "5 Wood": 18.0,
+            "3 Hybrid": 19.0,
+            "4 Iron": 21.0,
+            "5 Iron": 24.0,
+            "6 Iron": 28.0,
+            "7 Iron": 34.0,
+            "8 Iron": 38.0,
+            "9 Iron": 42.0,
+            "PW": 46.0,
+            "GW": 50.0,
+            "SW": 56.0,
+            "LW": 60.0
+        }
+
     @Slot(str)
     def createProfile(self, profile_name):
         """Create a new profile with default bag"""
         if profile_name and profile_name not in self._profiles_data["profiles"]:
             self._profiles_data["profiles"].append(profile_name)
-            
-            # Copy default bag structure
-            default_bag = self._get_default_data()["bags"]["Guest"]["Default Set"]
+
+            # Create default bag
             self._profiles_data["bags"][profile_name] = {
-                "Default Set": default_bag.copy()
+                "Default Set": self._get_default_bag()
             }
             self._profiles_data["active_presets"][profile_name] = "Default Set"
-            
+
             self._save_profiles()
             self.profilesChanged.emit()
     
     @Slot(str)
     def deleteProfile(self, profile_name):
         """Delete a profile"""
-        if profile_name in self._profiles_data["profiles"] and profile_name != "Guest":
+        if profile_name in self._profiles_data["profiles"]:
             self._profiles_data["profiles"].remove(profile_name)
-            
+
             # Remove associated data
             if profile_name in self._profiles_data["bags"]:
                 del self._profiles_data["bags"][profile_name]
             if profile_name in self._profiles_data["active_presets"]:
                 del self._profiles_data["active_presets"][profile_name]
-            
-            # If deleting active profile, switch to Guest
+
+            # If deleting active profile, switch to first available or empty
             if self._active_profile == profile_name:
-                self._active_profile = "Guest"
-                self._profiles_data["active_profile"] = "Guest"
-            
+                if len(self._profiles_data["profiles"]) > 0:
+                    self._active_profile = self._profiles_data["profiles"][0]
+                else:
+                    self._active_profile = ""
+                self._profiles_data["active_profile"] = self._active_profile
+
             self._save_profiles()
             self.profilesChanged.emit()
             self.activeProfileChanged.emit()
@@ -160,9 +160,9 @@ class ProfileManager(QObject):
                     return json.dumps(self._profiles_data["bags"][profile_name][preset_name])
         except Exception as e:
             print(f"⚠️ Error getting bag preset: {e}")
-        
+
         # Return default
-        return json.dumps(self._get_default_data()["bags"]["Guest"]["Default Set"])
+        return json.dumps(self._get_default_bag())
     
     @Slot(str, str)
     def setActivePreset(self, profile_name, preset_name):

@@ -10,6 +10,7 @@ from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl
 from PySide6.QtMultimedia import QSoundEffect
 from ProfileManager import ProfileManager
 from HistoryManager import HistoryManager
+from SettingsManager import SettingsManager
 
 # ============================================
 # Camera Manager Class
@@ -141,6 +142,7 @@ if __name__ == "__main__":
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
     history_manager = HistoryManager()
+    settings_manager = SettingsManager()
 
     # Create QML engine
     engine = QQmlApplicationEngine()
@@ -150,6 +152,7 @@ if __name__ == "__main__":
     engine.rootContext().setContextProperty("soundManager", sound_manager)
     engine.rootContext().setContextProperty("profileManager", profile_manager)
     engine.rootContext().setContextProperty("historyManager", history_manager)
+    engine.rootContext().setContextProperty("settingsManager", settings_manager)
     
     # Load main QML
     engine.load('main.qml')
