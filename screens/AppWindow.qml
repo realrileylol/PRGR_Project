@@ -201,9 +201,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -226,9 +230,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -251,9 +259,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -276,9 +288,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -603,9 +619,10 @@ Item {
                         scale: pressed ? 0.97 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
                         
-                        background: Rectangle { 
+                        background: Rectangle {
                             color: parent.pressed ? "#2563EB" : accent
                             radius: 14
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {

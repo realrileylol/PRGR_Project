@@ -150,6 +150,71 @@ ApplicationWindow {
         id: stack
         anchors.fill: parent
 
+        // Smooth slide-in animations
+        pushEnter: Transition {
+            PropertyAnimation {
+                property: "x"
+                from: width
+                to: 0
+                duration: 250
+                easing.type: Easing.OutQuad
+            }
+            PropertyAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: 250
+            }
+        }
+
+        pushExit: Transition {
+            PropertyAnimation {
+                property: "x"
+                from: 0
+                to: -width * 0.3
+                duration: 250
+                easing.type: Easing.OutQuad
+            }
+            PropertyAnimation {
+                property: "opacity"
+                from: 1
+                to: 0.5
+                duration: 250
+            }
+        }
+
+        popEnter: Transition {
+            PropertyAnimation {
+                property: "x"
+                from: -width * 0.3
+                to: 0
+                duration: 250
+                easing.type: Easing.OutQuad
+            }
+            PropertyAnimation {
+                property: "opacity"
+                from: 0.5
+                to: 1
+                duration: 250
+            }
+        }
+
+        popExit: Transition {
+            PropertyAnimation {
+                property: "x"
+                from: 0
+                to: width
+                duration: 250
+                easing.type: Easing.InQuad
+            }
+            PropertyAnimation {
+                property: "opacity"
+                from: 1
+                to: 0
+                duration: 250
+            }
+        }
+
         Component.onCompleted: {
             var page = Qt.resolvedUrl("screens/AppWindow.qml")
             var comp = Qt.createComponent(page)
