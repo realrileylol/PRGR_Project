@@ -21,6 +21,8 @@ Item {
     readonly property color danger: "#DA3633"
 
     property var historyData: []
+    property bool showExportNotification: false
+    property string exportFilePath: ""
 
     Component.onCompleted: {
         loadHistory()
@@ -43,9 +45,72 @@ Item {
         return date.toLocaleDateString() + " " + date.toLocaleTimeString()
     }
 
+    function exportData() {
+        var filePath = historyManager.exportToCSV()
+        if (filePath) {
+            exportFilePath = filePath
+            showExportNotification = true
+            exportTimer.restart()
+        }
+    }
+
+    Timer {
+        id: exportTimer
+        interval: 3000
+        onTriggered: showExportNotification = false
+    }
+
     Rectangle {
         anchors.fill: parent
         color: bg
+    }
+
+    // Export Success Notification
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 20
+        width: 500
+        height: 70
+        radius: 10
+        color: success
+        visible: showExportNotification
+        z: 1000
+        opacity: showExportNotification ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 300 } }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 15
+            spacing: 15
+
+            Text {
+                text: "✓"
+                color: "white"
+                font.pixelSize: 28
+                font.bold: true
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                Text {
+                    text: "Export Successful!"
+                    color: "white"
+                    font.pixelSize: 16
+                    font.bold: true
+                }
+
+                Text {
+                    text: "Saved to: " + exportFilePath
+                    color: "white"
+                    font.pixelSize: 12
+                    elide: Text.ElideMiddle
+                    Layout.fillWidth: true
+                }
+            }
+        }
     }
 
     ColumnLayout {
@@ -93,6 +158,31 @@ Item {
             }
 
             Item { Layout.fillWidth: true }
+
+            Button {
+                text: "Export Data"
+                implicitWidth: 130
+                implicitHeight: 48
+
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 16
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    exportData()
+                }
+            }
 
             Button {
                 text: "Clear All"

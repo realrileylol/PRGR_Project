@@ -1,5 +1,6 @@
 import json
 import os
+import csv
 from datetime import datetime
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -93,3 +94,52 @@ class HistoryManager(QObject):
         self._save_history()
         self.historyChanged.emit()
         print(f"🗑️ History cleared for {profile}")
+
+    @Slot(result=str)
+    def exportToCSV(self):
+        """Export all shot history to a CSV file"""
+        try:
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            export_file = os.path.join(os.path.dirname(__file__), f"shot_history_{timestamp}.csv")
+
+            # Define CSV columns
+            fieldnames = [
+                'Date/Time', 'Profile', 'Club', 'Ball Speed (mph)',
+                'Club Speed (mph)', 'Smash Factor', 'Launch Angle (°)',
+                'Spin (rpm)', 'Carry (yds)', 'Total (yds)'
+            ]
+
+            # Write to CSV
+            with open(export_file, 'w', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                # Write each shot (oldest first for CSV)
+                for shot in self._history_data["shots"]:
+                    # Parse timestamp
+                    try:
+                        dt = datetime.fromisoformat(shot.get("timestamp", ""))
+                        date_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    except:
+                        date_time = shot.get("timestamp", "Unknown")
+
+                    writer.writerow({
+                        'Date/Time': date_time,
+                        'Profile': shot.get('profile', 'Unknown'),
+                        'Club': shot.get('club', 'N/A'),
+                        'Ball Speed (mph)': shot.get('ballSpeed', 0),
+                        'Club Speed (mph)': shot.get('clubSpeed', 0),
+                        'Smash Factor': shot.get('smash', 0),
+                        'Launch Angle (°)': shot.get('launch', 0),
+                        'Spin (rpm)': shot.get('spin', 0),
+                        'Carry (yds)': shot.get('carry', 0),
+                        'Total (yds)': shot.get('total', 0)
+                    })
+
+            print(f"📄 History exported to {export_file}")
+            return export_file
+
+        except Exception as e:
+            print(f"❌ Error exporting history: {e}")
+            return ""
