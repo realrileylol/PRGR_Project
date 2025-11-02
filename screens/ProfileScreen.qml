@@ -22,7 +22,7 @@ Item {
 
     // Local model
     property var profiles: []
-    property string activeProfile: "Guest"
+    property string activeProfile: ""
     property int refreshCounter: 0
     
     // Success notification
@@ -381,7 +381,7 @@ Item {
                                             text: "✕"
                                             implicitWidth: 40
                                             implicitHeight: 40
-                                            visible: modelData !== "Guest"
+                                            visible: true
                                             
                                             background: Rectangle {
                                                 color: parent.pressed ? "#B02A2A" : "transparent"

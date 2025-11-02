@@ -12,7 +12,7 @@ class ProfileManager(QObject):
         super().__init__()
         self._profiles_file = os.path.join(os.path.dirname(__file__), "profiles.json")
         self._profiles_data = self._load_profiles()
-        self._active_profile = self._profiles_data.get("active_profile", "Guest")
+        self._active_profile = self._profiles_data.get("active_profile", "")
     
     def _load_profiles(self):
         """Load profiles from JSON file"""

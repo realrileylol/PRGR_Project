@@ -175,7 +175,7 @@ Item {
                     
                     Label {
                         id: profileLabel
-                        text: "👤 " + (win ? win.activeProfile : "Guest")
+                        text: "👤 " + (win && win.activeProfile ? win.activeProfile : "No Profile")
                         color: text
                         font.pixelSize: 20
                         font.bold: true
