@@ -270,6 +270,31 @@ Item {
                             stack.openCamera()
                         }
                     }
+
+                    Button {
+                        text: "History"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                            radius: 12
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#1A1D23"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            stack.openHistory()
+                        }
+                    }
                 }
 
                 // Club Selector
@@ -641,7 +666,19 @@ Item {
                             
                             win.carry = Math.max(0, Math.round(carryCalc))
                             win.total = estimateTotal(win.carry, "normal")
-                            
+
+                            // Save shot to history
+                            historyManager.addShot(
+                                win.activeProfile,
+                                win.clubSpeed,
+                                win.ballSpeed,
+                                win.smash,
+                                win.launchDeg,
+                                win.spinEst,
+                                win.carry,
+                                win.total
+                            )
+
                             soundManager.playSuccess()
                         }
                     }

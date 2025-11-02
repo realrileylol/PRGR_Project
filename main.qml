@@ -120,6 +120,11 @@ ApplicationWindow {
             stack.push(Qt.resolvedUrl("screens/CameraScreen.qml"), { win: win })
         }
 
+        function openHistory() {
+            console.log("Opening:", Qt.resolvedUrl("screens/HistoryScreen.qml"))
+            stack.push(Qt.resolvedUrl("screens/HistoryScreen.qml"), { win: win })
+        }
+
         function goBack() {
             if (stack.depth > 1) {
                 stack.pop()
