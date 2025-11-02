@@ -10,15 +10,26 @@ Item {
     property var win
     property real temperature: 72.0
 
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
+
     Component.onCompleted: {
         if (win) {
             temperature = win.temperature || 72.0
         }
     }
 
-    Rectangle { 
+    Rectangle {
         anchors.fill: parent
-        color: "#0D1117" 
+        color: bg
     }
 
     ColumnLayout {
@@ -35,7 +46,7 @@ Item {
                 text: "← Back"
                 implicitWidth: 90
                 implicitHeight: 42
-                background: Rectangle { color: "#238636"; radius: 6 }
+                background: Rectangle { color: success; radius: 6 }
                 contentItem: Text { 
                     text: parent.text
                     color: "white"
@@ -56,7 +67,7 @@ Item {
             
             Text {
                 text: "Temperature Settings"
-                color: "#F0F6FC"
+                color: text
                 font.pixelSize: 22
                 font.bold: true
             }
@@ -68,7 +79,7 @@ Item {
 
         Text {
             text: "Adjust temperature to simulate real-world ball flight conditions."
-            color: "#8B949E"
+            color: hint
             font.pixelSize: 13
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
@@ -79,8 +90,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 140
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
             
             ColumnLayout {
@@ -90,7 +101,7 @@ Item {
 
                 Text {
                     text: "Temperature: " + temperature.toFixed(1) + " °F"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 22
                     font.bold: true
                 }
@@ -115,12 +126,12 @@ Item {
                         width: tempSlider.availableWidth
                         height: implicitHeight
                         radius: 3
-                        color: "#30363D"
+                        color: edge
 
                         Rectangle {
                             width: tempSlider.visualPosition * parent.width
                             height: parent.height
-                            color: "#1F6FEB"
+                            color: accent
                             radius: 3
                         }
                     }
@@ -131,8 +142,8 @@ Item {
                         implicitWidth: 24
                         implicitHeight: 24
                         radius: 12
-                        color: tempSlider.pressed ? "#58A6FF" : "#1F6FEB"
-                        border.color: "#F0F6FC"
+                        color: tempSlider.pressed ? "#2563EB" : accent
+                        border.color: text
                         border.width: 2
                     }
                 }
@@ -144,7 +155,7 @@ Item {
                         else if (temperature < 85) return "☀️ Ideal – Standard conditions (75°F baseline)"
                         else return "🔥 Hot – Ball gains ~1-2 yards per 10°F"
                     }
-                    color: "#A6D189"
+                    color: "#2D9A4F"
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
@@ -157,8 +168,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 140
             radius: 10
-            color: "#161B22"
-            border.color: "#30363D"
+            color: card
+            border.color: edge
             border.width: 2
             
             ColumnLayout {
@@ -168,14 +179,14 @@ Item {
 
                 Text {
                     text: "How Temperature Affects Different Balls:"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 16
                     font.bold: true
                 }
 
                 Text {
                     text: "• Tour Balls: Most affected by cold\n• Mid Compression: Moderate sensitivity\n• Low Compression/Soft: Less affected\n• Range Balls: Minimal temperature effect"
-                    color: "#8B949E"
+                    color: hint
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
@@ -194,9 +205,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1D6F2F" : "#238636"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
+                    radius: 8
                 }
                 
                 contentItem: Text { 
@@ -222,9 +233,9 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 
-                background: Rectangle { 
-                    color: parent.pressed ? "#1558B8" : "#1F6FEB"
-                    radius: 8 
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
                 }
                 
                 contentItem: Text { 

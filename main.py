@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
 
@@ -7,7 +8,77 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl
 from PySide6.QtMultimedia import QSoundEffect
-from ProfileManager import ProfileManager  # Import the new class
+from ProfileManager import ProfileManager
+from HistoryManager import HistoryManager
+from SettingsManager import SettingsManager
+
+# ============================================
+# Camera Manager Class
+# ============================================
+class CameraManager(QObject):
+    """Manages Raspberry Pi camera using rpicam-vid"""
+
+    def __init__(self):
+        super().__init__()
+        self.camera_process = None
+
+    @Slot()
+    def startCamera(self):
+        """Start the Raspberry Pi camera preview embedded in the UI"""
+        if self.camera_process is not None:
+            print("⚠️ Camera is already running")
+            return
+
+        try:
+            # Camera preview embedded in the black rectangle area
+            # Window is frameless at (0,0), so coordinates match QML layout exactly
+            # x=22 (margin+border), y=82 (margin 20 + header 48 + spacing 12 + border 2), width=756, height=254
+            print("🎥 Starting embedded camera preview...")
+            self.camera_process = subprocess.Popen([
+                'rpicam-vid',
+                '--timeout', '0',           # Run indefinitely
+                '--width', '640',           # Camera resolution
+                '--height', '480',
+                '--preview', '22,82,756,254'  # x,y,width,height - matches black rectangle exactly
+            ])
+            print("✅ Camera started successfully")
+        except FileNotFoundError:
+            try:
+                # Fallback to rpicam-hello with same embedded settings
+                print("🎥 Starting camera with rpicam-hello...")
+                self.camera_process = subprocess.Popen([
+                    'rpicam-hello',
+                    '--timeout', '0',
+                    '--width', '640',
+                    '--height', '480',
+                    '--preview', '22,82,756,254'
+                ])
+                print("✅ Camera started successfully")
+            except FileNotFoundError:
+                print("❌ Camera tools not found. Install with: sudo apt install rpicam-apps")
+                self.camera_process = None
+        except Exception as e:
+            print(f"❌ Failed to start camera: {e}")
+            self.camera_process = None
+
+    @Slot()
+    def stopCamera(self):
+        """Stop the camera preview"""
+        if self.camera_process is not None:
+            print("🛑 Stopping camera...")
+            self.camera_process.terminate()
+            try:
+                self.camera_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.camera_process.kill()
+            self.camera_process = None
+            print("✅ Camera stopped")
+        else:
+            print("⚠️ Camera is not running")
+
+    def __del__(self):
+        """Cleanup on destruction"""
+        self.stopCamera()
 
 # ============================================
 # Sound Manager Class
@@ -65,17 +136,23 @@ qInstallMessageHandler(handler)
 # ============================================
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
-    
+
     # Create managers
+    camera_manager = CameraManager()
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
-    
+    history_manager = HistoryManager()
+    settings_manager = SettingsManager()
+
     # Create QML engine
     engine = QQmlApplicationEngine()
-    
+
     # Expose managers to QML
+    engine.rootContext().setContextProperty("cameraManager", camera_manager)
     engine.rootContext().setContextProperty("soundManager", sound_manager)
     engine.rootContext().setContextProperty("profileManager", profile_manager)
+    engine.rootContext().setContextProperty("historyManager", history_manager)
+    engine.rootContext().setContextProperty("settingsManager", settings_manager)
     
     # Load main QML
     engine.load('main.qml')

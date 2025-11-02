@@ -9,17 +9,16 @@ Item {
 
     property var win
 
-    // DARK THEME COLORS - MATCHING TEMPSETTINGS EXACTLY
-    readonly property color bg: "#0D1117"
-    readonly property color card: "#161B22"
-    readonly property color edge: "#30363D"
-    readonly property color text: "#F0F6FC"
-    readonly property color hint: "#8B949E"
-    readonly property color successText: "#A6D189"
-    readonly property color accent: "#1F6FEB"
-    readonly property color accentHover: "#1558B8"
-    readonly property color success: "#238636"
-    readonly property color successHover: "#1D6F2F"
+    // Theme colors matching MyBag.qml
+    readonly property color bg: "#F5F7FA"
+    readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
+    readonly property color edge: "#D0D5DD"
+    readonly property color text: "#1A1D23"
+    readonly property color hint: "#5F6B7A"
+    readonly property color accent: "#3A86FF"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
 
     Rectangle {
         anchors.fill: parent
@@ -40,9 +39,9 @@ Item {
                     implicitWidth: 100
                     implicitHeight: 48
                     
-                    background: Rectangle { 
-                        color: parent.pressed ? successHover : success
-                        radius: 6 
+                    background: Rectangle {
+                        color: parent.pressed ? "#2D9A4F" : success
+                        radius: 6
                     }
                     
                     contentItem: Text { 
@@ -72,16 +71,36 @@ Item {
                 
                 Text {
                     text: "Settings"
-                    color: "#F0F6FC"
+                    color: text
                     font.pixelSize: 24
                     font.bold: true
                 }
                 
                 Item { Layout.fillWidth: true }
-                
-                Item {
-                    implicitWidth: 100
+
+                Button {
+                    text: "Reset to Default"
+                    implicitWidth: 150
                     implicitHeight: 48
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A27" : danger
+                        radius: 6
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        resetConfirmDialog.open()
+                    }
                 }
             }
             
@@ -153,7 +172,7 @@ Item {
                                 text: "Wind Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -162,8 +181,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -233,7 +252,7 @@ Item {
                                 text: "Temperature Effects"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -242,8 +261,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -313,7 +332,7 @@ Item {
                                 text: "Ball Type"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -322,8 +341,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -393,7 +412,7 @@ Item {
                                 text: "Launch Settings"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -402,8 +421,8 @@ Item {
                                 implicitWidth: 110
                                 implicitHeight: 50
                                 
-                                background: Rectangle { 
-                                    color: parent.pressed ? accentHover : accent
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
                                 }
                                 
@@ -473,7 +492,7 @@ Item {
                                 text: "Show Simulate Button"
                                 font.pixelSize: 18
                                 font.bold: true
-                                color: "#F0F6FC"
+                                color: text
                                 Layout.fillWidth: true
                             }
 
@@ -491,7 +510,101 @@ Item {
             }
         }
     }
-    
+
+    // Reset confirmation dialog
+    Dialog {
+        id: resetConfirmDialog
+        title: "Reset All Settings"
+        anchors.centerIn: parent
+        modal: true
+
+        contentItem: Rectangle {
+            implicitWidth: 400
+            implicitHeight: 180
+            color: card
+            radius: 10
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 20
+
+                Label {
+                    text: "Are you sure you want to reset ALL settings to default values?\n\nThis will reset:\n• All checkboxes and toggles\n• Temperature, wind, and ball settings\n• Current metrics and values\n• Active profile selection\n\nThis action cannot be undone!"
+                    color: text
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Button {
+                        text: "Cancel"
+                        Layout.fillWidth: true
+                        implicitHeight: 40
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : edge
+                            radius: 8
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: text
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            resetConfirmDialog.close()
+                        }
+                    }
+
+                    Button {
+                        text: "Reset All"
+                        Layout.fillWidth: true
+                        implicitHeight: 40
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B02A27" : danger
+                            radius: 8
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            if (win) {
+                                win.resetAllSettings()
+
+                                // Reload the checkboxes from the reset values
+                                windToggle.checked = win.useWind
+                                tempToggle.checked = win.useTemp
+                                ballToggle.checked = win.useBallType
+                                launchToggle.checked = win.useLaunchEst
+                                simulateToggle.checked = win.useSimulateButton
+                            }
+                            resetConfirmDialog.close()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Component.onCompleted: {
         if (win) {
             windToggle.checked = win.useWind || false

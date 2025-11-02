@@ -5,15 +5,16 @@ Rectangle {
     id: card
     width: 210; height: 72
     radius: 8
-    color: "#12171D"
-    border.color: "#1C2733"
+    color: "#FFFFFF"
+    border.color: "#D0D5DD"
+    border.width: 2
 
     property string label: "Metric"
     property string value: "--"
 
     Column {
         anchors.fill: parent; anchors.margins: 10; spacing: 4
-        Label { text: label; color: "#9FB0C4"; font.pixelSize: 14 }
-        Label { text: value; color: "white"; font.pixelSize: 22; font.bold: true }
+        Label { text: label; color: "#5F6B7A"; font.pixelSize: 14 }
+        Label { text: value; color: "#1A1D23"; font.pixelSize: 22; font.bold: true }
     }
 }

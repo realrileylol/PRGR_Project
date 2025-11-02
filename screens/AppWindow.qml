@@ -9,14 +9,16 @@ Item {
 
     property var win
 
-    // Theme colors
+    // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
     readonly property color card: "#FFFFFF"
+    readonly property color cardHover: "#F9FAFB"
     readonly property color edge: "#D0D5DD"
     readonly property color text: "#1A1D23"
     readonly property color hint: "#5F6B7A"
     readonly property color accent: "#3A86FF"
-    readonly property color ok: "#34C759"
+    readonly property color success: "#34C759"
+    readonly property color danger: "#DA3633"
 
     // ORDERED metrics - always displayed in this order
     property var orderedMetrics: [
@@ -173,7 +175,7 @@ Item {
                     
                     Label {
                         id: profileLabel
-                        text: "👤 " + (win ? win.activeProfile : "Guest")
+                        text: "👤 " + (win && win.activeProfile ? win.activeProfile : "No Profile")
                         color: text
                         font.pixelSize: 20
                         font.bold: true
@@ -189,21 +191,21 @@ Item {
                     }
                 }
                 
-                // Profile/Settings buttons (Profile contains My Bag)
+                // Profile/Settings/Camera buttons (Profile contains My Bag)
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
-                    
+
                     Button {
                         text: "Profile"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
-                        
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
                         }
-                        
+
                         contentItem: Text {
                             text: parent.text
                             color: "#1A1D23"
@@ -212,23 +214,23 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        
-                        onClicked: { 
+
+                        onClicked: {
                             soundManager.playClick()
                             stack.openProfile()
                         }
                     }
-                    
+
                     Button {
                         text: "Settings"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
-                        
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
                         }
-                        
+
                         contentItem: Text {
                             text: parent.text
                             color: "#1A1D23"
@@ -237,10 +239,60 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        
+
                         onClicked: {
                             soundManager.playClick()
                             stack.openSettings()
+                        }
+                    }
+
+                    Button {
+                        text: "Camera"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                            radius: 12
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#1A1D23"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            stack.openCamera()
+                        }
+                    }
+
+                    Button {
+                        text: "History"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                            radius: 12
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#1A1D23"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            stack.openHistory()
                         }
                     }
                 }
@@ -375,11 +427,11 @@ Item {
                         anchors.margins: 12
                         spacing: 10
                         
-                        Rectangle { 
+                        Rectangle {
                             width: 14
                             height: 14
                             radius: 7
-                            color: ok
+                            color: success
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         
@@ -614,7 +666,20 @@ Item {
                             
                             win.carry = Math.max(0, Math.round(carryCalc))
                             win.total = estimateTotal(win.carry, "normal")
-                            
+
+                            // Save shot to history
+                            historyManager.addShot(
+                                win.activeProfile,
+                                win.currentClub,
+                                win.clubSpeed,
+                                win.ballSpeed,
+                                win.smash,
+                                win.launchDeg,
+                                win.spinEst,
+                                win.carry,
+                                win.total
+                            )
+
                             soundManager.playSuccess()
                         }
                     }
