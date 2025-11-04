@@ -6,6 +6,7 @@ import QtQuick.Controls.Material 2.15
 ApplicationWindow {
     id: win
     visible: true
+    visibility: Window.FullScreen
     width: 800
     height: 480
     minimumWidth: 800
