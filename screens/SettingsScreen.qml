@@ -522,7 +522,62 @@ Item {
                             }
                         }
                     }
-                    
+
+                    // CAMERA SETTINGS
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
+
+                            Text {
+                                text: "Camera Settings"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("CameraSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }
