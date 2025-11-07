@@ -52,8 +52,17 @@ def test_camera_capture():
     captures_folder = "ball_captures"
     os.makedirs(captures_folder, exist_ok=True)
 
+    # Find next shot number by checking existing files
+    existing_shots = [f for f in os.listdir(captures_folder) if f.startswith("shot_")]
+    if existing_shots:
+        shot_numbers = [int(f.split("_")[1]) for f in existing_shots]
+        next_shot = max(shot_numbers) + 1
+    else:
+        next_shot = 0
+
     print("🎥 Initializing camera...")
-    print(f"📁 Saving captures to: {captures_folder}/\n")
+    print(f"📁 Saving captures to: {captures_folder}/")
+    print(f"📝 Next shot number: #{next_shot}\n")
 
     # Load camera settings from GUI
     settings_manager = SettingsManager()
@@ -93,10 +102,9 @@ def test_camera_capture():
     print("  1. Position ball 4-5 feet from camera with dots visible")
     print("  2. Camera will detect the ball automatically")
     print("  3. When ball moves → automatically captures 10 frames")
-    print("  4. Saved images will be numbered sequentially")
-    print("  5. Press Ctrl+C to stop\n")
+    print("  4. Script will stop after capturing one shot")
+    print("  5. Run script again for next shot\n")
 
-    shot_number = 0
     original_ball = None
     stable_frames = 0
     motion_frames = 0  # Require consecutive motion frames to avoid false triggers
@@ -139,7 +147,7 @@ def test_camera_capture():
                         cv2.putText(display, "CAPTURING!", (10, 30),
                                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
-                        print(f"\n🚀 MOTION CONFIRMED - Shot #{shot_number + 1}")
+                        print(f"\n🚀 MOTION CONFIRMED - Shot #{next_shot}")
                         print("📷 Capturing frames...")
 
                         # Capture frames rapidly
@@ -154,19 +162,18 @@ def test_camera_capture():
                         # Save frames
                         print("💾 Saving frames...")
                         for i, save_frame in enumerate(frames):
-                            filename = f"shot_{shot_number:03d}_frame_{i:03d}.jpg"
+                            filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
                             filepath = os.path.join(captures_folder, filename)
                             cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
                             print(f"   Saved: {filepath}")
 
-                        print(f"✅ Shot #{shot_number + 1} saved!\n")
-                        print("   Position ball for next shot...")
+                        print(f"\n✅ Shot #{next_shot} saved!")
+                        print(f"📊 Total frames saved: 10")
+                        print("\n✅ Done! Run script again to capture next shot.")
 
-                        shot_number += 1
-                        original_ball = None
-                        stable_frames = 0
-                        motion_frames = 0
-                        time.sleep(2)  # Cooldown before next detection
+                        # Stop after one capture
+                        picam2.stop()
+                        return
 
                 else:
                     # Ball stable and ready - reset motion counter
@@ -189,7 +196,7 @@ def test_camera_capture():
 
     except KeyboardInterrupt:
         print("\n\n⏹️  Stopped by user")
-        print(f"📊 Total shots captured: {shot_number}")
+        print("   No shot captured")
 
     finally:
         picam2.stop()
