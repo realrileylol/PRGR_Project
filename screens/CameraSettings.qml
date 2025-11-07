@@ -32,13 +32,21 @@ Item {
     }
 
     function loadSettings() {
-        shutterSpeed = settingsManager.getNumber("cameraShutterSpeed") || 5000
-        gain = settingsManager.getNumber("cameraGain") || 2.0
-        evCompensation = settingsManager.getNumber("cameraEV") || 0.0
-        frameRate = settingsManager.getNumber("cameraFrameRate") || 30
-        timeOfDay = settingsManager.getString("cameraTimeOfDay") || "Cloudy/Shade"
+        var loadedShutter = settingsManager.getNumber("cameraShutterSpeed")
+        var loadedGain = settingsManager.getNumber("cameraGain")
+        var loadedEV = settingsManager.getNumber("cameraEV")
+        var loadedFPS = settingsManager.getNumber("cameraFrameRate")
+        var loadedTOD = settingsManager.getString("cameraTimeOfDay")
 
-        // Update combo box
+        shutterSpeed = loadedShutter || 5000
+        gain = loadedGain || 2.0
+        evCompensation = loadedEV || 0.0
+        frameRate = loadedFPS || 30
+        timeOfDay = loadedTOD || "Cloudy/Shade"
+
+        console.log("📷 Loaded camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
+
+        // Update combo box to match loaded timeOfDay
         for (var i = 0; i < timeOfDaySelect.model.length; i++) {
             if (timeOfDaySelect.model[i] === timeOfDay) {
                 timeOfDaySelect.currentIndex = i
@@ -53,6 +61,8 @@ Item {
         settingsManager.setNumber("cameraEV", evCompensation)
         settingsManager.setNumber("cameraFrameRate", frameRate)
         settingsManager.setString("cameraTimeOfDay", timeOfDay)
+
+        console.log("💾 Saved camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
     }
 
     function applyPreset(preset) {
@@ -607,6 +617,34 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
+
+            Button {
+                text: "Save"
+                Layout.fillWidth: true
+                implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 16
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    saveSettings()
+                }
+            }
 
             Button {
                 text: "Save & Return"
