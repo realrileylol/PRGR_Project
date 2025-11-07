@@ -7,6 +7,7 @@ Now reads camera settings from your GUI configuration!
 
 import time
 import numpy as np
+import os
 from picamera2 import Picamera2
 import cv2
 from SettingsManager import SettingsManager
@@ -46,7 +47,12 @@ def ball_has_moved(prev_ball, curr_ball, threshold=40):
 def test_camera_capture():
     """Motion-triggered capture with ball detection"""
 
+    # Create captures folder if it doesn't exist
+    captures_folder = "ball_captures"
+    os.makedirs(captures_folder, exist_ok=True)
+
     print("🎥 Initializing camera...")
+    print(f"📁 Saving captures to: {captures_folder}/\n")
 
     # Load camera settings from GUI
     settings_manager = SettingsManager()
@@ -148,8 +154,9 @@ def test_camera_capture():
                         print("💾 Saving frames...")
                         for i, save_frame in enumerate(frames):
                             filename = f"shot_{shot_number:03d}_frame_{i:03d}.jpg"
-                            cv2.imwrite(filename, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
-                            print(f"   Saved: {filename}")
+                            filepath = os.path.join(captures_folder, filename)
+                            cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                            print(f"   Saved: {filepath}")
 
                         print(f"✅ Shot #{shot_number + 1} saved!\n")
                         print("   Position ball for next shot...")

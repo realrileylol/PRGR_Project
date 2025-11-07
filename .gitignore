@@ -1,0 +1,26 @@
+# Ball capture test images
+ball_captures/
+
+# Other test output files
+*.jpg
+*.png
+spin_debug_*.jpg
+test_frame_*.jpg
+shot_*.jpg
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Qt cache
+*.qmlc
+*.jsc
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
