@@ -2,6 +2,7 @@
 """
 Basic spin detection test using OpenCV.
 Detects ball, tracks dots/features, estimates rotation.
+Now reads camera settings from your GUI configuration!
 """
 
 import cv2
@@ -9,6 +10,7 @@ import numpy as np
 import time
 from picamera2 import Picamera2
 import math
+from SettingsManager import SettingsManager
 
 class SpinDetector:
     def __init__(self):
@@ -131,15 +133,29 @@ def test_spin_detection():
 
     print("🎥 Initializing camera for spin detection...")
 
+    # Load camera settings from GUI
+    settings_manager = SettingsManager()
+    shutter_speed = int(settings_manager.getNumber("cameraShutterSpeed") or 5000)
+    gain = float(settings_manager.getNumber("cameraGain") or 2.0)
+    frame_rate = int(settings_manager.getNumber("cameraFrameRate") or 30)
+    time_of_day = settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
+
+    print(f"📷 Using saved settings from GUI:")
+    print(f"   Time of Day: {time_of_day}")
+    print(f"   Shutter: {shutter_speed}µs")
+    print(f"   Gain: {gain}x")
+    print(f"   Frame Rate: {frame_rate} fps")
+    print()
+
     picam2 = Picamera2()
 
-    # Configure for high-speed capture
+    # Configure with your saved settings
     config = picam2.create_video_configuration(
         main={"size": (640, 480), "format": "RGB888"},
         controls={
-            "FrameRate": 60,
-            "ExposureTime": 1500,  # 1.5ms shutter
-            "AnalogueGain": 8.0
+            "FrameRate": frame_rate,
+            "ExposureTime": shutter_speed,
+            "AnalogueGain": gain
         }
     )
 

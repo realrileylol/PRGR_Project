@@ -2,28 +2,44 @@
 """
 Simple camera frame capture test for spin detection development.
 Captures frames from Raspberry Pi camera using picamera2.
+Now reads camera settings from your GUI configuration!
 """
 
 import time
 import numpy as np
 from picamera2 import Picamera2
 import cv2
+from SettingsManager import SettingsManager
 
 def test_camera_capture():
     """Capture and save test frames from camera"""
 
     print("🎥 Initializing camera...")
 
+    # Load camera settings from GUI
+    settings_manager = SettingsManager()
+    shutter_speed = int(settings_manager.getNumber("cameraShutterSpeed") or 5000)
+    gain = float(settings_manager.getNumber("cameraGain") or 2.0)
+    frame_rate = int(settings_manager.getNumber("cameraFrameRate") or 30)
+    time_of_day = settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
+
+    print(f"📷 Using saved settings from GUI:")
+    print(f"   Time of Day: {time_of_day}")
+    print(f"   Shutter: {shutter_speed}µs")
+    print(f"   Gain: {gain}x")
+    print(f"   Frame Rate: {frame_rate} fps")
+    print()
+
     # Initialize camera
     picam2 = Picamera2()
 
-    # Configure for high-speed capture
+    # Configure with your saved settings
     config = picam2.create_video_configuration(
         main={"size": (640, 480), "format": "RGB888"},
         controls={
-            "FrameRate": 60,  # Match your Camera Settings
-            "ExposureTime": 1500,  # 1.5ms shutter (Spin Detection preset)
-            "AnalogueGain": 8.0    # High gain for indoor
+            "FrameRate": frame_rate,
+            "ExposureTime": shutter_speed,
+            "AnalogueGain": gain
         }
     )
 
@@ -46,11 +62,12 @@ def test_camera_capture():
     print("\n📷 Capturing frames...")
 
     # Capture 10 frames rapidly
+    frame_delay = 1.0 / frame_rate  # Spacing based on your frame rate setting
     for i in range(10):
         frame = picam2.capture_array()
         frames.append(frame)
         print(f"  Frame {i+1}/10 captured")
-        time.sleep(0.016)  # ~60fps spacing
+        time.sleep(frame_delay)
 
     picam2.stop()
 
