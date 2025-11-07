@@ -38,8 +38,9 @@ def ball_has_moved(prev_ball, curr_ball, threshold=40):
     if prev_ball is None or curr_ball is None:
         return False
 
-    dx = curr_ball[0] - prev_ball[0]
-    dy = curr_ball[1] - prev_ball[1]
+    # Convert to int to avoid uint16 overflow warnings
+    dx = int(curr_ball[0]) - int(prev_ball[0])
+    dy = int(curr_ball[1]) - int(prev_ball[1])
     distance = np.sqrt(dx**2 + dy**2)
 
     return distance > threshold
