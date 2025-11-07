@@ -32,7 +32,7 @@ def detect_ball(frame):
         return circles[0, 0]  # x, y, radius
     return None
 
-def ball_has_moved(prev_ball, curr_ball, threshold=15):
+def ball_has_moved(prev_ball, curr_ball, threshold=40):
     """Check if ball has moved significantly from original position"""
     if prev_ball is None or curr_ball is None:
         return False
@@ -92,6 +92,7 @@ def test_camera_capture():
     shot_number = 0
     original_ball = None
     stable_frames = 0
+    motion_frames = 0  # Require consecutive motion frames to avoid false triggers
 
     try:
         while True:
@@ -108,50 +109,60 @@ def test_camera_capture():
                 if original_ball is None:
                     stable_frames += 1
                     cv2.circle(display, (x, y), r, (255, 255, 0), 2)  # Yellow = detecting
-                    cv2.putText(display, f"Detecting ball... {stable_frames}/10", (10, 30),
+                    cv2.putText(display, f"Detecting ball... {stable_frames}/20", (10, 30),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
-                    if stable_frames >= 10:
+                    if stable_frames >= 20:  # Increased from 10 to 20 for better stability
                         original_ball = current_ball
                         print(f"🎯 Ball locked at position ({x}, {y})")
                         print("   Ready to capture - hit your shot!")
                         stable_frames = 0
+                        motion_frames = 0
 
                 # Ball is locked, check for motion
                 elif ball_has_moved(original_ball, current_ball):
-                    cv2.circle(display, (x, y), r, (0, 0, 255), 3)  # Red = MOTION!
-                    cv2.putText(display, "MOTION DETECTED!", (10, 30),
-                              cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                    motion_frames += 1
+                    cv2.circle(display, (x, y), r, (255, 165, 0), 3)  # Orange = motion detected
+                    cv2.putText(display, f"Motion detected... {motion_frames}/3", (10, 30),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
 
-                    print(f"\n🚀 MOTION DETECTED - Shot #{shot_number + 1}")
-                    print("📷 Capturing frames...")
+                    # Require 3 consecutive motion frames to trigger capture
+                    if motion_frames >= 3:
+                        cv2.circle(display, (x, y), r, (0, 0, 255), 3)  # Red = CAPTURING!
+                        cv2.putText(display, "CAPTURING!", (10, 30),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
-                    # Capture frames rapidly
-                    frames = []
-                    frame_delay = 1.0 / frame_rate
-                    for i in range(10):
-                        capture_frame = picam2.capture_array()
-                        frames.append(capture_frame)
-                        print(f"   Frame {i+1}/10 captured")
-                        time.sleep(frame_delay)
+                        print(f"\n🚀 MOTION CONFIRMED - Shot #{shot_number + 1}")
+                        print("📷 Capturing frames...")
 
-                    # Save frames
-                    print("💾 Saving frames...")
-                    for i, save_frame in enumerate(frames):
-                        filename = f"shot_{shot_number:03d}_frame_{i:03d}.jpg"
-                        cv2.imwrite(filename, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
-                        print(f"   Saved: {filename}")
+                        # Capture frames rapidly
+                        frames = []
+                        frame_delay = 1.0 / frame_rate
+                        for i in range(10):
+                            capture_frame = picam2.capture_array()
+                            frames.append(capture_frame)
+                            print(f"   Frame {i+1}/10 captured")
+                            time.sleep(frame_delay)
 
-                    print(f"✅ Shot #{shot_number + 1} saved!\n")
-                    print("   Position ball for next shot...")
+                        # Save frames
+                        print("💾 Saving frames...")
+                        for i, save_frame in enumerate(frames):
+                            filename = f"shot_{shot_number:03d}_frame_{i:03d}.jpg"
+                            cv2.imwrite(filename, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                            print(f"   Saved: {filename}")
 
-                    shot_number += 1
-                    original_ball = None
-                    stable_frames = 0
-                    time.sleep(2)  # Cooldown before next detection
+                        print(f"✅ Shot #{shot_number + 1} saved!\n")
+                        print("   Position ball for next shot...")
+
+                        shot_number += 1
+                        original_ball = None
+                        stable_frames = 0
+                        motion_frames = 0
+                        time.sleep(2)  # Cooldown before next detection
 
                 else:
-                    # Ball stable and ready
+                    # Ball stable and ready - reset motion counter
+                    motion_frames = 0
                     cv2.circle(display, (x, y), r, (0, 255, 0), 2)  # Green = ready
                     cv2.putText(display, "READY - Hit the ball!", (10, 30),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -161,6 +172,7 @@ def test_camera_capture():
                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 original_ball = None
                 stable_frames = 0
+                motion_frames = 0
 
             # Optional: Save preview frame for debugging
             # cv2.imwrite("preview.jpg", cv2.cvtColor(display, cv2.COLOR_RGB2BGR))
