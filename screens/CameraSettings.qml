@@ -13,6 +13,7 @@ Item {
     property int shutterSpeed: 5000      // microseconds (1000-30000)
     property real gain: 2.0              // analog gain (1.0-16.0)
     property real evCompensation: 0.0    // exposure compensation (-2.0 to +2.0)
+    property int frameRate: 30           // frames per second (30, 60, 90, 120)
     property string timeOfDay: "Cloudy/Shade"
 
     // Theme colors matching MyBag.qml
@@ -34,6 +35,7 @@ Item {
         shutterSpeed = settingsManager.getNumber("cameraShutterSpeed") || 5000
         gain = settingsManager.getNumber("cameraGain") || 2.0
         evCompensation = settingsManager.getNumber("cameraEV") || 0.0
+        frameRate = settingsManager.getNumber("cameraFrameRate") || 30
         timeOfDay = settingsManager.getString("cameraTimeOfDay") || "Cloudy/Shade"
 
         // Update combo box
@@ -49,31 +51,42 @@ Item {
         settingsManager.setNumber("cameraShutterSpeed", shutterSpeed)
         settingsManager.setNumber("cameraGain", gain)
         settingsManager.setNumber("cameraEV", evCompensation)
+        settingsManager.setNumber("cameraFrameRate", frameRate)
         settingsManager.setString("cameraTimeOfDay", timeOfDay)
     }
 
     function applyPreset(preset) {
         timeOfDay = preset
         switch(preset) {
+            case "Spin Detection":
+                shutterSpeed = 1500
+                gain = 8.0
+                evCompensation = 0.0
+                frameRate = 60
+                break
             case "Early AM/Dusk/Indoor":
                 shutterSpeed = 15000
                 gain = 6.0
                 evCompensation = 0.5
+                frameRate = 30
                 break
             case "Midday/Texas Sun":
                 shutterSpeed = 2000
                 gain = 1.5
                 evCompensation = -0.5
+                frameRate = 30
                 break
             case "Cloudy/Shade":
                 shutterSpeed = 5000
                 gain = 2.0
                 evCompensation = 0.0
+                frameRate = 30
                 break
             case "Indoor with IR":
                 shutterSpeed = 10000
                 gain = 4.0
                 evCompensation = 0.0
+                frameRate = 30
                 break
         }
     }
@@ -179,13 +192,14 @@ Item {
                             Layout.preferredHeight: 50
 
                             model: [
+                                "Spin Detection",
                                 "Early AM/Dusk/Indoor",
                                 "Midday/Texas Sun",
                                 "Cloudy/Shade",
                                 "Indoor with IR"
                             ]
 
-                            currentIndex: 2
+                            currentIndex: 3
 
                             onCurrentTextChanged: {
                                 if (currentText) {
@@ -473,6 +487,79 @@ Item {
                     }
                 }
 
+                // --- Frame Rate ---
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 10
+                    color: card
+                    border.color: edge
+                    border.width: 2
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 10
+
+                        Text {
+                            text: "Frame Rate: " + frameRate + " fps"
+                            color: cameraSettings.text
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Repeater {
+                                model: [30, 60, 90, 120]
+
+                                Button {
+                                    text: modelData + " fps"
+                                    Layout.fillWidth: true
+                                    implicitHeight: 50
+                                    scale: pressed ? 0.95 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                    background: Rectangle {
+                                        color: frameRate === modelData ? accent : (parent.pressed ? "#E8F0FE" : "#F5F7FA")
+                                        radius: 8
+                                        border.color: frameRate === modelData ? accent : edge
+                                        border.width: 2
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+
+                                    contentItem: Text {
+                                        text: parent.text
+                                        color: frameRate === modelData ? "white" : cameraSettings.text
+                                        font.pixelSize: 14
+                                        font.bold: frameRate === modelData
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        frameRate = modelData
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: frameRate === 30 ? "Standard - Good for general use" :
+                                  frameRate === 60 ? "High - Better for spin detection" :
+                                  frameRate === 90 ? "Very High - Excellent spin resolution" :
+                                  "Ultra High - Maximum spin accuracy (requires processing power)"
+                            color: hint
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
                 // --- Info Card ---
                 Rectangle {
                     Layout.fillWidth: true
@@ -495,7 +582,7 @@ Item {
                         }
 
                         Text {
-                            text: "• Early AM/Dusk: High gain + long shutter for low light\n• Midday Sun: Low gain + fast shutter to prevent overexposure\n• Cloudy/Shade: Balanced settings for changing conditions\n• Indoor IR: Fixed settings for consistent IR lighting"
+                            text: "• Spin Detection: Fast shutter (1.5ms) + high gain + 60fps for tracking ball rotation\n• Early AM/Dusk: High gain + long shutter for low light\n• Midday Sun: Low gain + fast shutter to prevent overexposure\n• Cloudy/Shade: Balanced settings for changing conditions\n• Indoor IR: Fixed settings for consistent IR lighting"
                             color: hint
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap

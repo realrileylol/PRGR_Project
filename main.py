@@ -34,13 +34,15 @@ class CameraManager(QObject):
         shutter_speed = 5000
         gain = 2.0
         ev_compensation = 0.0
+        frame_rate = 30
 
         if self.settings_manager:
             shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
             gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
             ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
             time_of_day = self.settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
-            print(f"📷 Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f}")
+            print(f"📷 Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f} | FPS: {frame_rate}")
 
         try:
             # Camera preview embedded in the black rectangle area
@@ -54,6 +56,7 @@ class CameraManager(QObject):
                 '--timeout', '0',                # Run indefinitely
                 '--width', '640',                # Camera resolution
                 '--height', '480',
+                '--framerate', str(frame_rate),  # Frames per second
                 '--preview', '22,82,756,254',    # x,y,width,height - matches black rectangle exactly
                 '--shutter', str(shutter_speed), # Exposure time in microseconds
                 '--gain', str(gain),             # Analog gain
@@ -72,6 +75,7 @@ class CameraManager(QObject):
                     '--timeout', '0',
                     '--width', '640',
                     '--height', '480',
+                    '--framerate', str(frame_rate),
                     '--preview', '22,82,756,254',
                     '--shutter', str(shutter_speed),
                     '--gain', str(gain),
