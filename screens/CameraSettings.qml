@@ -9,6 +9,9 @@ Item {
 
     property var win
 
+    // Flag to prevent applyPreset during initial load
+    property bool isLoading: true
+
     // Camera parameters
     property int shutterSpeed: 5000      // microseconds (1000-30000)
     property real gain: 2.0              // analog gain (1.0-16.0)
@@ -53,6 +56,9 @@ Item {
                 break
             }
         }
+
+        // Loading complete - allow preset changes from now on
+        isLoading = false
     }
 
     function saveSettings() {
@@ -212,7 +218,8 @@ Item {
                             currentIndex: 3
 
                             onCurrentTextChanged: {
-                                if (currentText) {
+                                // Only apply preset if user manually changed it (not during initial load)
+                                if (currentText && !isLoading) {
                                     applyPreset(currentText)
                                 }
                             }
