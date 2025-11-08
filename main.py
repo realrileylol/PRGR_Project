@@ -202,23 +202,41 @@ class CaptureManager(QObject):
         """Detect golf ball in frame using color-filtered circle detection
 
         Focuses specifically on white/bright colored balls and ignores
-        darker objects like shoes, clubs, etc.
+        darker objects like shoes, clubs, metallic reflections, etc.
         """
-        # Convert to grayscale for initial processing
+        # Convert to both grayscale and HSV for multi-modal filtering
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
-        # Create a strict mask for very bright/white regions (golf balls)
-        # Increased threshold to 140 to filter out reflective club heads
-        # Golf ball should be consistently bright - threshold at 140+ on 0-255 scale
-        _, white_mask = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+        # HSV Color filtering for WHITE golf balls
+        # White objects have low saturation and high value
+        # This rejects metallic/shiny club heads which have higher saturation
+        lower_white = np.array([0, 0, 150])      # H, S, V
+        upper_white = np.array([180, 60, 255])   # Low saturation = white, not metallic
+        white_color_mask = cv2.inRange(hsv, lower_white, upper_white)
 
-        # Apply mask to grayscale image
-        masked_gray = cv2.bitwise_and(gray, gray, mask=white_mask)
+        # Also support YELLOW golf balls (optional)
+        lower_yellow = np.array([20, 100, 150])
+        upper_yellow = np.array([30, 255, 255])
+        yellow_color_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+
+        # Combine white and yellow masks
+        color_mask = cv2.bitwise_or(white_color_mask, yellow_color_mask)
+
+        # Create brightness mask (same as before)
+        _, brightness_mask = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+
+        # COMBINE color and brightness: must be BOTH white/yellow AND bright
+        # This rejects metallic reflections which are bright but not white
+        combined_mask = cv2.bitwise_and(color_mask, brightness_mask)
+
+        # Apply combined mask to grayscale
+        masked_gray = cv2.bitwise_and(gray, gray, mask=combined_mask)
 
         # Blur for better circle detection
         blurred = cv2.GaussianBlur(masked_gray, (9, 9), 2)
 
-        # Detect circles in the bright-region-only image
+        # Detect circles in the filtered image
         circles = cv2.HoughCircles(
             blurred,
             cv2.HOUGH_GRADIENT,
@@ -233,36 +251,39 @@ class CaptureManager(QObject):
         if circles is not None:
             circles = np.uint16(np.around(circles))
 
-            # Validate detected circles by checking brightness AND circularity
-            # Golf ball should have consistently bright pixels and be very round
+            # Validate detected circles
             for circle in circles[0]:
                 x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
 
                 # Extract region around detected circle
-                # Make sure we don't go out of bounds
                 y1, y2 = max(0, y - r), min(gray.shape[0], y + r)
                 x1, x2 = max(0, x - r), min(gray.shape[1], x + r)
 
-                ball_region = gray[y1:y2, x1:x2]
+                ball_region_gray = gray[y1:y2, x1:x2]
+                ball_region_hsv = hsv[y1:y2, x1:x2]
 
-                # Check average brightness of the region
-                # Golf ball should have mean brightness > 130 (stricter than before)
-                if ball_region.size > 0:
-                    mean_brightness = np.mean(ball_region)
+                if ball_region_gray.size > 0 and ball_region_hsv.size > 0:
+                    # Check brightness
+                    mean_brightness = np.mean(ball_region_gray)
 
-                    if mean_brightness > 130:  # Very bright = likely golf ball
-                        # Additional validation: check circularity using white mask
-                        mask_region = white_mask[y1:y2, x1:x2]
+                    # Check saturation (golf balls should have LOW saturation)
+                    # Metallic/shiny surfaces have HIGHER saturation
+                    mean_saturation = np.mean(ball_region_hsv[:, :, 1])
 
-                        # Golf ball should have a high percentage of bright pixels in its region
+                    if mean_brightness > 130 and mean_saturation < 80:
+                        # Check circularity with combined mask
+                        mask_region = combined_mask[y1:y2, x1:x2]
                         bright_pixel_ratio = np.count_nonzero(mask_region) / mask_region.size if mask_region.size > 0 else 0
 
-                        if bright_pixel_ratio > 0.5:  # At least 50% of ball region should be bright
+                        if bright_pixel_ratio > 0.6:  # Increased to 60% for stricter validation
                             return circle  # x, y, radius
                         else:
-                            print(f"   Rejected circle at ({x},{y}) - not round enough (bright ratio: {bright_pixel_ratio:.2f})")
+                            print(f"   Rejected circle at ({x},{y}) - not uniformly white (white ratio: {bright_pixel_ratio:.2f})")
                     else:
-                        print(f"   Rejected circle at ({x},{y}) - too dark (brightness: {int(mean_brightness)})")
+                        if mean_saturation >= 80:
+                            print(f"   Rejected circle at ({x},{y}) - too metallic/colorful (saturation: {int(mean_saturation)})")
+                        else:
+                            print(f"   Rejected circle at ({x},{y}) - too dark (brightness: {int(mean_brightness)})")
 
         return None
 
