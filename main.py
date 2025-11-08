@@ -293,7 +293,7 @@ class CaptureManager(QObject):
             prev_ball = None
 
             while self.is_running:
-                frame = self.self.picam2.capture_array()
+                frame = self.picam2.capture_array()
                 current_ball = self._detect_ball(frame)
 
                 if current_ball is not None:
