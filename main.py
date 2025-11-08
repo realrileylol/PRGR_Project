@@ -138,6 +138,7 @@ class CaptureManager(QObject):
         self.camera_manager = camera_manager
         self.is_running = False
         self.capture_thread = None
+        self.picam2 = None  # Store camera instance for cleanup
 
     @Slot()
     def startCapture(self):
@@ -164,10 +165,24 @@ class CaptureManager(QObject):
     @Slot()
     def stopCapture(self):
         """Stop the capture process"""
+        print("🛑 Stopping capture...")
         self.is_running = False
+
+        # Stop camera if running
+        if self.picam2 is not None:
+            try:
+                self.picam2.stop()
+                print("   Camera stopped")
+            except Exception as e:
+                print(f"   Warning stopping camera: {e}")
+            self.picam2 = None
+
+        # Wait for thread to finish
         if self.capture_thread:
             self.capture_thread.join(timeout=2)
-        print("🛑 Capture stopped")
+
+        self.statusChanged.emit("Stopped", "gray")
+        print("✅ Capture stopped and cleaned up")
 
     def _detect_ball(self, frame):
         """Detect golf ball in frame using circle detection"""
@@ -256,8 +271,8 @@ class CaptureManager(QObject):
             print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
 
             # Initialize camera
-            picam2 = Picamera2()
-            config = picam2.create_video_configuration(
+            self.picam2 = Picamera2()
+            config = self.picam2.create_video_configuration(
                 main={"size": (640, 480), "format": "RGB888"},
                 controls={
                     "FrameRate": frame_rate,
@@ -265,8 +280,8 @@ class CaptureManager(QObject):
                     "AnalogueGain": gain
                 }
             )
-            picam2.configure(config)
-            picam2.start()
+            self.picam2.configure(config)
+            self.picam2.start()
             time.sleep(2)
 
             self.statusChanged.emit("Detecting ball...", "yellow")
@@ -278,7 +293,7 @@ class CaptureManager(QObject):
             prev_ball = None
 
             while self.is_running:
-                frame = picam2.capture_array()
+                frame = self.self.picam2.capture_array()
                 current_ball = self._detect_ball(frame)
 
                 if current_ball is not None:
@@ -335,7 +350,7 @@ class CaptureManager(QObject):
                         dist_initial = np.sqrt(dx_initial**2 + dy_initial**2)
 
                         time.sleep(0.016)  # 1 frame at 60fps
-                        verify_frame = picam2.capture_array()
+                        verify_frame = self.picam2.capture_array()
                         verify_ball = self._detect_ball(verify_frame)
 
                         # Verify ball is continuing to move away from original position
@@ -374,7 +389,7 @@ class CaptureManager(QObject):
                             frames = []
                             frame_delay = 1.0 / frame_rate
                             for i in range(10):
-                                capture_frame = picam2.capture_array()
+                                capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
@@ -388,7 +403,8 @@ class CaptureManager(QObject):
                             self.shotCaptured.emit(next_shot)
 
                             # Stop after capture
-                            picam2.stop()
+                            self.picam2.stop()
+                            self.picam2 = None
                             self.is_running = False
                             return
 
@@ -423,7 +439,7 @@ class CaptureManager(QObject):
                             frames = []
                             frame_delay = 1.0 / frame_rate
                             for i in range(10):
-                                capture_frame = picam2.capture_array()
+                                capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
@@ -437,7 +453,8 @@ class CaptureManager(QObject):
                             self.shotCaptured.emit(next_shot)
 
                             # Stop after capture
-                            picam2.stop()
+                            self.picam2.stop()
+                            self.picam2 = None
                             self.is_running = False
                             return
 
@@ -470,9 +487,12 @@ class CaptureManager(QObject):
             self.errorOccurred.emit(str(e))
         finally:
             try:
-                picam2.stop()
-            except:
-                pass
+                if self.picam2 is not None:
+                    self.picam2.stop()
+                    self.picam2 = None
+                    print("📷 Camera released in cleanup")
+            except Exception as e:
+                print(f"⚠️ Error releasing camera: {e}")
             self.is_running = False
 
 # ============================================

@@ -450,14 +450,14 @@ Item {
                         // Start Capture Button
                         Button {
                             text: "Start Capture"
-                            Layout.preferredWidth: 180
+                            Layout.preferredWidth: 140
                             Layout.preferredHeight: 50
 
                             scale: pressed ? 0.95 : 1.0
                             Behavior on scale { NumberAnimation { duration: 100 } }
 
                             background: Rectangle {
-                                color: parent.pressed ? "#2563EB" : accent
+                                color: parent.pressed ? "#2D9A4F" : success
                                 radius: 8
                                 Behavior on color { ColorAnimation { duration: 200 } }
                             }
@@ -476,6 +476,38 @@ Item {
                                 captureManager.startCapture()
                                 captureStatus = "Starting..."
                                 captureColor = "yellow"
+                            }
+                        }
+
+                        // Stop Capture Button
+                        Button {
+                            text: "Stop"
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 50
+
+                            scale: pressed ? 0.95 : 1.0
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#C02927" : danger
+                                radius: 8
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: "white"
+                                font.pixelSize: 16
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                soundManager.playClick()
+                                captureManager.stopCapture()
+                                captureStatus = "Stopped"
+                                captureColor = "gray"
                             }
                         }
                     }
