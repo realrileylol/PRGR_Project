@@ -9,7 +9,7 @@ find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Create the Python extension module
-pybind11_add_module(fast_detection fast_detection.cpp)
+pybind11_add_module(fast_detection ball_detection/fast_detection.cpp)
 
 # Link OpenCV
 target_link_libraries(fast_detection PRIVATE ${OpenCV_LIBS})
