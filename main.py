@@ -132,9 +132,10 @@ class CaptureManager(QObject):
     shotCaptured = Signal(int)  # shot_number
     errorOccurred = Signal(str)  # error_message
 
-    def __init__(self, settings_manager=None):
+    def __init__(self, settings_manager=None, camera_manager=None):
         super().__init__()
         self.settings_manager = settings_manager
+        self.camera_manager = camera_manager
         self.is_running = False
         self.capture_thread = None
 
@@ -148,6 +149,12 @@ class CaptureManager(QObject):
         if self.is_running:
             print("⚠️ Capture already running")
             return
+
+        # Stop camera preview if it's running
+        if self.camera_manager:
+            print("🛑 Stopping camera preview before capture...")
+            self.camera_manager.stopCamera()
+            time.sleep(1)  # Give camera time to release
 
         self.is_running = True
         self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
@@ -354,7 +361,7 @@ if __name__ == "__main__":
     # Create managers
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager)
-    capture_manager = CaptureManager(settings_manager)
+    capture_manager = CaptureManager(settings_manager, camera_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
     history_manager = HistoryManager()
