@@ -395,6 +395,7 @@ class CaptureManager(QObject):
             frames_since_seen = 0
             prev_ball = None
             frames_since_lock = 0  # Track how long ball has been locked
+            detection_history = []  # Track last 5 frames: True=detected, False=not detected
 
             while self.is_running:
                 frame = self.picam2.capture_array()
@@ -407,6 +408,9 @@ class CaptureManager(QObject):
                     if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, current_ball):
                         print(f"⚠️ Detected circle with different radius ({r}px vs {int(last_seen_ball[2])}px) - ignoring")
                         # Skip this detection, likely a different object
+                        detection_history.append(False)  # Track as not detected
+                        if len(detection_history) > 5:
+                            detection_history.pop(0)
                         continue
 
                     # Ball reappeared after disappearing
@@ -415,6 +419,11 @@ class CaptureManager(QObject):
 
                     last_seen_ball = current_ball
                     frames_since_seen = 0
+
+                    # Track detection in history
+                    detection_history.append(True)
+                    if len(detection_history) > 5:
+                        detection_history.pop(0)
 
                     # Check if ball has been stable
                     if original_ball is None:
@@ -464,58 +473,65 @@ class CaptureManager(QObject):
                     # Ball not detected - it disappeared
                     frames_since_seen += 1
 
-                    # If ball is locked and disappeared, wait to see if it comes back
-                    if original_ball is not None:
-                        # Ball was locked and is now gone
-                        # Wait 12 frames (~0.2 seconds at 60fps) to see if it reappears
+                    # Track detection in history
+                    detection_history.append(False)
+                    if len(detection_history) > 5:
+                        detection_history.pop(0)
 
-                        if frames_since_seen == 1:
-                            print(f"⚠️ Ball disappeared - waiting to confirm shot...")
+                    # If ball is locked and disappeared, check if this is IMPACT
+                    if original_ball is not None and frames_since_seen == 1:
+                        # Ball just disappeared - check if it was a FAST disappearance (impact)
+                        # vs SLOW disappearance (setting club down)
 
-                        if frames_since_seen == 12:
-                            # Ball has been gone for 12 frames and hasn't returned
-                            # This is a SHOT - ball was hit and left the frame
-                            print(f"🏌️ SHOT DETECTED! Ball gone for {frames_since_seen} frames - ball was hit!")
-                            self.statusChanged.emit("Capturing...", "red")
+                        # FAST disappearance (IMPACT): Last 3-4 frames were all detected, then suddenly gone
+                        # SLOW disappearance (club placement): Flickering detections over last 5 frames
 
-                            # Capture frames (these will be post-impact frames)
-                            frames = []
-                            frame_delay = 1.0 / frame_rate
-                            for i in range(10):
-                                capture_frame = self.picam2.capture_array()
-                                frames.append(capture_frame)
-                                time.sleep(frame_delay)
+                        if len(detection_history) >= 4:
+                            # Check last 4 frames before this one
+                            recent_detections = detection_history[-4:]
+                            consecutive_detections = sum(recent_detections)
 
-                            # Save frames
-                            for i, save_frame in enumerate(frames):
-                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                filepath = os.path.join(captures_folder, filename)
-                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                            # If 3 or 4 of last 4 frames had ball detected, this is FAST obscuration = IMPACT!
+                            if consecutive_detections >= 3:
+                                print(f"🏌️ INSTANT IMPACT DETECTED! Ball was visible {consecutive_detections}/4 frames, now GONE - club contact!")
+                                self.statusChanged.emit("Capturing...", "red")
 
-                            print(f"✅ Shot #{next_shot} saved!")
-                            self.shotCaptured.emit(next_shot)
+                                # Capture frames IMMEDIATELY (capturing impact and post-impact)
+                                frames = []
+                                frame_delay = 1.0 / frame_rate
+                                for i in range(10):
+                                    capture_frame = self.picam2.capture_array()
+                                    frames.append(capture_frame)
+                                    time.sleep(frame_delay)
 
-                            # Stop after capture
-                            self.picam2.stop()
-                            self.picam2 = None
-                            self.is_running = False
-                            return
+                                # Save frames
+                                for i, save_frame in enumerate(frames):
+                                    filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                    filepath = os.path.join(captures_folder, filename)
+                                    cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
 
-                        # Still waiting to see if ball comes back
-                        elif frames_since_seen < 12:
-                            # Keep green status while waiting
-                            pass
+                                print(f"✅ Shot #{next_shot} saved!")
+                                self.shotCaptured.emit(next_shot)
 
-                        # Ball has been gone too long - reset lock
-                        elif frames_since_seen > 60:
-                            print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
-                            self.statusChanged.emit("No Ball Detected", "red")
-                            original_ball = None
-                            stable_frames = 0
-                            prev_ball = None
-                            last_seen_ball = None
-                            frames_since_lock = 0
-                    else:
+                                # Stop after capture
+                                self.picam2.stop()
+                                self.picam2 = None
+                                self.is_running = False
+                                return
+                            else:
+                                # Slow/flickering disappearance - probably setting club down
+                                print(f"⚠️ Ball disappeared but detection was flickering ({consecutive_detections}/4) - NOT impact (club being positioned?)")
+
+                    # Ball has been gone too long - reset lock
+                    if original_ball is not None and frames_since_seen > 60:
+                        print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
+                        self.statusChanged.emit("No Ball Detected", "red")
+                        original_ball = None
+                        stable_frames = 0
+                        prev_ball = None
+                        last_seen_ball = None
+                        frames_since_lock = 0
+                    elif original_ball is None:
                         # Ball not locked yet - brief tolerance for flickering
                         if frames_since_seen < 5 and last_seen_ball is not None:
                             self.statusChanged.emit("Detecting ball...", "yellow")
