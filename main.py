@@ -207,10 +207,10 @@ class CaptureManager(QObject):
         # Convert to grayscale for initial processing
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
-        # Create a mask for bright/white regions (golf balls are typically white or yellow)
-        # This filters out dark objects like shoes, clubs, shadows
-        # Golf ball should be bright - threshold at 120+ on 0-255 scale
-        _, white_mask = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
+        # Create a strict mask for very bright/white regions (golf balls)
+        # Increased threshold to 140 to filter out reflective club heads
+        # Golf ball should be consistently bright - threshold at 140+ on 0-255 scale
+        _, white_mask = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
 
         # Apply mask to grayscale image
         masked_gray = cv2.bitwise_and(gray, gray, mask=white_mask)
@@ -233,8 +233,8 @@ class CaptureManager(QObject):
         if circles is not None:
             circles = np.uint16(np.around(circles))
 
-            # Validate detected circles by checking brightness
-            # Golf ball should have consistently bright pixels in its area
+            # Validate detected circles by checking brightness AND circularity
+            # Golf ball should have consistently bright pixels and be very round
             for circle in circles[0]:
                 x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
 
@@ -246,12 +246,21 @@ class CaptureManager(QObject):
                 ball_region = gray[y1:y2, x1:x2]
 
                 # Check average brightness of the region
-                # Golf ball should have mean brightness > 100 (on 0-255 scale)
+                # Golf ball should have mean brightness > 130 (stricter than before)
                 if ball_region.size > 0:
                     mean_brightness = np.mean(ball_region)
 
-                    if mean_brightness > 100:  # Bright enough to be a golf ball
-                        return circle  # x, y, radius
+                    if mean_brightness > 130:  # Very bright = likely golf ball
+                        # Additional validation: check circularity using white mask
+                        mask_region = white_mask[y1:y2, x1:x2]
+
+                        # Golf ball should have a high percentage of bright pixels in its region
+                        bright_pixel_ratio = np.count_nonzero(mask_region) / mask_region.size if mask_region.size > 0 else 0
+
+                        if bright_pixel_ratio > 0.5:  # At least 50% of ball region should be bright
+                            return circle  # x, y, radius
+                        else:
+                            print(f"   Rejected circle at ({x},{y}) - not round enough (bright ratio: {bright_pixel_ratio:.2f})")
                     else:
                         print(f"   Rejected circle at ({x},{y}) - too dark (brightness: {int(mean_brightness)})")
 
@@ -364,6 +373,7 @@ class CaptureManager(QObject):
             last_seen_ball = None
             frames_since_seen = 0
             prev_ball = None
+            frames_since_lock = 0  # Track how long ball has been locked
 
             while self.is_running:
                 frame = self.picam2.capture_array()
@@ -401,7 +411,7 @@ class CaptureManager(QObject):
 
                         prev_ball = current_ball
 
-                        if stable_frames >= 15:  # Reduced from 20 for faster lock
+                        if stable_frames >= 30:  # Require 30 stable frames (0.5s at 60fps) to ensure it's truly a ball
                             original_ball = current_ball
                             # Calculate hit box size for display
                             ball_radius_px = int(current_ball[2])
@@ -411,6 +421,7 @@ class CaptureManager(QObject):
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
                             print(f"   Hit box: 6x6 inches (±{int(hitbox_radius_px)}px from center)")
                             print(f"   Ball can move freely within hit box without triggering")
+                            print(f"   Brightness validated, circularity confirmed - ready for shot!")
                             stable_frames = 0
                             prev_ball = None
 
@@ -485,12 +496,13 @@ class CaptureManager(QObject):
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
                         # Ball is same, but still within hit box - no action needed
                         # This allows ball to roll/move freely within the safe zone
-                        pass
+                        frames_since_lock += 1  # Track how long ball has been locked
 
                     # Detected a ball but radius doesn't match locked ball
                     elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
                         print(f"⚠️ Detected different circle (radius {r}px vs locked {int(original_ball[2])}px) - maintaining lock")
                         # Keep original lock, ignore this detection
+                        frames_since_lock += 1  # Still count as locked
 
                 else:
                     # Ball not detected - could be obscured by club
@@ -504,8 +516,9 @@ class CaptureManager(QObject):
 
                         # IMPACT DETECTION: Ball obscured for 8-12 frames = club impact!
                         # Trigger capture immediately - ball is being hit RIGHT NOW
-                        if 8 <= frames_since_seen <= 12:
-                            print(f"🏌️ IMPACT DETECTED! Ball obscured for {frames_since_seen} frames - triggering capture!")
+                        # IMPORTANT: Only trigger if ball has been locked for 30+ frames (prevents false triggers from setting club down)
+                        if 8 <= frames_since_seen <= 12 and frames_since_lock >= 30:
+                            print(f"🏌️ IMPACT DETECTED! Ball obscured for {frames_since_seen} frames (locked for {frames_since_lock} frames) - triggering capture!")
                             self.statusChanged.emit("Capturing...", "red")
 
                             # Capture frames immediately (ball is in flight now)
@@ -543,6 +556,7 @@ class CaptureManager(QObject):
                             stable_frames = 0
                             prev_ball = None
                             last_seen_ball = None
+                            frames_since_lock = 0
                     else:
                         # Ball not locked yet - brief tolerance for flickering
                         if frames_since_seen < 5 and last_seen_ball is not None:
