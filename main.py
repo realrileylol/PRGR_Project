@@ -184,10 +184,26 @@ class CaptureManager(QObject):
         print("✅ Capture stop requested (background thread will cleanup)")
 
     def _detect_ball(self, frame):
-        """Detect golf ball in frame using circle detection"""
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+        """Detect golf ball in frame using color-filtered circle detection
 
+        Focuses specifically on white/bright colored balls and ignores
+        darker objects like shoes, clubs, etc.
+        """
+        # Convert to grayscale for initial processing
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        # Create a mask for bright/white regions (golf balls are typically white or yellow)
+        # This filters out dark objects like shoes, clubs, shadows
+        # Golf ball should be bright - threshold at 120+ on 0-255 scale
+        _, white_mask = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
+
+        # Apply mask to grayscale image
+        masked_gray = cv2.bitwise_and(gray, gray, mask=white_mask)
+
+        # Blur for better circle detection
+        blurred = cv2.GaussianBlur(masked_gray, (9, 9), 2)
+
+        # Detect circles in the bright-region-only image
         circles = cv2.HoughCircles(
             blurred,
             cv2.HOUGH_GRADIENT,
@@ -201,7 +217,29 @@ class CaptureManager(QObject):
 
         if circles is not None:
             circles = np.uint16(np.around(circles))
-            return circles[0, 0]  # x, y, radius
+
+            # Validate detected circles by checking brightness
+            # Golf ball should have consistently bright pixels in its area
+            for circle in circles[0]:
+                x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
+
+                # Extract region around detected circle
+                # Make sure we don't go out of bounds
+                y1, y2 = max(0, y - r), min(gray.shape[0], y + r)
+                x1, x2 = max(0, x - r), min(gray.shape[1], x + r)
+
+                ball_region = gray[y1:y2, x1:x2]
+
+                # Check average brightness of the region
+                # Golf ball should have mean brightness > 100 (on 0-255 scale)
+                if ball_region.size > 0:
+                    mean_brightness = np.mean(ball_region)
+
+                    if mean_brightness > 100:  # Bright enough to be a golf ball
+                        return circle  # x, y, radius
+                    else:
+                        print(f"   Rejected circle at ({x},{y}) - too dark (brightness: {int(mean_brightness)})")
+
         return None
 
     def _ball_has_moved(self, prev_ball, curr_ball, threshold=40):
