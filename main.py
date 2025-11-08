@@ -1,6 +1,9 @@
 import sys
 import os
 import subprocess
+import threading
+import time
+import numpy as np
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
 
@@ -11,6 +14,15 @@ from PySide6.QtMultimedia import QSoundEffect
 from ProfileManager import ProfileManager
 from HistoryManager import HistoryManager
 from SettingsManager import SettingsManager
+
+# Try to import Picamera2 and cv2 (only works on Pi)
+try:
+    from picamera2 import Picamera2
+    import cv2
+    CAMERA_AVAILABLE = True
+except ImportError:
+    CAMERA_AVAILABLE = False
+    print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
 
 # ============================================
 # Camera Manager Class
@@ -110,6 +122,179 @@ class CameraManager(QObject):
         self.stopCamera()
 
 # ============================================
+# Capture Manager Class
+# ============================================
+class CaptureManager(QObject):
+    """Manages automatic ball capture with motion detection"""
+
+    # Signals to update UI
+    statusChanged = Signal(str, str)  # (status, color) - e.g. ("Ball Locked", "green")
+    shotCaptured = Signal(int)  # shot_number
+    errorOccurred = Signal(str)  # error_message
+
+    def __init__(self, settings_manager=None):
+        super().__init__()
+        self.settings_manager = settings_manager
+        self.is_running = False
+        self.capture_thread = None
+
+    @Slot()
+    def startCapture(self):
+        """Start the capture process in a background thread"""
+        if not CAMERA_AVAILABLE:
+            self.errorOccurred.emit("Camera not available on this system")
+            return
+
+        if self.is_running:
+            print("⚠️ Capture already running")
+            return
+
+        self.is_running = True
+        self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self.capture_thread.start()
+        print("🎥 Capture started")
+
+    @Slot()
+    def stopCapture(self):
+        """Stop the capture process"""
+        self.is_running = False
+        if self.capture_thread:
+            self.capture_thread.join(timeout=2)
+        print("🛑 Capture stopped")
+
+    def _detect_ball(self, frame):
+        """Detect golf ball in frame using circle detection"""
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+
+        circles = cv2.HoughCircles(
+            blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=100,
+            param1=50,
+            param2=30,
+            minRadius=20,
+            maxRadius=150
+        )
+
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            return circles[0, 0]  # x, y, radius
+        return None
+
+    def _ball_has_moved(self, prev_ball, curr_ball, threshold=40):
+        """Check if ball has moved significantly"""
+        if prev_ball is None or curr_ball is None:
+            return False
+
+        dx = int(curr_ball[0]) - int(prev_ball[0])
+        dy = int(curr_ball[1]) - int(prev_ball[1])
+        distance = np.sqrt(dx**2 + dy**2)
+
+        return distance > threshold
+
+    def _capture_loop(self):
+        """Main capture loop running in background thread"""
+        try:
+            # Create captures folder
+            captures_folder = "ball_captures"
+            os.makedirs(captures_folder, exist_ok=True)
+
+            # Find next shot number
+            existing_shots = [f for f in os.listdir(captures_folder) if f.startswith("shot_")]
+            if existing_shots:
+                shot_numbers = [int(f.split("_")[1]) for f in existing_shots]
+                next_shot = max(shot_numbers) + 1
+            else:
+                next_shot = 0
+
+            # Load camera settings
+            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
+            gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+
+            print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+
+            # Initialize camera
+            picam2 = Picamera2()
+            config = picam2.create_video_configuration(
+                main={"size": (640, 480), "format": "RGB888"},
+                controls={
+                    "FrameRate": frame_rate,
+                    "ExposureTime": shutter_speed,
+                    "AnalogueGain": gain
+                }
+            )
+            picam2.configure(config)
+            picam2.start()
+            time.sleep(2)
+
+            self.statusChanged.emit("Detecting ball...", "yellow")
+
+            original_ball = None
+            stable_frames = 0
+
+            while self.is_running:
+                frame = picam2.capture_array()
+                current_ball = self._detect_ball(frame)
+
+                if current_ball is not None:
+                    x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
+
+                    # Check if ball has been stable
+                    if original_ball is None:
+                        stable_frames += 1
+                        if stable_frames >= 20:
+                            original_ball = current_ball
+                            self.statusChanged.emit("Ready - Hit Ball!", "green")
+                            print(f"🎯 Ball locked at ({x}, {y})")
+                            stable_frames = 0
+
+                    # Ball is locked, check for motion
+                    elif self._ball_has_moved(original_ball, current_ball):
+                        self.statusChanged.emit("Capturing...", "red")
+                        print(f"🚀 Motion detected - Shot #{next_shot}")
+
+                        # Capture frames
+                        frames = []
+                        frame_delay = 1.0 / frame_rate
+                        for i in range(10):
+                            capture_frame = picam2.capture_array()
+                            frames.append(capture_frame)
+                            time.sleep(frame_delay)
+
+                        # Save frames
+                        for i, save_frame in enumerate(frames):
+                            filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                            filepath = os.path.join(captures_folder, filename)
+                            cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                        print(f"✅ Shot #{next_shot} saved!")
+                        self.shotCaptured.emit(next_shot)
+
+                        # Stop after capture
+                        picam2.stop()
+                        self.is_running = False
+                        return
+                else:
+                    self.statusChanged.emit("No Ball Detected", "red")
+                    original_ball = None
+                    stable_frames = 0
+
+                time.sleep(0.03)
+
+        except Exception as e:
+            print(f"❌ Capture error: {e}")
+            self.errorOccurred.emit(str(e))
+        finally:
+            try:
+                picam2.stop()
+            except:
+                pass
+            self.is_running = False
+
+# ============================================
 # Sound Manager Class
 # ============================================
 class SoundManager(QObject):
@@ -169,6 +354,7 @@ if __name__ == "__main__":
     # Create managers
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager)
+    capture_manager = CaptureManager(settings_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
     history_manager = HistoryManager()
@@ -178,6 +364,7 @@ if __name__ == "__main__":
 
     # Expose managers to QML
     engine.rootContext().setContextProperty("cameraManager", camera_manager)
+    engine.rootContext().setContextProperty("captureManager", capture_manager)
     engine.rootContext().setContextProperty("soundManager", sound_manager)
     engine.rootContext().setContextProperty("profileManager", profile_manager)
     engine.rootContext().setContextProperty("historyManager", history_manager)
