@@ -508,33 +508,53 @@ class CaptureManager(QObject):
                             consecutive_before = sum(pre_disappearance)
 
                             # If ball was consistently visible (3+ of 4 frames) before disappearing
-                            # AND still gone after 5 frames = REAL SHOT
+                            # AND still gone after 5 frames = POSSIBLY a shot
                             if consecutive_before >= 3:
-                                print(f"🏌️ IMPACT CONFIRMED! Ball was visible {consecutive_before}/4 frames, gone for 5 frames - real shot!")
-                                self.statusChanged.emit("Capturing...", "red")
+                                # CRITICAL CHECK: Is the camera covered (black screen)?
+                                # When ball is HIT, you still see the scene (grass, background)
+                                # When hand covers camera, screen is BLACK
 
-                                # Capture frames IMMEDIATELY
-                                frames = []
-                                frame_delay = 1.0 / frame_rate
-                                for i in range(10):
-                                    capture_frame = self.picam2.capture_array()
-                                    frames.append(capture_frame)
-                                    time.sleep(frame_delay)
+                                gray_check = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                                mean_scene_brightness = np.mean(gray_check)
 
-                                # Save frames
-                                for i, save_frame in enumerate(frames):
-                                    filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                    filepath = os.path.join(captures_folder, filename)
-                                    cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                                if mean_scene_brightness < 40:
+                                    # Scene is very dark - camera is covered by hand/object
+                                    print(f"⚠️ Camera appears to be covered (scene brightness: {int(mean_scene_brightness)}) - NOT a shot!")
+                                    # Reset the lock since camera is blocked
+                                    original_ball = None
+                                    stable_frames = 0
+                                    prev_ball = None
+                                    last_seen_ball = None
+                                    frames_since_lock = 0
+                                    self.statusChanged.emit("No Ball Detected", "red")
+                                else:
+                                    # Scene is still visible - this is a REAL SHOT
+                                    print(f"🏌️ IMPACT CONFIRMED! Ball was visible {consecutive_before}/4 frames, gone for 5 frames - real shot!")
+                                    print(f"   Scene brightness: {int(mean_scene_brightness)} - camera not covered, valid shot")
+                                    self.statusChanged.emit("Capturing...", "red")
 
-                                print(f"✅ Shot #{next_shot} saved!")
-                                self.shotCaptured.emit(next_shot)
+                                    # Capture frames IMMEDIATELY
+                                    frames = []
+                                    frame_delay = 1.0 / frame_rate
+                                    for i in range(10):
+                                        capture_frame = self.picam2.capture_array()
+                                        frames.append(capture_frame)
+                                        time.sleep(frame_delay)
 
-                                # Stop after capture
-                                self.picam2.stop()
-                                self.picam2 = None
-                                self.is_running = False
-                                return
+                                    # Save frames
+                                    for i, save_frame in enumerate(frames):
+                                        filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                        filepath = os.path.join(captures_folder, filename)
+                                        cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                                    print(f"✅ Shot #{next_shot} saved!")
+                                    self.shotCaptured.emit(next_shot)
+
+                                    # Stop after capture
+                                    self.picam2.stop()
+                                    self.picam2 = None
+                                    self.is_running = False
+                                    return
                             else:
                                 print(f"⚠️ Ball gone but pre-disappearance was flickering ({consecutive_before}/4) - ignoring")
 
