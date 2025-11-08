@@ -107,7 +107,6 @@ def test_camera_capture():
 
     original_ball = None
     stable_frames = 0
-    motion_frames = 0  # Require consecutive motion frames to avoid false triggers
 
     try:
         while True:
@@ -132,17 +131,11 @@ def test_camera_capture():
                         print(f"🎯 Ball locked at position ({x}, {y})")
                         print("   Ready to capture - hit your shot!")
                         stable_frames = 0
-                        motion_frames = 0
 
                 # Ball is locked, check for motion
                 elif ball_has_moved(original_ball, current_ball):
-                    motion_frames += 1
-                    cv2.circle(display, (x, y), r, (255, 165, 0), 3)  # Orange = motion detected
-                    cv2.putText(display, f"Motion detected... {motion_frames}/3", (10, 30),
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
-
-                    # Require 3 consecutive motion frames to trigger capture
-                    if motion_frames >= 3:
+                    # Trigger immediately - golf balls move too fast to wait for multiple frames
+                    if True:
                         cv2.circle(display, (x, y), r, (0, 0, 255), 3)  # Red = CAPTURING!
                         cv2.putText(display, "CAPTURING!", (10, 30),
                                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
@@ -176,8 +169,7 @@ def test_camera_capture():
                         return
 
                 else:
-                    # Ball stable and ready - reset motion counter
-                    motion_frames = 0
+                    # Ball stable and ready
                     cv2.circle(display, (x, y), r, (0, 255, 0), 2)  # Green = ready
                     cv2.putText(display, "READY - Hit the ball!", (10, 30),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -187,7 +179,6 @@ def test_camera_capture():
                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 original_ball = None
                 stable_frames = 0
-                motion_frames = 0
 
             # Optional: Save preview frame for debugging
             # cv2.imwrite("preview.jpg", cv2.cvtColor(display, cv2.COLOR_RGB2BGR))
