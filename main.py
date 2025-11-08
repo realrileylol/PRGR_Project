@@ -139,6 +139,7 @@ class CaptureManager(QObject):
         self.is_running = False
         self.capture_thread = None
         self.picam2 = None  # Store camera instance for cleanup
+        self._stopping = False  # Flag to track if we're in the process of stopping
 
     @Slot()
     def startCapture(self):
@@ -150,6 +151,19 @@ class CaptureManager(QObject):
         if self.is_running:
             print("⚠️ Capture already running")
             return
+
+        # Wait for previous capture to fully stop (if stopping)
+        if self._stopping or self.capture_thread is not None:
+            print("⏳ Waiting for previous capture to finish...")
+            wait_count = 0
+            while (self._stopping or self.capture_thread is not None) and wait_count < 20:
+                time.sleep(0.2)  # Wait up to 4 seconds total
+                wait_count += 1
+
+            if self._stopping:
+                print("⚠️ Previous capture still stopping - please try again")
+                self.errorOccurred.emit("Previous capture still stopping - please wait")
+                return
 
         # Stop camera preview if it's running
         if self.camera_manager:
@@ -166,6 +180,7 @@ class CaptureManager(QObject):
     def stopCapture(self):
         """Stop the capture process (non-blocking)"""
         print("🛑 Stopping capture...")
+        self._stopping = True
         self.is_running = False
 
         # Stop camera if running
@@ -307,19 +322,40 @@ class CaptureManager(QObject):
 
             print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
 
-            # Initialize camera
-            self.picam2 = Picamera2()
-            config = self.picam2.create_video_configuration(
-                main={"size": (640, 480), "format": "RGB888"},
-                controls={
-                    "FrameRate": frame_rate,
-                    "ExposureTime": shutter_speed,
-                    "AnalogueGain": gain
-                }
-            )
-            self.picam2.configure(config)
-            self.picam2.start()
-            time.sleep(2)
+            # Initialize camera with retry logic (camera hardware may need time to release)
+            camera_initialized = False
+            for attempt in range(3):
+                try:
+                    if attempt > 0:
+                        print(f"   Retry attempt {attempt + 1}/3...")
+                        time.sleep(2)  # Wait longer between retries
+
+                    self.picam2 = Picamera2()
+                    config = self.picam2.create_video_configuration(
+                        main={"size": (640, 480), "format": "RGB888"},
+                        controls={
+                            "FrameRate": frame_rate,
+                            "ExposureTime": shutter_speed,
+                            "AnalogueGain": gain
+                        }
+                    )
+                    self.picam2.configure(config)
+                    self.picam2.start()
+                    time.sleep(2)
+                    camera_initialized = True
+                    print("✅ Camera initialized successfully")
+                    break
+                except Exception as e:
+                    print(f"⚠️ Camera init attempt {attempt + 1} failed: {e}")
+                    if self.picam2 is not None:
+                        try:
+                            self.picam2.close()
+                        except:
+                            pass
+                        self.picam2 = None
+
+            if not camera_initialized:
+                raise Exception("Failed to initialize camera after 3 attempts. Please wait a moment and try again.")
 
             self.statusChanged.emit("Detecting ball...", "yellow")
 
@@ -531,6 +567,9 @@ class CaptureManager(QObject):
             except Exception as e:
                 print(f"⚠️ Error releasing camera: {e}")
             self.is_running = False
+            self._stopping = False
+            self.capture_thread = None
+            print("🔓 Capture thread fully stopped and cleaned up")
 
 # ============================================
 # Sound Manager Class
