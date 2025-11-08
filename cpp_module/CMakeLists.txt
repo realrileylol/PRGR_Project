@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(fast_detection)
 
-# Find Python and pybind11
+# Find Python
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-find_package(pybind11 CONFIG REQUIRED)
+
+# Find pybind11 - try CONFIG first, then fallback to MODULE mode
+find_package(pybind11 CONFIG QUIET)
+if(NOT pybind11_FOUND)
+    find_package(pybind11 REQUIRED)
+endif()
 
 # Find OpenCV
 find_package(OpenCV REQUIRED)

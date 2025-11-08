@@ -26,7 +26,8 @@ sudo apt-get install -y \
     build-essential \
     cmake \
     python3-dev \
-    python3-pip
+    python3-pip \
+    pybind11-dev
 
 # ============================================
 # Step 3: Install Python Dependencies
@@ -38,13 +39,16 @@ echo "Step 3: Installing Python dependencies..."
 # This is safe for a dedicated project device
 PIP_FLAGS="--break-system-packages"
 
-# Install pybind11
-echo "Installing pybind11..."
-pip3 install --upgrade pybind11 $PIP_FLAGS
+# Note: pybind11-dev is installed via apt (system package) for CMake support
+echo "✅ pybind11-dev installed from apt"
 
-# Install numpy (usually already installed)
-echo "Installing/upgrading numpy..."
-pip3 install --upgrade numpy $PIP_FLAGS
+# Verify numpy is available (usually already installed)
+if ! python3 -c "import numpy" 2>/dev/null; then
+    echo "Installing numpy..."
+    pip3 install numpy $PIP_FLAGS
+else
+    echo "✅ numpy already installed"
+fi
 
 # OpenCV is already installed via picamera2, but verify
 if ! python3 -c "import cv2" 2>/dev/null; then
