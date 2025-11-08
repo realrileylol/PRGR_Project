@@ -201,6 +201,18 @@ class CaptureManager(QObject):
 
         return distance > threshold
 
+    def _is_same_ball(self, ball1, ball2, radius_tolerance=0.3):
+        """Check if two detections are the same ball based on radius"""
+        if ball1 is None or ball2 is None:
+            return False
+
+        r1 = int(ball1[2])
+        r2 = int(ball2[2])
+
+        # Radius should be within 30% of original
+        radius_diff = abs(r1 - r2) / max(r1, r2)
+        return radius_diff < radius_tolerance
+
     def _capture_loop(self):
         """Main capture loop running in background thread"""
         try:
@@ -251,15 +263,31 @@ class CaptureManager(QObject):
 
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
+
+                    # Validate this is the same ball (not a person/other object)
+                    if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, current_ball):
+                        print(f"⚠️ Detected circle with different radius ({r}px vs {int(last_seen_ball[2])}px) - ignoring")
+                        # Skip this detection, likely a different object
+                        continue
+
                     last_seen_ball = current_ball
                     frames_since_seen = 0
 
                     # Check if ball has been stable
                     if original_ball is None:
-                        # Check if close to previous position (stability check)
-                        if prev_ball is not None and self._ball_has_moved(prev_ball, current_ball, threshold=10):
-                            # Ball moved too much, reset stability counter
-                            stable_frames = 0
+                        # Check radius consistency with previous frame
+                        if prev_ball is not None:
+                            if not self._is_same_ball(prev_ball, current_ball):
+                                # Radius changed too much, probably different object
+                                print(f"⚠️ Radius inconsistency during lock - resetting")
+                                stable_frames = 0
+                                prev_ball = None
+                                continue
+                            elif self._ball_has_moved(prev_ball, current_ball, threshold=10):
+                                # Ball moved too much, reset stability counter
+                                stable_frames = 0
+                            else:
+                                stable_frames += 1
                         else:
                             stable_frames += 1
 
@@ -268,20 +296,33 @@ class CaptureManager(QObject):
                         if stable_frames >= 15:  # Reduced from 20 for faster lock
                             original_ball = current_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
-                            print(f"🎯 Ball locked at ({x}, {y})")
+                            print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
                             stable_frames = 0
                             prev_ball = None
 
                     # Ball is locked, check for FAST motion (velocity-based)
-                    elif self._ball_has_moved(original_ball, current_ball, threshold=50):
+                    elif self._is_same_ball(original_ball, current_ball) and self._ball_has_moved(original_ball, current_ball, threshold=50):
                         # Ball moved significantly - verify it's a FAST movement
                         # Wait one more frame to check velocity
                         time.sleep(0.016)  # 1 frame at 60fps
                         verify_frame = picam2.capture_array()
                         verify_ball = self._detect_ball(verify_frame)
 
-                        # If ball is now gone or moved even more, it's a fast shot!
-                        if verify_ball is None or self._ball_has_moved(current_ball, verify_ball, threshold=30):
+                        # Verify we're still tracking the same ball
+                        is_fast_shot = False
+                        if verify_ball is None:
+                            # Ball disappeared = very fast shot!
+                            is_fast_shot = True
+                        elif self._is_same_ball(current_ball, verify_ball) and self._ball_has_moved(current_ball, verify_ball, threshold=30):
+                            # Same ball, moved fast again
+                            is_fast_shot = True
+                        elif not self._is_same_ball(current_ball, verify_ball):
+                            # Different object detected - false alarm
+                            print(f"⚠️ Detected different object (radius changed) - ignoring motion")
+                            original_ball = last_seen_ball
+                            is_fast_shot = False
+
+                        if is_fast_shot:
                             self.statusChanged.emit("Capturing...", "red")
                             print(f"🚀 Fast motion detected - Shot #{next_shot}")
 
@@ -307,9 +348,15 @@ class CaptureManager(QObject):
                             self.is_running = False
                             return
                         else:
-                            # False alarm - slow movement, reset to locked state
-                            print("⚠️ Slow movement detected, ignoring")
+                            # False alarm - slow movement or different object, reset to locked state
+                            if not is_fast_shot:
+                                print("⚠️ Slow movement detected, ignoring")
                             original_ball = last_seen_ball
+
+                    # Detected a ball but radius doesn't match locked ball
+                    elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
+                        print(f"⚠️ Detected different circle (radius {r}px vs locked {int(original_ball[2])}px) - maintaining lock")
+                        # Keep original lock, ignore this detection
 
                 else:
                     # Ball not detected
