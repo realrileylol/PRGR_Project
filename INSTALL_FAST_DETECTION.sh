@@ -61,7 +61,9 @@ echo ""
 echo "Step 4: Building C++ fast_detection module..."
 echo ""
 
-cd /home/user/PRGR_Project/cpp_module
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/cpp_module"
 
 # Clean any previous builds
 rm -rf build/ *.egg-info dist/
