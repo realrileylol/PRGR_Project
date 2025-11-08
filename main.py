@@ -302,23 +302,31 @@ class CaptureManager(QObject):
 
                     # Ball is locked, check for FAST motion (velocity-based)
                     elif self._is_same_ball(original_ball, current_ball) and self._ball_has_moved(original_ball, current_ball, threshold=50):
-                        # Ball moved significantly - verify it's a FAST movement
-                        # Wait one more frame to check velocity
+                        # Ball moved significantly - verify it's SUSTAINED fast movement
+                        # Require ball to be VISIBLE and STILL MOVING in next frame
+                        # (if it disappears, it's likely blocked, not hit)
                         time.sleep(0.016)  # 1 frame at 60fps
                         verify_frame = picam2.capture_array()
                         verify_ball = self._detect_ball(verify_frame)
 
-                        # Verify we're still tracking the same ball
+                        # Verify we're still tracking the same ball AND it's still moving
                         is_fast_shot = False
                         if verify_ball is None:
-                            # Ball disappeared = very fast shot!
-                            is_fast_shot = True
-                        elif self._is_same_ball(current_ball, verify_ball) and self._ball_has_moved(current_ball, verify_ball, threshold=30):
-                            # Same ball, moved fast again
-                            is_fast_shot = True
+                            # Ball disappeared - likely blocked by club/hand, NOT a shot
+                            print(f"⚠️ Ball disappeared (probably blocked) - not triggering")
+                            original_ball = last_seen_ball
+                            is_fast_shot = False
                         elif not self._is_same_ball(current_ball, verify_ball):
                             # Different object detected - false alarm
                             print(f"⚠️ Detected different object (radius changed) - ignoring motion")
+                            original_ball = last_seen_ball
+                            is_fast_shot = False
+                        elif self._ball_has_moved(current_ball, verify_ball, threshold=30):
+                            # Same ball, STILL visible, moved another >30px = real shot!
+                            is_fast_shot = True
+                        else:
+                            # Ball visible but not moving fast enough in frame 2
+                            print(f"⚠️ Movement slowed down - not a shot")
                             original_ball = last_seen_ball
                             is_fast_shot = False
 
