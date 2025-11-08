@@ -34,16 +34,22 @@ sudo apt-get install -y \
 echo ""
 echo "Step 3: Installing Python dependencies..."
 
+# Use --break-system-packages on Raspberry Pi OS Bookworm
+# This is safe for a dedicated project device
+PIP_FLAGS="--break-system-packages"
+
 # Install pybind11
-pip3 install --upgrade pybind11
+echo "Installing pybind11..."
+pip3 install --upgrade pybind11 $PIP_FLAGS
 
 # Install numpy (usually already installed)
-pip3 install --upgrade numpy
+echo "Installing/upgrading numpy..."
+pip3 install --upgrade numpy $PIP_FLAGS
 
 # OpenCV is already installed via picamera2, but verify
 if ! python3 -c "import cv2" 2>/dev/null; then
     echo "Installing OpenCV..."
-    pip3 install opencv-python
+    pip3 install opencv-python $PIP_FLAGS
 else
     echo "✅ OpenCV already installed"
 fi
@@ -61,7 +67,7 @@ cd /home/user/PRGR_Project/cpp_module
 rm -rf build/ *.egg-info dist/
 
 # Build and install
-pip3 install -e .
+pip3 install -e . $PIP_FLAGS
 
 # ============================================
 # Step 5: Verify Installation
