@@ -13,11 +13,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Virtual environment
-venv/
-build/
-*.egg-info/
-
 # Qt cache
 *.qmlc
 *.jsc
