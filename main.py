@@ -213,6 +213,26 @@ class CaptureManager(QObject):
         radius_diff = abs(r1 - r2) / max(r1, r2)
         return radius_diff < radius_tolerance
 
+    def _ball_exited_hitbox(self, locked_ball, current_ball, hitbox_inches=6.0):
+        """Check if ball exited the hit box zone (6x6 inch safe area)"""
+        if locked_ball is None or current_ball is None:
+            return False
+
+        # Calculate pixels per inch from ball radius
+        # Golf ball radius = 0.84 inches (diameter 1.68")
+        ball_radius_px = int(locked_ball[2])
+        pixels_per_inch = ball_radius_px / 0.84
+
+        # Hit box is 6x6 inches = 3 inches in each direction from center
+        hitbox_radius_px = (hitbox_inches / 2.0) * pixels_per_inch
+
+        # Check if ball moved outside hit box
+        dx = int(current_ball[0]) - int(locked_ball[0])
+        dy = int(current_ball[1]) - int(locked_ball[1])
+        distance = np.sqrt(dx**2 + dy**2)
+
+        return distance > hitbox_radius_px
+
     def _capture_loop(self):
         """Main capture loop running in background thread"""
         try:
@@ -295,21 +315,30 @@ class CaptureManager(QObject):
 
                         if stable_frames >= 15:  # Reduced from 20 for faster lock
                             original_ball = current_ball
+                            # Calculate hit box size for display
+                            ball_radius_px = int(current_ball[2])
+                            pixels_per_inch = ball_radius_px / 0.84
+                            hitbox_radius_px = 3.0 * pixels_per_inch  # 3 inches radius (6" diameter)
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
+                            print(f"   Hit box: 6x6 inches (±{int(hitbox_radius_px)}px from center)")
+                            print(f"   Ball can move freely within hit box without triggering")
                             stable_frames = 0
                             prev_ball = None
 
-                    # Ball is locked, check for FAST motion (velocity-based)
-                    elif self._is_same_ball(original_ball, current_ball) and self._ball_has_moved(original_ball, current_ball, threshold=50):
-                        # Ball moved significantly - verify it's SUSTAINED fast movement
-                        # Require ball to be VISIBLE and STILL MOVING in next frame
-                        # (if it disappears, it's likely blocked, not hit)
+                    # Ball is locked, check if it EXITED the hit box zone
+                    elif self._is_same_ball(original_ball, current_ball) and self._ball_exited_hitbox(original_ball, current_ball):
+                        # Ball exited hit box - verify it's continuing to move (real shot vs momentary exit)
+                        # Require ball to be VISIBLE and STILL MOVING AWAY in next frame
+                        dx_initial = int(current_ball[0]) - int(original_ball[0])
+                        dy_initial = int(current_ball[1]) - int(original_ball[1])
+                        dist_initial = np.sqrt(dx_initial**2 + dy_initial**2)
+
                         time.sleep(0.016)  # 1 frame at 60fps
                         verify_frame = picam2.capture_array()
                         verify_ball = self._detect_ball(verify_frame)
 
-                        # Verify we're still tracking the same ball AND it's still moving
+                        # Verify ball is continuing to move away from original position
                         is_fast_shot = False
                         if verify_ball is None:
                             # Ball disappeared - likely blocked by club/hand, NOT a shot
@@ -321,14 +350,21 @@ class CaptureManager(QObject):
                             print(f"⚠️ Detected different object (radius changed) - ignoring motion")
                             original_ball = last_seen_ball
                             is_fast_shot = False
-                        elif self._ball_has_moved(current_ball, verify_ball, threshold=30):
-                            # Same ball, STILL visible, moved another >30px = real shot!
-                            is_fast_shot = True
                         else:
-                            # Ball visible but not moving fast enough in frame 2
-                            print(f"⚠️ Movement slowed down - not a shot")
-                            original_ball = last_seen_ball
-                            is_fast_shot = False
+                            # Check if ball is moving FURTHER away from original position
+                            dx_verify = int(verify_ball[0]) - int(original_ball[0])
+                            dy_verify = int(verify_ball[1]) - int(original_ball[1])
+                            dist_verify = np.sqrt(dx_verify**2 + dy_verify**2)
+
+                            if dist_verify > dist_initial:
+                                # Ball is continuing to move away = real shot!
+                                print(f"🏌️ Ball exited hit box and continuing away ({int(dist_initial)}px → {int(dist_verify)}px)")
+                                is_fast_shot = True
+                            else:
+                                # Ball came back or stopped - not a shot
+                                print(f"⚠️ Ball exited hit box but came back - ignoring")
+                                original_ball = last_seen_ball
+                                is_fast_shot = False
 
                         if is_fast_shot:
                             self.statusChanged.emit("Capturing...", "red")
@@ -355,11 +391,12 @@ class CaptureManager(QObject):
                             picam2.stop()
                             self.is_running = False
                             return
-                        else:
-                            # False alarm - slow movement or different object, reset to locked state
-                            if not is_fast_shot:
-                                print("⚠️ Slow movement detected, ignoring")
-                            original_ball = last_seen_ball
+
+                    # Ball is within hit box - allow free movement without triggering
+                    elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
+                        # Ball is same, but still within hit box - no action needed
+                        # This allows ball to roll/move freely within the safe zone
+                        pass
 
                     # Detected a ball but radius doesn't match locked ball
                     elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
