@@ -395,7 +395,7 @@ class CaptureManager(QObject):
             frames_since_seen = 0
             prev_ball = None
             frames_since_lock = 0  # Track how long ball has been locked
-            detection_history = []  # Track last 5 frames: True=detected, False=not detected
+            detection_history = []  # Track last 10 frames: True=detected, False=not detected
 
             while self.is_running:
                 frame = self.picam2.capture_array()
@@ -409,7 +409,7 @@ class CaptureManager(QObject):
                         print(f"⚠️ Detected circle with different radius ({r}px vs {int(last_seen_ball[2])}px) - ignoring")
                         # Skip this detection, likely a different object
                         detection_history.append(False)  # Track as not detected
-                        if len(detection_history) > 5:
+                        if len(detection_history) > 10:
                             detection_history.pop(0)
                         continue
 
@@ -422,7 +422,7 @@ class CaptureManager(QObject):
 
                     # Track detection in history
                     detection_history.append(True)
-                    if len(detection_history) > 5:
+                    if len(detection_history) > 10:
                         detection_history.pop(0)
 
                     # Check if ball has been stable
@@ -475,7 +475,7 @@ class CaptureManager(QObject):
 
                     # Track detection in history
                     detection_history.append(False)
-                    if len(detection_history) > 5:
+                    if len(detection_history) > 10:
                         detection_history.pop(0)
 
                     # If ball is locked and disappeared, check if this is IMPACT
@@ -491,12 +491,29 @@ class CaptureManager(QObject):
                             recent_detections = detection_history[-4:]
                             consecutive_detections = sum(recent_detections)
 
-                            # If 3 or 4 of last 4 frames had ball detected, this is FAST obscuration = IMPACT!
+                            # If 3 or 4 of last 4 frames had ball detected, this is FAST obscuration
                             if consecutive_detections >= 3:
-                                print(f"🏌️ INSTANT IMPACT DETECTED! Ball was visible {consecutive_detections}/4 frames, now GONE - club contact!")
+                                # Fast obscuration detected - but wait to verify it's not someone walking by
+                                print(f"⚡ Fast obscuration detected ({consecutive_detections}/4 frames) - verifying...")
+                            else:
+                                # Slow/flickering disappearance - probably setting club down
+                                print(f"⚠️ Ball disappeared but detection was flickering ({consecutive_detections}/4) - NOT impact (club being positioned?)")
+
+                    # Check if we should trigger after verifying ball is gone
+                    if original_ball is not None and frames_since_seen == 5:
+                        # Ball has been gone for 5 frames - check the pattern
+                        if len(detection_history) >= 9:
+                            # Look at frames -8 to -5 (before disappearance)
+                            pre_disappearance = detection_history[-9:-5]
+                            consecutive_before = sum(pre_disappearance)
+
+                            # If ball was consistently visible (3+ of 4 frames) before disappearing
+                            # AND still gone after 5 frames = REAL SHOT
+                            if consecutive_before >= 3:
+                                print(f"🏌️ IMPACT CONFIRMED! Ball was visible {consecutive_before}/4 frames, gone for 5 frames - real shot!")
                                 self.statusChanged.emit("Capturing...", "red")
 
-                                # Capture frames IMMEDIATELY (capturing impact and post-impact)
+                                # Capture frames IMMEDIATELY
                                 frames = []
                                 frame_delay = 1.0 / frame_rate
                                 for i in range(10):
@@ -519,8 +536,7 @@ class CaptureManager(QObject):
                                 self.is_running = False
                                 return
                             else:
-                                # Slow/flickering disappearance - probably setting club down
-                                print(f"⚠️ Ball disappeared but detection was flickering ({consecutive_detections}/4) - NOT impact (club being positioned?)")
+                                print(f"⚠️ Ball gone but pre-disappearance was flickering ({consecutive_before}/4) - ignoring")
 
                     # Ball has been gone too long - reset lock
                     if original_ball is not None and frames_since_seen > 60:
