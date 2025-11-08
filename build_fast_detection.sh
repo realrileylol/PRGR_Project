@@ -1,6 +1,5 @@
 #!/bin/bash
 # Build script for fast_detection C++ module
-
 echo "========================================="
 echo "Building Fast Detection C++ Module"
 echo "========================================="
@@ -12,13 +11,13 @@ echo "Checking dependencies..."
 # Check for pybind11
 if ! python3 -c "import pybind11" 2>/dev/null; then
     echo "Installing pybind11..."
-    pip3 install pybind11
+    pip3 install --break-system-packages pybind11
 fi
 
 # Check for OpenCV
 if ! python3 -c "import cv2" 2>/dev/null; then
     echo "ERROR: OpenCV (cv2) not found. Install with:"
-    echo "  pip3 install opencv-python"
+    echo "  pip3 install --break-system-packages opencv-python"
     exit 1
 fi
 
@@ -32,7 +31,7 @@ fi
 # Build the module
 echo ""
 echo "Building C++ extension..."
-pip3 install -e .
+pip3 install --break-system-packages -e .
 
 # Test import
 echo ""
