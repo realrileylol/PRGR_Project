@@ -241,6 +241,9 @@ class CaptureManager(QObject):
 
             original_ball = None
             stable_frames = 0
+            last_seen_ball = None
+            frames_since_seen = 0
+            prev_ball = None
 
             while self.is_running:
                 frame = picam2.capture_array()
@@ -248,46 +251,82 @@ class CaptureManager(QObject):
 
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
+                    last_seen_ball = current_ball
+                    frames_since_seen = 0
 
                     # Check if ball has been stable
                     if original_ball is None:
-                        stable_frames += 1
-                        if stable_frames >= 20:
+                        # Check if close to previous position (stability check)
+                        if prev_ball is not None and self._ball_has_moved(prev_ball, current_ball, threshold=10):
+                            # Ball moved too much, reset stability counter
+                            stable_frames = 0
+                        else:
+                            stable_frames += 1
+
+                        prev_ball = current_ball
+
+                        if stable_frames >= 15:  # Reduced from 20 for faster lock
                             original_ball = current_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y})")
                             stable_frames = 0
+                            prev_ball = None
 
-                    # Ball is locked, check for motion
-                    elif self._ball_has_moved(original_ball, current_ball):
-                        self.statusChanged.emit("Capturing...", "red")
-                        print(f"🚀 Motion detected - Shot #{next_shot}")
+                    # Ball is locked, check for FAST motion (velocity-based)
+                    elif self._ball_has_moved(original_ball, current_ball, threshold=50):
+                        # Ball moved significantly - verify it's a FAST movement
+                        # Wait one more frame to check velocity
+                        time.sleep(0.016)  # 1 frame at 60fps
+                        verify_frame = picam2.capture_array()
+                        verify_ball = self._detect_ball(verify_frame)
 
-                        # Capture frames
-                        frames = []
-                        frame_delay = 1.0 / frame_rate
-                        for i in range(10):
-                            capture_frame = picam2.capture_array()
-                            frames.append(capture_frame)
-                            time.sleep(frame_delay)
+                        # If ball is now gone or moved even more, it's a fast shot!
+                        if verify_ball is None or self._ball_has_moved(current_ball, verify_ball, threshold=30):
+                            self.statusChanged.emit("Capturing...", "red")
+                            print(f"🚀 Fast motion detected - Shot #{next_shot}")
 
-                        # Save frames
-                        for i, save_frame in enumerate(frames):
-                            filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                            filepath = os.path.join(captures_folder, filename)
-                            cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                            # Capture frames
+                            frames = []
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(10):
+                                capture_frame = picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
 
-                        print(f"✅ Shot #{next_shot} saved!")
-                        self.shotCaptured.emit(next_shot)
+                            # Save frames
+                            for i, save_frame in enumerate(frames):
+                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                filepath = os.path.join(captures_folder, filename)
+                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
 
-                        # Stop after capture
-                        picam2.stop()
-                        self.is_running = False
-                        return
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Stop after capture
+                            picam2.stop()
+                            self.is_running = False
+                            return
+                        else:
+                            # False alarm - slow movement, reset to locked state
+                            print("⚠️ Slow movement detected, ignoring")
+                            original_ball = last_seen_ball
+
                 else:
-                    self.statusChanged.emit("No Ball Detected", "red")
-                    original_ball = None
-                    stable_frames = 0
+                    # Ball not detected
+                    frames_since_seen += 1
+
+                    # Tolerate brief detection losses (up to 5 frames)
+                    if frames_since_seen < 5 and last_seen_ball is not None:
+                        # Keep status as is, use last known position
+                        if original_ball is None:
+                            self.statusChanged.emit("Detecting ball...", "yellow")
+                        # else keep green status
+                    else:
+                        # Lost ball for too long
+                        self.statusChanged.emit("No Ball Detected", "red")
+                        original_ball = None
+                        stable_frames = 0
+                        prev_ball = None
 
                 time.sleep(0.03)
 
