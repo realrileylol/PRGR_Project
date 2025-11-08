@@ -164,7 +164,7 @@ class CaptureManager(QObject):
 
     @Slot()
     def stopCapture(self):
-        """Stop the capture process"""
+        """Stop the capture process (non-blocking)"""
         print("🛑 Stopping capture...")
         self.is_running = False
 
@@ -177,12 +177,11 @@ class CaptureManager(QObject):
                 print(f"   Warning stopping camera: {e}")
             self.picam2 = None
 
-        # Wait for thread to finish
-        if self.capture_thread:
-            self.capture_thread.join(timeout=2)
+        # Don't block GUI thread with join() - thread will exit naturally
+        # The background thread's finally block will handle cleanup
 
         self.statusChanged.emit("Stopped", "gray")
-        print("✅ Capture stopped and cleaned up")
+        print("✅ Capture stop requested (background thread will cleanup)")
 
     def _detect_ball(self, frame):
         """Detect golf ball in frame using circle detection"""
