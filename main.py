@@ -467,13 +467,13 @@ class CaptureManager(QObject):
                     # If ball is locked and disappeared, wait to see if it comes back
                     if original_ball is not None:
                         # Ball was locked and is now gone
-                        # Wait 25 frames (~0.4 seconds at 60fps) to see if it reappears
+                        # Wait 12 frames (~0.2 seconds at 60fps) to see if it reappears
 
                         if frames_since_seen == 1:
                             print(f"⚠️ Ball disappeared - waiting to confirm shot...")
 
-                        if frames_since_seen == 25:
-                            # Ball has been gone for 25 frames and hasn't returned
+                        if frames_since_seen == 12:
+                            # Ball has been gone for 12 frames and hasn't returned
                             # This is a SHOT - ball was hit and left the frame
                             print(f"🏌️ SHOT DETECTED! Ball gone for {frames_since_seen} frames - ball was hit!")
                             self.statusChanged.emit("Capturing...", "red")
@@ -502,7 +502,7 @@ class CaptureManager(QObject):
                             return
 
                         # Still waiting to see if ball comes back
-                        elif frames_since_seen < 25:
+                        elif frames_since_seen < 12:
                             # Keep green status while waiting
                             pass
 
