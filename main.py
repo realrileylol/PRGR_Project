@@ -290,6 +290,40 @@ class CaptureManager(QObject):
                         # Skip this detection, likely a different object
                         continue
 
+                    # Check if ball reappeared after being obscured and exited hit box
+                    if original_ball is not None and frames_since_seen > 3:
+                        # Ball was obscured (probably by club), now visible again
+                        if self._is_same_ball(original_ball, current_ball) and self._ball_exited_hitbox(original_ball, current_ball):
+                            # Ball reappeared OUTSIDE hit box = shot was taken!
+                            dx = int(current_ball[0]) - int(original_ball[0])
+                            dy = int(current_ball[1]) - int(original_ball[1])
+                            distance = np.sqrt(dx**2 + dy**2)
+                            print(f"🏌️ Ball reappeared outside hit box after {frames_since_seen} frames ({int(distance)}px away) - SHOT DETECTED!")
+
+                            self.statusChanged.emit("Capturing...", "red")
+
+                            # Capture frames immediately
+                            frames = []
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(10):
+                                capture_frame = picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
+
+                            # Save frames
+                            for i, save_frame in enumerate(frames):
+                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                filepath = os.path.join(captures_folder, filename)
+                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Stop after capture
+                            picam2.stop()
+                            self.is_running = False
+                            return
+
                     last_seen_ball = current_ball
                     frames_since_seen = 0
 
@@ -404,21 +438,30 @@ class CaptureManager(QObject):
                         # Keep original lock, ignore this detection
 
                 else:
-                    # Ball not detected
+                    # Ball not detected - could be obscured by club
                     frames_since_seen += 1
 
-                    # Tolerate brief detection losses (up to 5 frames)
-                    if frames_since_seen < 5 and last_seen_ball is not None:
+                    # If ball is locked, tolerate longer detection loss (club setup)
+                    # If not locked yet, only tolerate brief loss (flickering detection)
+                    tolerance = 60 if original_ball is not None else 5  # 1 second vs 0.08 seconds
+
+                    if frames_since_seen < tolerance and last_seen_ball is not None:
                         # Keep status as is, use last known position
                         if original_ball is None:
                             self.statusChanged.emit("Detecting ball...", "yellow")
-                        # else keep green status
+                        else:
+                            # Keep green status, ball probably obscured by club
+                            if frames_since_seen == 10:
+                                print(f"⚠️ Ball obscured (club in position?) - maintaining lock")
                     else:
                         # Lost ball for too long
+                        if original_ball is not None:
+                            print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
                         self.statusChanged.emit("No Ball Detected", "red")
                         original_ball = None
                         stable_frames = 0
                         prev_ball = None
+                        last_seen_ball = None
 
                 time.sleep(0.03)
 
