@@ -409,6 +409,10 @@ class CaptureManager(QObject):
                         # Skip this detection, likely a different object
                         continue
 
+                    # Ball reappeared after disappearing
+                    if frames_since_seen > 0 and original_ball is not None:
+                        print(f"✓ Ball reappeared after {frames_since_seen} frames - NOT a shot (someone walked by/grabbed ball)")
+
                     last_seen_ball = current_ball
                     frames_since_seen = 0
 
@@ -434,115 +438,47 @@ class CaptureManager(QObject):
 
                         if stable_frames >= 30:  # Require 30 stable frames (0.5s at 60fps) to ensure it's truly a ball
                             original_ball = current_ball
-                            # Calculate hit box size for display
-                            ball_radius_px = int(current_ball[2])
-                            pixels_per_inch = ball_radius_px / 0.84
-                            hitbox_radius_px = 3.0 * pixels_per_inch  # 3 inches radius (6" diameter)
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
-                            print(f"   Hit box: 6x6 inches (±{int(hitbox_radius_px)}px from center)")
-                            print(f"   Ball can move freely within hit box without triggering")
-                            print(f"   Brightness validated, circularity confirmed - ready for shot!")
+                            print(f"   Ball can move freely - ONLY triggers on actual shot (ball exits frame)")
+                            print(f"   You can walk around, grab ball, move it - no false triggers")
                             stable_frames = 0
                             prev_ball = None
+                            frames_since_lock = 0
 
-                    # Ball is locked, check if it EXITED the hit box zone
-                    elif self._is_same_ball(original_ball, current_ball) and self._ball_exited_hitbox(original_ball, current_ball):
-                        # Ball exited hit box - verify it's continuing to move (real shot vs momentary exit)
-                        # Require ball to be VISIBLE and STILL MOVING AWAY in next frame
-                        dx_initial = int(current_ball[0]) - int(original_ball[0])
-                        dy_initial = int(current_ball[1]) - int(original_ball[1])
-                        dist_initial = np.sqrt(dx_initial**2 + dy_initial**2)
-
-                        time.sleep(0.016)  # 1 frame at 60fps
-                        verify_frame = self.picam2.capture_array()
-                        verify_ball = self._detect_ball(verify_frame)
-
-                        # Verify ball is continuing to move away from original position
-                        is_fast_shot = False
-                        if verify_ball is None:
-                            # Ball disappeared - likely blocked by club/hand, NOT a shot
-                            print(f"⚠️ Ball disappeared (probably blocked) - not triggering")
-                            original_ball = last_seen_ball
-                            is_fast_shot = False
-                        elif not self._is_same_ball(current_ball, verify_ball):
-                            # Different object detected - false alarm
-                            print(f"⚠️ Detected different object (radius changed) - ignoring motion")
-                            original_ball = last_seen_ball
-                            is_fast_shot = False
-                        else:
-                            # Check if ball is moving FURTHER away from original position
-                            dx_verify = int(verify_ball[0]) - int(original_ball[0])
-                            dy_verify = int(verify_ball[1]) - int(original_ball[1])
-                            dist_verify = np.sqrt(dx_verify**2 + dy_verify**2)
-
-                            if dist_verify > dist_initial:
-                                # Ball is continuing to move away = real shot!
-                                print(f"🏌️ Ball exited hit box and continuing away ({int(dist_initial)}px → {int(dist_verify)}px)")
-                                is_fast_shot = True
-                            else:
-                                # Ball came back or stopped - not a shot
-                                print(f"⚠️ Ball exited hit box but came back - ignoring")
-                                original_ball = last_seen_ball
-                                is_fast_shot = False
-
-                        if is_fast_shot:
-                            self.statusChanged.emit("Capturing...", "red")
-                            print(f"🚀 Fast motion detected - Shot #{next_shot}")
-
-                            # Capture frames
-                            frames = []
-                            frame_delay = 1.0 / frame_rate
-                            for i in range(10):
-                                capture_frame = self.picam2.capture_array()
-                                frames.append(capture_frame)
-                                time.sleep(frame_delay)
-
-                            # Save frames
-                            for i, save_frame in enumerate(frames):
-                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                filepath = os.path.join(captures_folder, filename)
-                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
-
-                            print(f"✅ Shot #{next_shot} saved!")
-                            self.shotCaptured.emit(next_shot)
-
-                            # Stop after capture
-                            self.picam2.stop()
-                            self.picam2 = None
-                            self.is_running = False
-                            return
-
-                    # Ball is within hit box - allow free movement without triggering
+                    # Ball is locked and still visible - just update tracking
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
-                        # Ball is same, but still within hit box - no action needed
-                        # This allows ball to roll/move freely within the safe zone
-                        frames_since_lock += 1  # Track how long ball has been locked
+                        # Ball detected and matches - keep tracking
+                        # Allow ball to move anywhere, we don't care about position
+                        # ONLY trigger when ball completely disappears (shot)
+                        frames_since_lock += 1
+                        pass
 
                     # Detected a ball but radius doesn't match locked ball
                     elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
+                        # Different ball detected - ignore it, keep tracking original
                         print(f"⚠️ Detected different circle (radius {r}px vs locked {int(original_ball[2])}px) - maintaining lock")
-                        # Keep original lock, ignore this detection
-                        frames_since_lock += 1  # Still count as locked
+                        frames_since_lock += 1
 
                 else:
-                    # Ball not detected - could be obscured by club
+                    # Ball not detected - it disappeared
                     frames_since_seen += 1
 
-                    # If ball is locked and obscured, this might be IMPACT
-                    # Golf club obscures ball during downswing/impact for ~8-15 frames at 60fps
+                    # If ball is locked and disappeared, wait to see if it comes back
                     if original_ball is not None:
-                        if frames_since_seen == 10:
-                            print(f"⚠️ Ball obscured (club in position?) - maintaining lock")
+                        # Ball was locked and is now gone
+                        # Wait 25 frames (~0.4 seconds at 60fps) to see if it reappears
 
-                        # IMPACT DETECTION: Ball obscured for 8-12 frames = club impact!
-                        # Trigger capture immediately - ball is being hit RIGHT NOW
-                        # IMPORTANT: Only trigger if ball has been locked for 30+ frames (prevents false triggers from setting club down)
-                        if 8 <= frames_since_seen <= 12 and frames_since_lock >= 30:
-                            print(f"🏌️ IMPACT DETECTED! Ball obscured for {frames_since_seen} frames (locked for {frames_since_lock} frames) - triggering capture!")
+                        if frames_since_seen == 1:
+                            print(f"⚠️ Ball disappeared - waiting to confirm shot...")
+
+                        if frames_since_seen == 25:
+                            # Ball has been gone for 25 frames and hasn't returned
+                            # This is a SHOT - ball was hit and left the frame
+                            print(f"🏌️ SHOT DETECTED! Ball gone for {frames_since_seen} frames - ball was hit!")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames immediately (ball is in flight now)
+                            # Capture frames (these will be post-impact frames)
                             frames = []
                             frame_delay = 1.0 / frame_rate
                             for i in range(10):
@@ -565,12 +501,13 @@ class CaptureManager(QObject):
                             self.is_running = False
                             return
 
-                        # Still within tolerance - keep waiting
-                        if frames_since_seen < 60:  # 1 second tolerance
-                            # Keep green status
+                        # Still waiting to see if ball comes back
+                        elif frames_since_seen < 25:
+                            # Keep green status while waiting
                             pass
-                        else:
-                            # Lost ball for too long (not a shot, just lost detection)
+
+                        # Ball has been gone too long - reset lock
+                        elif frames_since_seen > 60:
                             print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
                             self.statusChanged.emit("No Ball Detected", "red")
                             original_ball = None
