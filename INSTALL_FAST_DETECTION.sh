@@ -55,7 +55,7 @@ echo ""
 echo "Step 4: Building C++ fast_detection module..."
 echo ""
 
-cd /home/user/PRGR_Project
+cd /home/user/PRGR_Project/cpp_module
 
 # Clean any previous builds
 rm -rf build/ *.egg-info dist/
@@ -85,7 +85,7 @@ if python3 -c "import fast_detection; print('Module version:', fast_detection.__
     echo "  4. Enjoy 3-5x faster detection!"
     echo ""
     echo "Optional: Run benchmark to see speedup:"
-    echo "  ./benchmark_detection.py"
+    echo "  ./tools/benchmark_detection.py"
     echo ""
 else
     echo ""
