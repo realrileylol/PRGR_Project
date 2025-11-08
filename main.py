@@ -24,6 +24,15 @@ except ImportError:
     CAMERA_AVAILABLE = False
     print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
 
+# Try to import fast C++ detection module (3-5x speedup)
+try:
+    import fast_detection
+    FAST_DETECTION_AVAILABLE = True
+    print("✅ Fast C++ detection loaded - using optimized ball detection")
+except ImportError:
+    FAST_DETECTION_AVAILABLE = False
+    print("⚠️ Fast C++ detection not available - using Python fallback (build with: ./build_fast_detection.sh)")
+
 # ============================================
 # Camera Manager Class
 # ============================================
@@ -203,7 +212,19 @@ class CaptureManager(QObject):
 
         Focuses specifically on white/bright colored balls and ignores
         darker objects like shoes, clubs, metallic reflections, etc.
+
+        Uses fast C++ implementation if available (3-5x speedup),
+        otherwise falls back to Python version.
         """
+        # Use fast C++ detection if available
+        if FAST_DETECTION_AVAILABLE:
+            result = fast_detection.detect_ball(frame)
+            if result is not None:
+                # C++ returns tuple (x, y, radius)
+                return np.array([result[0], result[1], result[2]], dtype=np.uint16)
+            return None
+
+        # Python fallback implementation
         # Convert to both grayscale and HSV for multi-modal filtering
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
@@ -514,8 +535,12 @@ class CaptureManager(QObject):
                                 # When ball is HIT, you still see the scene (grass, background)
                                 # When hand covers camera, screen is BLACK
 
-                                gray_check = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-                                mean_scene_brightness = np.mean(gray_check)
+                                # Use fast C++ brightness check if available
+                                if FAST_DETECTION_AVAILABLE:
+                                    mean_scene_brightness = fast_detection.get_scene_brightness(frame)
+                                else:
+                                    gray_check = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                                    mean_scene_brightness = np.mean(gray_check)
 
                                 if mean_scene_brightness < 40:
                                     # Scene is very dark - camera is covered by hand/object

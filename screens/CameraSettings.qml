@@ -78,7 +78,7 @@ Item {
                 shutterSpeed = 1500
                 gain = 8.0
                 evCompensation = 0.0
-                frameRate = 60
+                frameRate = 100
                 break
             case "Early AM/Dusk/Indoor":
                 shutterSpeed = 15000
@@ -530,7 +530,7 @@ Item {
                             spacing: 10
 
                             Repeater {
-                                model: [30, 60, 90, 120]
+                                model: [30, 60, 90, 100, 120]
 
                                 Button {
                                     text: modelData + " fps"
@@ -568,6 +568,7 @@ Item {
                             text: frameRate === 30 ? "Standard - Good for general use" :
                                   frameRate === 60 ? "High - Better for spin detection" :
                                   frameRate === 90 ? "Very High - Excellent spin resolution" :
+                                  frameRate === 100 ? "OV9281 Optimal - Best shot detection & spin accuracy" :
                                   "Ultra High - Maximum spin accuracy (requires processing power)"
                             color: hint
                             font.pixelSize: 12
@@ -599,7 +600,7 @@ Item {
                         }
 
                         Text {
-                            text: "• Spin Detection: Fast shutter (1.5ms) + high gain + 60fps for tracking ball rotation\n• Early AM/Dusk: High gain + long shutter for low light\n• Midday Sun: Low gain + fast shutter to prevent overexposure\n• Cloudy/Shade: Balanced settings for changing conditions\n• Indoor IR: Fixed settings for consistent IR lighting"
+                            text: "• Spin Detection: Fast shutter (1.5ms) + high gain + 100fps for tracking ball rotation\n• Early AM/Dusk: High gain + long shutter for low light\n• Midday Sun: Low gain + fast shutter to prevent overexposure\n• Cloudy/Shade: Balanced settings for changing conditions\n• Indoor IR: Fixed settings for consistent IR lighting"
                             color: hint
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
