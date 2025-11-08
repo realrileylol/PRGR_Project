@@ -290,40 +290,6 @@ class CaptureManager(QObject):
                         # Skip this detection, likely a different object
                         continue
 
-                    # Check if ball reappeared after being obscured and exited hit box
-                    if original_ball is not None and frames_since_seen > 3:
-                        # Ball was obscured (probably by club), now visible again
-                        if self._is_same_ball(original_ball, current_ball) and self._ball_exited_hitbox(original_ball, current_ball):
-                            # Ball reappeared OUTSIDE hit box = shot was taken!
-                            dx = int(current_ball[0]) - int(original_ball[0])
-                            dy = int(current_ball[1]) - int(original_ball[1])
-                            distance = np.sqrt(dx**2 + dy**2)
-                            print(f"🏌️ Ball reappeared outside hit box after {frames_since_seen} frames ({int(distance)}px away) - SHOT DETECTED!")
-
-                            self.statusChanged.emit("Capturing...", "red")
-
-                            # Capture frames immediately
-                            frames = []
-                            frame_delay = 1.0 / frame_rate
-                            for i in range(10):
-                                capture_frame = picam2.capture_array()
-                                frames.append(capture_frame)
-                                time.sleep(frame_delay)
-
-                            # Save frames
-                            for i, save_frame in enumerate(frames):
-                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                filepath = os.path.join(captures_folder, filename)
-                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
-
-                            print(f"✅ Shot #{next_shot} saved!")
-                            self.shotCaptured.emit(next_shot)
-
-                            # Stop after capture
-                            picam2.stop()
-                            self.is_running = False
-                            return
-
                     last_seen_ball = current_ball
                     frames_since_seen = 0
 
@@ -441,27 +407,61 @@ class CaptureManager(QObject):
                     # Ball not detected - could be obscured by club
                     frames_since_seen += 1
 
-                    # If ball is locked, tolerate longer detection loss (club setup)
-                    # If not locked yet, only tolerate brief loss (flickering detection)
-                    tolerance = 60 if original_ball is not None else 5  # 1 second vs 0.08 seconds
+                    # If ball is locked and obscured, this might be IMPACT
+                    # Golf club obscures ball during downswing/impact for ~8-15 frames at 60fps
+                    if original_ball is not None:
+                        if frames_since_seen == 10:
+                            print(f"⚠️ Ball obscured (club in position?) - maintaining lock")
 
-                    if frames_since_seen < tolerance and last_seen_ball is not None:
-                        # Keep status as is, use last known position
-                        if original_ball is None:
+                        # IMPACT DETECTION: Ball obscured for 8-12 frames = club impact!
+                        # Trigger capture immediately - ball is being hit RIGHT NOW
+                        if 8 <= frames_since_seen <= 12:
+                            print(f"🏌️ IMPACT DETECTED! Ball obscured for {frames_since_seen} frames - triggering capture!")
+                            self.statusChanged.emit("Capturing...", "red")
+
+                            # Capture frames immediately (ball is in flight now)
+                            frames = []
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(10):
+                                capture_frame = picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
+
+                            # Save frames
+                            for i, save_frame in enumerate(frames):
+                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                filepath = os.path.join(captures_folder, filename)
+                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Stop after capture
+                            picam2.stop()
+                            self.is_running = False
+                            return
+
+                        # Still within tolerance - keep waiting
+                        if frames_since_seen < 60:  # 1 second tolerance
+                            # Keep green status
+                            pass
+                        else:
+                            # Lost ball for too long (not a shot, just lost detection)
+                            print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
+                            self.statusChanged.emit("No Ball Detected", "red")
+                            original_ball = None
+                            stable_frames = 0
+                            prev_ball = None
+                            last_seen_ball = None
+                    else:
+                        # Ball not locked yet - brief tolerance for flickering
+                        if frames_since_seen < 5 and last_seen_ball is not None:
                             self.statusChanged.emit("Detecting ball...", "yellow")
                         else:
-                            # Keep green status, ball probably obscured by club
-                            if frames_since_seen == 10:
-                                print(f"⚠️ Ball obscured (club in position?) - maintaining lock")
-                    else:
-                        # Lost ball for too long
-                        if original_ball is not None:
-                            print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
-                        self.statusChanged.emit("No Ball Detected", "red")
-                        original_ball = None
-                        stable_frames = 0
-                        prev_ball = None
-                        last_seen_ball = None
+                            self.statusChanged.emit("No Ball Detected", "red")
+                            stable_frames = 0
+                            prev_ball = None
+                            last_seen_ball = None
 
                 time.sleep(0.03)
 
