@@ -319,15 +319,29 @@ class CaptureManager(QObject):
 
         return distance > threshold
 
-    def _is_same_ball(self, ball1, ball2, radius_tolerance=0.3):
-        """Check if two detections are the same ball based on radius"""
+    def _is_same_ball(self, ball1, ball2, radius_tolerance=0.5):
+        """Check if two detections are the same ball based on position and radius
+
+        Uses relaxed radius tolerance (50%) because HoughCircles can vary
+        the detected radius significantly due to ball dimples and lighting.
+        """
         if ball1 is None or ball2 is None:
             return False
 
+        # Check position - balls should be in roughly same location
+        x1, y1 = int(ball1[0]), int(ball1[1])
+        x2, y2 = int(ball2[0]), int(ball2[1])
+        position_distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+        # If ball moved more than 100 pixels, it's probably not the same ball
+        if position_distance > 100:
+            return False
+
+        # Check radius with relaxed tolerance
         r1 = int(ball1[2])
         r2 = int(ball2[2])
 
-        # Radius should be within 30% of original
+        # Radius should be within 50% of original (relaxed for dimpled balls)
         radius_diff = abs(r1 - r2) / max(r1, r2)
         return radius_diff < radius_tolerance
 
@@ -417,6 +431,7 @@ class CaptureManager(QObject):
             prev_ball = None
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = []  # Track last 10 frames: True=detected, False=not detected
+            radius_history = []  # Track last 5 radius values for smoothing
 
             while self.is_running:
                 frame = self.picam2.capture_array()
@@ -425,20 +440,30 @@ class CaptureManager(QObject):
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
 
+                    # Track radius for smoothing (helps with HoughCircles instability)
+                    radius_history.append(r)
+                    if len(radius_history) > 5:
+                        radius_history.pop(0)
+
+                    # Use median radius for more stable validation
+                    median_radius = int(np.median(radius_history)) if len(radius_history) >= 3 else r
+                    smoothed_ball = np.array([x, y, median_radius], dtype=current_ball.dtype)
+
                     # Validate this is the same ball (not a person/other object)
-                    if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, current_ball):
-                        print(f"⚠️ Detected circle with different radius ({r}px vs {int(last_seen_ball[2])}px) - ignoring")
+                    if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, smoothed_ball):
+                        print(f"⚠️ Detected circle with different radius ({r}px, median {median_radius}px vs {int(last_seen_ball[2])}px) - ignoring")
                         # Skip this detection, likely a different object
                         detection_history.append(False)  # Track as not detected
                         if len(detection_history) > 10:
                             detection_history.pop(0)
+                        radius_history = []  # Reset radius smoothing
                         continue
 
                     # Ball reappeared after disappearing
                     if frames_since_seen > 0 and original_ball is not None:
                         print(f"✓ Ball reappeared after {frames_since_seen} frames - NOT a shot (someone walked by/grabbed ball)")
 
-                    last_seen_ball = current_ball
+                    last_seen_ball = smoothed_ball  # Use smoothed radius for tracking
                     frames_since_seen = 0
 
                     # Track detection in history
@@ -450,11 +475,12 @@ class CaptureManager(QObject):
                     if original_ball is None:
                         # Check radius consistency with previous frame
                         if prev_ball is not None:
-                            if not self._is_same_ball(prev_ball, current_ball):
+                            if not self._is_same_ball(prev_ball, smoothed_ball):
                                 # Radius changed too much, probably different object
                                 print(f"⚠️ Radius inconsistency during lock - resetting")
                                 stable_frames = 0
                                 prev_ball = None
+                                radius_history = []  # Reset radius smoothing
                                 continue
                             elif self._ball_has_moved(prev_ball, current_ball, threshold=10):
                                 # Ball moved too much, reset stability counter
@@ -464,10 +490,10 @@ class CaptureManager(QObject):
                         else:
                             stable_frames += 1
 
-                        prev_ball = current_ball
+                        prev_ball = smoothed_ball  # Use smoothed radius for consistency
 
                         if stable_frames >= 30:  # Require 30 stable frames (0.5s at 60fps) to ensure it's truly a ball
-                            original_ball = current_ball
+                            original_ball = smoothed_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
                             print(f"   Ball can move freely - ONLY triggers on actual shot (ball exits frame)")
@@ -551,6 +577,7 @@ class CaptureManager(QObject):
                                     prev_ball = None
                                     last_seen_ball = None
                                     frames_since_lock = 0
+                                    radius_history = []  # Reset radius smoothing
                                     self.statusChanged.emit("No Ball Detected", "red")
                                 else:
                                     # Scene is still visible - this is a REAL SHOT
@@ -592,6 +619,7 @@ class CaptureManager(QObject):
                         prev_ball = None
                         last_seen_ball = None
                         frames_since_lock = 0
+                        radius_history = []  # Reset radius smoothing
                     elif original_ball is None:
                         # Ball not locked yet - brief tolerance for flickering
                         if frames_since_seen < 5 and last_seen_ball is not None:
@@ -601,6 +629,7 @@ class CaptureManager(QObject):
                             stable_frames = 0
                             prev_ball = None
                             last_seen_ball = None
+                            radius_history = []  # Reset radius smoothing
 
                 time.sleep(0.03)
 
