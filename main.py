@@ -298,13 +298,7 @@ class CaptureManager(QObject):
 
                         if bright_pixel_ratio > 0.6:  # Increased to 60% for stricter validation
                             return circle  # x, y, radius
-                        else:
-                            print(f"   Rejected circle at ({x},{y}) - not uniformly white (white ratio: {bright_pixel_ratio:.2f})")
-                    else:
-                        if mean_saturation >= 80:
-                            print(f"   Rejected circle at ({x},{y}) - too metallic/colorful (saturation: {int(mean_saturation)})")
-                        else:
-                            print(f"   Rejected circle at ({x},{y}) - too dark (brightness: {int(mean_brightness)})")
+                        # Removed verbose rejection messages to reduce console spam
 
         return None
 
@@ -451,8 +445,8 @@ class CaptureManager(QObject):
 
                     # Validate this is the same ball (not a person/other object)
                     if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, smoothed_ball):
-                        print(f"⚠️ Detected circle with different radius ({r}px, median {median_radius}px vs {int(last_seen_ball[2])}px) - ignoring")
                         # Skip this detection, likely a different object
+                        # (verbose logging removed to reduce console spam)
                         detection_history.append(False)  # Track as not detected
                         if len(detection_history) > 10:
                             detection_history.pop(0)
@@ -513,7 +507,7 @@ class CaptureManager(QObject):
                     # Detected a ball but radius doesn't match locked ball
                     elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
                         # Different ball detected - ignore it, keep tracking original
-                        print(f"⚠️ Detected different circle (radius {r}px vs locked {int(original_ball[2])}px) - maintaining lock")
+                        # (verbose logging removed to reduce console spam)
                         frames_since_lock += 1
 
                 else:
@@ -530,9 +524,7 @@ class CaptureManager(QObject):
                     if original_ball is not None and frames_since_seen < 60:
                         # Ball is locked but temporarily obscured - keep green status
                         # This allows club positioning without losing the "Ready" state
-                        if frames_since_seen == 1:
-                            print(f"⚠️ Ball temporarily obscured (frame {frames_since_seen}) - maintaining lock")
-                        # Don't change status - keep it green
+                        # (verbose logging removed to reduce console spam)
                         pass
 
                     # If ball is locked and disappeared, check if this is IMPACT
