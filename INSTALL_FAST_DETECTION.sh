@@ -43,20 +43,27 @@ PIP_FLAGS="--break-system-packages"
 # Note: pybind11-dev is installed via apt (system package) for CMake support
 echo "✅ pybind11-dev installed from apt"
 
-# Verify numpy is available (usually already installed)
+# IMPORTANT: Do NOT upgrade numpy - system packages depend on specific version
+# picamera2 and simplejpeg are compiled against system numpy (1.24.2)
 if ! python3 -c "import numpy" 2>/dev/null; then
     echo "Installing numpy..."
     pip3 install numpy $PIP_FLAGS
 else
-    echo "✅ numpy already installed"
+    NUMPY_VERSION=$(python3 -c "import numpy; print(numpy.__version__)")
+    echo "✅ numpy $NUMPY_VERSION already installed (keeping system version)"
 fi
 
-# OpenCV is already installed via picamera2, but verify
+# Use system python3-opencv if available, otherwise install via pip
 if ! python3 -c "import cv2" 2>/dev/null; then
-    echo "Installing OpenCV..."
-    pip3 install opencv-python $PIP_FLAGS
+    echo "Installing python3-opencv from apt..."
+    sudo apt-get install -y python3-opencv
+    if ! python3 -c "import cv2" 2>/dev/null; then
+        echo "Falling back to pip opencv-python..."
+        pip3 install opencv-python $PIP_FLAGS
+    fi
 else
-    echo "✅ OpenCV already installed"
+    CV2_VERSION=$(python3 -c "import cv2; print(cv2.__version__)")
+    echo "✅ OpenCV $CV2_VERSION already installed"
 fi
 
 # ============================================
