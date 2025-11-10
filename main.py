@@ -525,6 +525,16 @@ class CaptureManager(QObject):
                     if len(detection_history) > 10:
                         detection_history.pop(0)
 
+                    # KEEP UI GREEN if ball is locked and temporarily obscured (e.g., club head blocking)
+                    # Only turn red if ball is lost for extended period
+                    if original_ball is not None and frames_since_seen < 60:
+                        # Ball is locked but temporarily obscured - keep green status
+                        # This allows club positioning without losing the "Ready" state
+                        if frames_since_seen == 1:
+                            print(f"⚠️ Ball temporarily obscured (frame {frames_since_seen}) - maintaining lock")
+                        # Don't change status - keep it green
+                        pass
+
                     # If ball is locked and disappeared, check if this is IMPACT
                     if original_ball is not None and frames_since_seen == 1:
                         # Ball just disappeared - check if it was a FAST disappearance (impact)
@@ -620,6 +630,11 @@ class CaptureManager(QObject):
                         last_seen_ball = None
                         frames_since_lock = 0
                         radius_history = []  # Reset radius smoothing
+                    elif original_ball is not None and frames_since_seen <= 60:
+                        # Ball is locked but temporarily not visible (club head, hand, etc.)
+                        # Keep the "Ready" status - don't turn red
+                        # Status remains green from when ball was locked
+                        pass
                     elif original_ball is None:
                         # Ball not locked yet - brief tolerance for flickering
                         if frames_since_seen < 5 and last_seen_ball is not None:
