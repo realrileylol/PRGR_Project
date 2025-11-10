@@ -225,81 +225,89 @@ class CaptureManager(QObject):
                 return np.array([result[0], result[1], result[2]], dtype=np.uint16)
             return None
 
-        # Python fallback implementation
-        # Convert to both grayscale and HSV for multi-modal filtering
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        # Python fallback - OPTIMIZED for OV9281 monochrome camera
+        # Works on both color and grayscale cameras
 
-        # HSV Color filtering for WHITE golf balls
-        # White objects have low saturation and high value
-        # This rejects metallic/shiny club heads which have higher saturation
-        lower_white = np.array([0, 0, 150])      # H, S, V
-        upper_white = np.array([180, 60, 255])   # Low saturation = white, not metallic
-        white_color_mask = cv2.inRange(hsv, lower_white, upper_white)
+        # Convert to grayscale (handles both color RGB and monochrome input)
+        if len(frame.shape) == 3:
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = frame  # Already grayscale (OV9281)
 
-        # Also support YELLOW golf balls (optional)
-        lower_yellow = np.array([20, 100, 150])
-        upper_yellow = np.array([30, 255, 255])
-        yellow_color_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+        # === BRIGHTNESS DETECTION (works on monochrome!) ===
+        # Golf balls are bright white - threshold to isolate bright regions
+        _, bright_mask = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
 
-        # Combine white and yellow masks
-        color_mask = cv2.bitwise_or(white_color_mask, yellow_color_mask)
+        # Clean up noise with morphological operations
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
+        bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, kernel)  # Fill small gaps
 
-        # Create brightness mask (same as before)
-        _, brightness_mask = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY)
+        # === EDGE DETECTION (sharp circular edges) ===
+        edges = cv2.Canny(gray, 50, 150)
 
-        # COMBINE color and brightness: must be BOTH white/yellow AND bright
-        # This rejects metallic reflections which are bright but not white
-        combined_mask = cv2.bitwise_and(color_mask, brightness_mask)
+        # Combine bright regions + edges for robust detection
+        combined = cv2.bitwise_or(bright_mask, edges)
 
-        # Apply combined mask to grayscale
-        masked_gray = cv2.bitwise_and(gray, gray, mask=combined_mask)
+        # Blur for smoother circle detection
+        blurred = cv2.GaussianBlur(combined, (5, 5), 2)  # Smaller kernel = faster
 
-        # Blur for better circle detection
-        blurred = cv2.GaussianBlur(masked_gray, (9, 9), 2)
-
-        # Detect circles in the filtered image
+        # === CIRCLE DETECTION ===
         circles = cv2.HoughCircles(
             blurred,
             cv2.HOUGH_GRADIENT,
             dp=1,
-            minDist=100,
-            param1=50,
-            param2=30,
-            minRadius=20,
-            maxRadius=150
+            minDist=80,         # Minimum distance between circles
+            param1=30,          # Edge threshold (lower = more sensitive)
+            param2=20,          # Accumulator threshold (lower = more sensitive)
+            minRadius=15,       # Smaller min for distant balls
+            maxRadius=200       # Larger max for close balls
         )
 
-        if circles is not None:
+        if circles is not None and len(circles[0]) > 0:
             circles = np.uint16(np.around(circles))
 
-            # Validate detected circles
+            # Score all detected circles and return best match
+            best_circle = None
+            best_score = 0
+
             for circle in circles[0]:
                 x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
 
-                # Extract region around detected circle
-                y1, y2 = max(0, y - r), min(gray.shape[0], y + r)
-                x1, x2 = max(0, x - r), min(gray.shape[1], x + r)
+                # Validate bounds
+                if x - r < 0 or x + r >= gray.shape[1]:
+                    continue
+                if y - r < 0 or y + r >= gray.shape[0]:
+                    continue
 
-                ball_region_gray = gray[y1:y2, x1:x2]
-                ball_region_hsv = hsv[y1:y2, x1:x2]
+                # Extract ball region for validation
+                y1 = max(0, y - r)
+                y2 = min(gray.shape[0], y + r)
+                x1 = max(0, x - r)
+                x2 = min(gray.shape[1], x + r)
 
-                if ball_region_gray.size > 0 and ball_region_hsv.size > 0:
-                    # Check brightness
-                    mean_brightness = np.mean(ball_region_gray)
+                region = gray[y1:y2, x1:x2]
 
-                    # Check saturation (golf balls should have LOW saturation)
-                    # Metallic/shiny surfaces have HIGHER saturation
-                    mean_saturation = np.mean(ball_region_hsv[:, :, 1])
+                if region.size == 0:
+                    continue
 
-                    if mean_brightness > 130 and mean_saturation < 80:
-                        # Check circularity with combined mask
-                        mask_region = combined_mask[y1:y2, x1:x2]
-                        bright_pixel_ratio = np.count_nonzero(mask_region) / mask_region.size if mask_region.size > 0 else 0
+                # VALIDATION: Golf balls are bright AND uniform
+                mean_brightness = np.mean(region)
+                std_dev = np.std(region)
 
-                        if bright_pixel_ratio > 0.6:  # Increased to 60% for stricter validation
-                            return circle  # x, y, radius
-                        # Removed verbose rejection messages to reduce console spam
+                # Must be bright (>130) to be a golf ball
+                if mean_brightness > 130:
+                    # Score based on brightness and uniformity
+                    # Low std dev = uniform texture = more likely a ball (not grass/club)
+                    uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
+                    score = mean_brightness * uniformity_score
+
+                    if score > best_score:
+                        best_score = score
+                        best_circle = circle
+
+            if best_circle is not None:
+                return best_circle  # (x, y, radius)
 
         return None
 

@@ -23,99 +23,107 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
     // Convert numpy array to cv::Mat (zero-copy using array buffer)
     py::buffer_info buf = frame_array.request();
 
-    if (buf.ndim != 3) {
-        throw std::runtime_error("Input should be 3D numpy array (height, width, channels)");
+    // Handle both color (3D array) and grayscale (2D or 3D with 1 channel) input
+    cv::Mat gray;
+    if (buf.ndim == 3 && buf.shape[2] == 3) {
+        // Color image (H x W x 3) - convert to grayscale
+        cv::Mat frame(buf.shape[0], buf.shape[1], CV_8UC3, (uint8_t*)buf.ptr);
+        cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
+    } else if (buf.ndim == 2) {
+        // Already grayscale 2D (H x W) - OV9281 monochrome camera
+        gray = cv::Mat(buf.shape[0], buf.shape[1], CV_8UC1, (uint8_t*)buf.ptr);
+    } else if (buf.ndim == 3 && buf.shape[2] == 1) {
+        // Grayscale 3D (H x W x 1)
+        gray = cv::Mat(buf.shape[0], buf.shape[1], CV_8UC1, (uint8_t*)buf.ptr);
+    } else {
+        throw std::runtime_error("Unexpected image format. Expected (H,W), (H,W,1), or (H,W,3)");
     }
 
-    cv::Mat frame(buf.shape[0], buf.shape[1], CV_8UC3, (uint8_t*)buf.ptr);
+    // === BRIGHTNESS DETECTION (works on monochrome!) ===
+    // Golf balls are bright white - threshold to isolate bright regions
+    cv::Mat bright_mask;
+    cv::threshold(gray, bright_mask, 150, 255, cv::THRESH_BINARY);
 
-    // === STEP 1: Color Space Conversions ===
-    cv::Mat gray, hsv;
-    cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
-    cv::cvtColor(frame, hsv, cv::COLOR_RGB2HSV);
+    // Clean up noise with morphological operations
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+    cv::morphologyEx(bright_mask, bright_mask, cv::MORPH_OPEN, kernel);   // Remove noise
+    cv::morphologyEx(bright_mask, bright_mask, cv::MORPH_CLOSE, kernel);  // Fill gaps
 
-    // === STEP 2: HSV Color Filtering for WHITE golf balls ===
-    // White objects have low saturation (0-60) and high value (150-255)
-    // This rejects metallic/shiny surfaces which have higher saturation
-    cv::Mat white_mask, yellow_mask;
-    cv::inRange(hsv, cv::Scalar(0, 0, 150), cv::Scalar(180, 60, 255), white_mask);
+    // === EDGE DETECTION (sharp circular edges) ===
+    cv::Mat edges;
+    cv::Canny(gray, edges, 50, 150);
 
-    // Optional: Support YELLOW golf balls
-    cv::inRange(hsv, cv::Scalar(20, 100, 150), cv::Scalar(30, 255, 255), yellow_mask);
+    // Combine bright regions + edges for robust detection
+    cv::Mat combined;
+    cv::bitwise_or(bright_mask, edges, combined);
 
-    // Combine white and yellow masks
-    cv::Mat color_mask;
-    cv::bitwise_or(white_mask, yellow_mask, color_mask);
+    // Blur for smoother circle detection
+    cv::Mat blurred;
+    cv::GaussianBlur(combined, blurred, cv::Size(5, 5), 2);
 
-    // === STEP 3: Brightness Filtering ===
-    cv::Mat brightness_mask;
-    cv::threshold(gray, brightness_mask, 140, 255, cv::THRESH_BINARY);
-
-    // === STEP 4: Combined Mask (must be BOTH colored AND bright) ===
-    cv::Mat combined_mask;
-    cv::bitwise_and(color_mask, brightness_mask, combined_mask);
-
-    // Apply combined mask to grayscale
-    cv::Mat masked_gray;
-    cv::bitwise_and(gray, gray, masked_gray, combined_mask);
-
-    // === STEP 5: Blur for better circle detection ===
-    cv::GaussianBlur(masked_gray, masked_gray, cv::Size(9, 9), 2);
-
-    // === STEP 6: Hough Circle Detection ===
+    // === HOUGH CIRCLE DETECTION ===
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(
-        masked_gray,
+        blurred,
         circles,
         cv::HOUGH_GRADIENT,
         1,          // dp
-        100,        // minDist
-        50,         // param1
-        30,         // param2
-        20,         // minRadius
-        150         // maxRadius
+        80,         // minDist (reduced for better detection)
+        30,         // param1 (lower = more sensitive)
+        20,         // param2 (lower = more sensitive)
+        15,         // minRadius (smaller for distant balls)
+        200         // maxRadius (larger for close balls)
     );
 
-    // === STEP 7: Validate Detected Circles ===
+    // === VALIDATE AND SCORE CIRCLES ===
     if (!circles.empty()) {
+        int best_x = -1, best_y = -1, best_r = -1;
+        double best_score = 0.0;
+
         for (const auto& circle : circles) {
             int x = cvRound(circle[0]);
             int y = cvRound(circle[1]);
             int r = cvRound(circle[2]);
 
-            // Extract region around detected circle
+            // Check bounds
+            if (x - r < 0 || x + r >= gray.cols) continue;
+            if (y - r < 0 || y + r >= gray.rows) continue;
+
+            // Extract ball region for validation
             int y1 = std::max(0, y - r);
             int y2 = std::min(gray.rows, y + r);
             int x1 = std::max(0, x - r);
             int x2 = std::min(gray.cols, x + r);
 
-            cv::Mat ball_region_gray = gray(cv::Range(y1, y2), cv::Range(x1, x2));
-            cv::Mat ball_region_hsv = hsv(cv::Range(y1, y2), cv::Range(x1, x2));
+            cv::Mat region = gray(cv::Range(y1, y2), cv::Range(x1, x2));
 
-            if (ball_region_gray.empty() || ball_region_hsv.empty()) {
-                continue;
-            }
+            if (region.empty()) continue;
 
-            // Check brightness
-            double mean_brightness = cv::mean(ball_region_gray)[0];
+            // VALIDATION: Golf balls are bright AND uniform
+            cv::Scalar mean, stddev;
+            cv::meanStdDev(region, mean, stddev);
+            double mean_brightness = mean[0];
+            double std_dev = stddev[0];
 
-            // Check saturation (golf balls should have LOW saturation)
-            // Metallic/shiny surfaces have HIGHER saturation
-            std::vector<cv::Mat> hsv_channels;
-            cv::split(ball_region_hsv, hsv_channels);
-            double mean_saturation = cv::mean(hsv_channels[1])[0];
+            // Must be bright (>130) to be a golf ball
+            if (mean_brightness > 130) {
+                // Score based on brightness and uniformity
+                // Low std dev = uniform texture = more likely a ball
+                double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
+                double score = mean_brightness * uniformity_score;
 
-            if (mean_brightness > 130 && mean_saturation < 80) {
-                // Check circularity with combined mask
-                cv::Mat mask_region = combined_mask(cv::Range(y1, y2), cv::Range(x1, x2));
-                int bright_pixels = cv::countNonZero(mask_region);
-                double bright_pixel_ratio = static_cast<double>(bright_pixels) / mask_region.total();
-
-                if (bright_pixel_ratio > 0.6) {
-                    // Found valid ball! Return (x, y, radius) as tuple
-                    return py::make_tuple(x, y, r);
+                if (score > best_score) {
+                    best_score = score;
+                    best_x = x;
+                    best_y = y;
+                    best_r = r;
                 }
             }
+        }
+
+        if (best_x >= 0) {
+            // Found valid ball! Return (x, y, radius) as tuple
+            return py::make_tuple(best_x, best_y, best_r);
         }
     }
 
