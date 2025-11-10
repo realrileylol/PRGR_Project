@@ -4,6 +4,7 @@ import subprocess
 import threading
 import time
 import numpy as np
+from collections import deque
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
 
@@ -425,20 +426,26 @@ class CaptureManager(QObject):
             consecutive_frames_seen = 0  # Track consecutive frames ball is visible (for debouncing)
             prev_ball = None
             frames_since_lock = 0  # Track how long ball has been locked
-            detection_history = []  # Track last 10 frames: True=detected, False=not detected
-            radius_history = []  # Track last 5 radius values for smoothing
+            detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
+            radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
+            frame_buffer = deque(maxlen=5)  # Circular buffer for pre-impact frames
+
+            # Calculate target frame time for adaptive sleep
+            target_frame_time = 1.0 / frame_rate
+            print(f"🎯 Target frame time: {target_frame_time*1000:.1f}ms ({frame_rate} FPS)")
 
             while self.is_running:
+                loop_start_time = time.time()
+
                 frame = self.picam2.capture_array()
+                frame_buffer.append(frame.copy())  # Store frame in circular buffer
                 current_ball = self._detect_ball(frame)
 
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
 
                     # Track radius for smoothing (helps with HoughCircles instability)
-                    radius_history.append(r)
-                    if len(radius_history) > 5:
-                        radius_history.pop(0)
+                    radius_history.append(r)  # deque auto-truncates at maxlen
 
                     # Use median radius for more stable validation
                     median_radius = int(np.median(radius_history)) if len(radius_history) >= 3 else r
@@ -448,10 +455,8 @@ class CaptureManager(QObject):
                     if last_seen_ball is not None and not self._is_same_ball(last_seen_ball, smoothed_ball):
                         # Skip this detection, likely a different object
                         # (verbose logging removed to reduce console spam)
-                        detection_history.append(False)  # Track as not detected
-                        if len(detection_history) > 10:
-                            detection_history.pop(0)
-                        radius_history = []  # Reset radius smoothing
+                        detection_history.append(False)  # Track as not detected (deque auto-truncates)
+                        radius_history.clear()  # Reset radius smoothing
                         continue
 
                     # Ball is now visible
@@ -470,9 +475,7 @@ class CaptureManager(QObject):
                     last_seen_ball = smoothed_ball  # Use smoothed radius for tracking
 
                     # Track detection in history
-                    detection_history.append(True)
-                    if len(detection_history) > 10:
-                        detection_history.pop(0)
+                    detection_history.append(True)  # deque auto-truncates at maxlen
 
                     # Check if ball has been stable
                     if original_ball is None:
@@ -483,7 +486,7 @@ class CaptureManager(QObject):
                                 print(f"⚠️ Radius inconsistency during lock - resetting")
                                 stable_frames = 0
                                 prev_ball = None
-                                radius_history = []  # Reset radius smoothing
+                                radius_history.clear()  # Reset radius smoothing
                                 continue
                             elif self._ball_has_moved(prev_ball, current_ball, threshold=10):
                                 # Ball moved too much, reset stability counter
@@ -525,9 +528,7 @@ class CaptureManager(QObject):
                     consecutive_frames_seen = 0  # Reset consecutive seen counter
 
                     # Track detection in history
-                    detection_history.append(False)
-                    if len(detection_history) > 10:
-                        detection_history.pop(0)
+                    detection_history.append(False)  # deque auto-truncates at maxlen
 
                     # KEEP UI GREEN if ball is locked and temporarily obscured (e.g., club head blocking)
                     # Only turn red if ball is lost for extended period
@@ -579,7 +580,7 @@ class CaptureManager(QObject):
                                     prev_ball = None
                                     last_seen_ball = None
                                     frames_since_lock = 0
-                                    radius_history = []  # Reset radius smoothing
+                                    radius_history.clear()  # Reset radius smoothing
                                     self.statusChanged.emit("No Ball Detected", "red")
                                 else:
                                     # Scene is still visible - this is a REAL SHOT
@@ -587,13 +588,18 @@ class CaptureManager(QObject):
                                     print(f"   Scene brightness: {int(mean_scene_brightness)} - camera not covered, valid shot")
                                     self.statusChanged.emit("Capturing...", "red")
 
-                                    # Capture frames IMMEDIATELY
-                                    frames = []
+                                    # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                                    frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
+                                    print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
+
+                                    # Capture post-impact frames
                                     frame_delay = 1.0 / frame_rate
-                                    for i in range(10):
+                                    for i in range(5):
                                         capture_frame = self.picam2.capture_array()
                                         frames.append(capture_frame)
                                         time.sleep(frame_delay)
+
+                                    print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
 
                                     # Save frames
                                     for i, save_frame in enumerate(frames):
@@ -621,7 +627,7 @@ class CaptureManager(QObject):
                         prev_ball = None
                         last_seen_ball = None
                         frames_since_lock = 0
-                        radius_history = []  # Reset radius smoothing
+                        radius_history.clear()  # Reset radius smoothing
                     elif original_ball is not None and frames_since_seen <= 60:
                         # Ball is locked but temporarily not visible (club head, hand, etc.)
                         # Keep the "Ready" status - don't turn red
@@ -636,9 +642,21 @@ class CaptureManager(QObject):
                             stable_frames = 0
                             prev_ball = None
                             last_seen_ball = None
-                            radius_history = []  # Reset radius smoothing
+                            radius_history.clear()  # Reset radius smoothing
 
-                time.sleep(0.03)
+                # Adaptive sleep to maintain target frame rate
+                loop_elapsed_time = time.time() - loop_start_time
+                remaining_time = target_frame_time - loop_elapsed_time
+
+                # Sleep only if we have time remaining (with 0.5ms minimum to prevent CPU spinning)
+                if remaining_time > 0.0005:
+                    time.sleep(remaining_time)
+
+                # Optional: Log if we're running behind (useful for debugging)
+                if remaining_time < 0:
+                    # Running behind target frame rate - detection is taking too long
+                    # This is normal during initial detection or scene changes
+                    pass
 
         except Exception as e:
             print(f"❌ Capture error: {e}")
