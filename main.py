@@ -422,6 +422,7 @@ class CaptureManager(QObject):
             stable_frames = 0
             last_seen_ball = None
             frames_since_seen = 0
+            consecutive_frames_seen = 0  # Track consecutive frames ball is visible (for debouncing)
             prev_ball = None
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = []  # Track last 10 frames: True=detected, False=not detected
@@ -453,12 +454,20 @@ class CaptureManager(QObject):
                         radius_history = []  # Reset radius smoothing
                         continue
 
-                    # Ball reappeared after disappearing
-                    if frames_since_seen > 0 and original_ball is not None:
-                        print(f"✓ Ball reappeared after {frames_since_seen} frames - NOT a shot (someone walked by/grabbed ball)")
+                    # Ball is now visible
+                    consecutive_frames_seen += 1
+
+                    # DEBOUNCING: Only reset frames_since_seen if ball visible for 2+ consecutive frames
+                    # This prevents brief 1-frame reappearances from canceling shot detection
+                    if consecutive_frames_seen >= 2:
+                        # Ball has been visible for 2+ frames - truly reappeared, cancel shot detection
+                        if frames_since_seen > 0 and frames_since_seen < 3:
+                            # Ball reappeared before shot could be detected (club positioning, not a shot)
+                            pass  # Don't spam console
+                        frames_since_seen = 0
+                    # else: ball visible for only 1 frame - might be flicker, keep counting frames_since_seen
 
                     last_seen_ball = smoothed_ball  # Use smoothed radius for tracking
-                    frames_since_seen = 0
 
                     # Track detection in history
                     detection_history.append(True)
@@ -513,6 +522,7 @@ class CaptureManager(QObject):
                 else:
                     # Ball not detected - it disappeared
                     frames_since_seen += 1
+                    consecutive_frames_seen = 0  # Reset consecutive seen counter
 
                     # Track detection in history
                     detection_history.append(False)
