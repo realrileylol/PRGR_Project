@@ -528,37 +528,27 @@ class CaptureManager(QObject):
                         pass
 
                     # If ball is locked and disappeared, check if this is IMPACT
+                    # Note: Club head can obscure ball during swing, causing brief flickering
+                    # We verify by checking if ball STAYS gone for 3+ frames
                     if original_ball is not None and frames_since_seen == 1:
-                        # Ball just disappeared - check if it was a FAST disappearance (impact)
-                        # vs SLOW disappearance (setting club down)
-
-                        # FAST disappearance (IMPACT): Last 3-4 frames were all detected, then suddenly gone
-                        # SLOW disappearance (club placement): Flickering detections over last 5 frames
-
-                        if len(detection_history) >= 4:
-                            # Check last 4 frames before this one
-                            recent_detections = detection_history[-4:]
-                            consecutive_detections = sum(recent_detections)
-
-                            # If 3 or 4 of last 4 frames had ball detected, this is FAST obscuration
-                            if consecutive_detections >= 3:
-                                # Fast obscuration detected - but wait to verify it's not someone walking by
-                                print(f"⚡ Fast obscuration detected ({consecutive_detections}/4 frames) - verifying...")
-                            else:
-                                # Slow/flickering disappearance - probably setting club down
-                                print(f"⚠️ Ball disappeared but detection was flickering ({consecutive_detections}/4) - NOT impact (club being positioned?)")
+                        # Ball just disappeared - start verification
+                        print(f"⚡ Ball disappeared - verifying if shot...")
 
                     # Check if we should trigger after verifying ball is gone
-                    if original_ball is not None and frames_since_seen == 5:
-                        # Ball has been gone for 5 frames - check the pattern
-                        if len(detection_history) >= 9:
-                            # Look at frames -8 to -5 (before disappearance)
-                            pre_disappearance = detection_history[-9:-5]
+                    # Reduced from 5 to 3 frames for faster response (0.1s at 30fps, 0.03s at 100fps)
+                    if original_ball is not None and frames_since_seen == 3:
+                        # Ball has been gone for 3 frames - verify it's a real shot
+                        # More lenient criteria: if ball was visible at all in recent frames,
+                        # and stays gone for 3 frames, it's likely a shot (not club positioning)
+                        if len(detection_history) >= 7:
+                            # Look at frames -7 to -4 (before disappearance)
+                            pre_disappearance = detection_history[-7:-3]
                             consecutive_before = sum(pre_disappearance)
 
-                            # If ball was consistently visible (3+ of 4 frames) before disappearing
-                            # AND still gone after 5 frames = POSSIBLY a shot
-                            if consecutive_before >= 3:
+                            # If ball was visible in 2+ of last 4 frames before disappearing
+                            # AND still gone after 3 frames = LIKELY a shot
+                            # (More lenient to handle club head obscuration during swing)
+                            if consecutive_before >= 2:
                                 # CRITICAL CHECK: Is the camera covered (black screen)?
                                 # When ball is HIT, you still see the scene (grass, background)
                                 # When hand covers camera, screen is BLACK
@@ -583,7 +573,7 @@ class CaptureManager(QObject):
                                     self.statusChanged.emit("No Ball Detected", "red")
                                 else:
                                     # Scene is still visible - this is a REAL SHOT
-                                    print(f"🏌️ IMPACT CONFIRMED! Ball was visible {consecutive_before}/4 frames, gone for 5 frames - real shot!")
+                                    print(f"🏌️ IMPACT CONFIRMED! Ball was visible {consecutive_before}/4 frames, gone for 3 frames - real shot!")
                                     print(f"   Scene brightness: {int(mean_scene_brightness)} - camera not covered, valid shot")
                                     self.statusChanged.emit("Capturing...", "red")
 
@@ -610,7 +600,7 @@ class CaptureManager(QObject):
                                     self.is_running = False
                                     return
                             else:
-                                print(f"⚠️ Ball gone but pre-disappearance was flickering ({consecutive_before}/4) - ignoring")
+                                print(f"⚠️ Ball gone but not enough pre-visibility ({consecutive_before}/4 frames) - ignoring")
 
                     # Ball has been gone too long - reset lock
                     if original_ball is not None and frames_since_seen > 60:
