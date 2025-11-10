@@ -27,7 +27,8 @@ sudo apt-get install -y \
     cmake \
     python3-dev \
     python3-pip \
-    pybind11-dev
+    pybind11-dev \
+    libopencv-dev
 
 # ============================================
 # Step 3: Install Python Dependencies
