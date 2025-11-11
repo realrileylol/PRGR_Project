@@ -132,9 +132,12 @@ Item {
                 text: "← Back"
                 implicitWidth: 100
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
                 background: Rectangle {
                     color: parent.pressed ? "#2D9A4F" : success
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
                 contentItem: Text { 
                     text: parent.text
@@ -177,10 +180,13 @@ Item {
                 text: "+ New"
                 implicitWidth: 100
                 implicitHeight: 48
-                
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
+
                 background: Rectangle {
                     color: parent.pressed ? "#2563EB" : accent
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
                 
                 contentItem: Text {
@@ -327,10 +333,13 @@ Item {
                                             implicitWidth: 90
                                             implicitHeight: 40
                                             visible: profileScreen.activeProfile !== modelData
-                                            
+                                            scale: pressed ? 0.95 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 100 } }
+
                                             background: Rectangle {
                                                 color: parent.pressed ? "#2D9A4F" : profileScreen.success
                                                 radius: 6
+                                                Behavior on color { ColorAnimation { duration: 200 } }
                                             }
                                             
                                             contentItem: Text {
@@ -354,10 +363,13 @@ Item {
                                             text: "My Bag"
                                             implicitWidth: 80
                                             implicitHeight: 40
-                                            
+                                            scale: pressed ? 0.95 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 100 } }
+
                                             background: Rectangle {
                                                 color: parent.pressed ? "#2563EB" : profileScreen.accent
                                                 radius: 6
+                                                Behavior on color { ColorAnimation { duration: 200 } }
                                             }
                                             
                                             contentItem: Text {
@@ -382,12 +394,15 @@ Item {
                                             implicitWidth: 40
                                             implicitHeight: 40
                                             visible: true
-                                            
+                                            scale: pressed ? 0.95 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 100 } }
+
                                             background: Rectangle {
                                                 color: parent.pressed ? "#B02A2A" : "transparent"
                                                 radius: 6
                                                 border.color: profileScreen.danger
                                                 border.width: 2
+                                                Behavior on color { ColorAnimation { duration: 200 } }
                                             }
                                             
                                             contentItem: Text {
@@ -539,10 +554,13 @@ Item {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 55
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     contentItem: Text {
@@ -565,10 +583,13 @@ Item {
                     Layout.fillWidth: true
                     implicitHeight: 55
                     enabled: nameInput.isValid
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.enabled ? (parent.pressed ? "#2D9A4F" : success) : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {
@@ -658,10 +679,13 @@ Item {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 55
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     contentItem: Text {
@@ -683,10 +707,13 @@ Item {
                     text: "Delete"
                     Layout.fillWidth: true
                     implicitHeight: 55
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B02A2A" : danger
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {

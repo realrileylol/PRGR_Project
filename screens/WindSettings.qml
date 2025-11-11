@@ -77,6 +77,18 @@ Item {
             Layout.fillWidth: true
         }
 
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
+
         // --- Wind Speed ---
         Rectangle {
             Layout.fillWidth: true
@@ -213,6 +225,10 @@ Item {
                     font.pixelSize: 12
                     Layout.alignment: Qt.AlignHCenter
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 

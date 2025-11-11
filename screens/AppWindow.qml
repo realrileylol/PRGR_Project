@@ -9,6 +9,10 @@ Item {
 
     property var win
 
+    // Capture status
+    property string captureStatus: "Not Started"
+    property string captureColor: "gray"
+
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
     readonly property color card: "#FFFFFF"
@@ -19,6 +23,88 @@ Item {
     readonly property color accent: "#3A86FF"
     readonly property color success: "#34C759"
     readonly property color danger: "#DA3633"
+
+    // Connect to capture manager signals
+    Component.onCompleted: {
+        captureManager.statusChanged.connect(function(status, color) {
+            captureStatus = status
+            captureColor = color
+        })
+
+        captureManager.shotCaptured.connect(function(shotNumber) {
+            shotSavedDialog.shotNumber = shotNumber
+            shotSavedDialog.open()
+        })
+
+        captureManager.errorOccurred.connect(function(errorMsg) {
+            console.log("❌ Capture error:", errorMsg)
+        })
+    }
+
+    // Shot saved dialog
+    Dialog {
+        id: shotSavedDialog
+        anchors.centerIn: parent
+        width: 400
+        height: 200
+        modal: true
+        title: "Shot Saved!"
+
+        property int shotNumber: 0
+
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: success
+            border.width: 3
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            anchors.centerIn: parent
+
+            Text {
+                text: "✅ Shot #" + shotSavedDialog.shotNumber + " Captured!"
+                font.pixelSize: 24
+                font.bold: true
+                color: success
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Text {
+                text: "10 frames saved to ball_captures/"
+                font.pixelSize: 16
+                color: hint
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Button {
+                text: "OK"
+                Layout.preferredWidth: 120
+                Layout.preferredHeight: 50
+                Layout.alignment: Qt.AlignHCenter
+
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
+                    radius: 8
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 18
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    shotSavedDialog.close()
+                }
+            }
+        }
+    }
 
     // ORDERED metrics - always displayed in this order
     property var orderedMetrics: [
@@ -201,9 +287,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -226,9 +316,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -251,9 +345,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -276,9 +374,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 64
 
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                             radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -293,6 +395,120 @@ Item {
                         onClicked: {
                             soundManager.playClick()
                             stack.openHistory()
+                        }
+                    }
+                }
+
+                // Start Capture Button with Status Indicator
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 70
+                    radius: 12
+                    color: card
+                    border.color: edge
+                    border.width: 2
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 12
+
+                        // Status Indicator Light
+                        Rectangle {
+                            width: 40
+                            height: 40
+                            radius: 20
+                            color: {
+                                if (captureColor === "green") return success
+                                if (captureColor === "red") return danger
+                                if (captureColor === "yellow") return "#FFD54F"
+                                return "#C8CCD4"  // gray
+                            }
+                            border.color: text
+                            border.width: 2
+
+                            Behavior on color { ColorAnimation { duration: 300 } }
+
+                            // Pulsing animation when active
+                            SequentialAnimation on opacity {
+                                running: captureColor === "yellow" || captureColor === "green"
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.5; duration: 800 }
+                                NumberAnimation { to: 1.0; duration: 800 }
+                            }
+                        }
+
+                        // Status Text
+                        Text {
+                            text: captureStatus
+                            font.pixelSize: 16
+                            font.bold: true
+                            color: text
+                            Layout.fillWidth: true
+                        }
+
+                        // Start Capture Button
+                        Button {
+                            text: "Start Capture"
+                            Layout.preferredWidth: 140
+                            Layout.preferredHeight: 50
+
+                            scale: pressed ? 0.95 : 1.0
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#2D9A4F" : success
+                                radius: 8
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: "white"
+                                font.pixelSize: 16
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                soundManager.playClick()
+                                captureManager.startCapture()
+                                captureStatus = "Starting..."
+                                captureColor = "yellow"
+                            }
+                        }
+
+                        // Stop Capture Button
+                        Button {
+                            text: "Stop"
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 50
+
+                            scale: pressed ? 0.95 : 1.0
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#C02927" : danger
+                                radius: 8
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: "white"
+                                font.pixelSize: 16
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                soundManager.playClick()
+                                captureManager.stopCapture()
+                                captureStatus = "Stopped"
+                                captureColor = "gray"
+                            }
                         }
                     }
                 }
@@ -603,9 +819,10 @@ Item {
                         scale: pressed ? 0.97 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
                         
-                        background: Rectangle { 
+                        background: Rectangle {
                             color: parent.pressed ? "#2563EB" : accent
                             radius: 14
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {

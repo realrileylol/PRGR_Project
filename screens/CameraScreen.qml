@@ -40,10 +40,13 @@ Item {
                 text: "← Back"
                 implicitWidth: 100
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
 
                 background: Rectangle {
                     color: parent.pressed ? "#2D9A4F" : success
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
                 contentItem: Text {
@@ -185,10 +188,13 @@ Item {
                     text: cameraActive ? "Stop Camera" : "Start Camera"
                     implicitHeight: 50
                     implicitWidth: 150
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#2563EB" : accent
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     contentItem: Text {

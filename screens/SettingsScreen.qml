@@ -38,10 +38,13 @@ Item {
                     text: "← Back"
                     implicitWidth: 100
                     implicitHeight: 48
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#2D9A4F" : success
                         radius: 6
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text { 
@@ -82,10 +85,13 @@ Item {
                     text: "Reset to Default"
                     implicitWidth: 150
                     implicitHeight: 48
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#B02A27" : danger
                         radius: 6
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     contentItem: Text {
@@ -180,12 +186,15 @@ Item {
                                 text: "Configure"
                                 implicitWidth: 110
                                 implicitHeight: 50
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -194,7 +203,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                
+
                                 onClicked: {
                                     soundManager.playClick()
                                     stack.push(Qt.resolvedUrl("WindSettings.qml"), { win: win })
@@ -260,12 +269,15 @@ Item {
                                 text: "Configure"
                                 implicitWidth: 110
                                 implicitHeight: 50
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -274,7 +286,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                
+
                                 onClicked: {
                                     soundManager.playClick()
                                     stack.push(Qt.resolvedUrl("TempSettings.qml"), { win: win })
@@ -340,12 +352,15 @@ Item {
                                 text: "Configure"
                                 implicitWidth: 110
                                 implicitHeight: 50
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -354,7 +369,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                
+
                                 onClicked: {
                                     soundManager.playClick()
                                     stack.push(Qt.resolvedUrl("BallSettings.qml"), { win: win })
@@ -420,12 +435,15 @@ Item {
                                 text: "Configure"
                                 implicitWidth: 110
                                 implicitHeight: 50
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : accent
                                     radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -434,7 +452,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                
+
                                 onClicked: {
                                     soundManager.playClick()
                                     stack.push(Qt.resolvedUrl("LaunchSettings.qml"), { win: win })
@@ -504,7 +522,62 @@ Item {
                             }
                         }
                     }
-                    
+
+                    // CAMERA SETTINGS
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 80
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
+
+                            Text {
+                                text: "Camera Settings"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                                Layout.fillWidth: true
+                            }
+
+                            Button {
+                                text: "Configure"
+                                implicitWidth: 110
+                                implicitHeight: 50
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("CameraSettings.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }
@@ -545,10 +618,13 @@ Item {
                         text: "Cancel"
                         Layout.fillWidth: true
                         implicitHeight: 40
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
 
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : edge
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -570,10 +646,13 @@ Item {
                         text: "Reset All"
                         Layout.fillWidth: true
                         implicitHeight: 40
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
 
                         background: Rectangle {
                             color: parent.pressed ? "#B02A27" : danger
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {

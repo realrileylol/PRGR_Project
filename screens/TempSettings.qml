@@ -85,6 +85,18 @@ Item {
             Layout.fillWidth: true
         }
 
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
+
         // --- Temperature Slider ---
         Rectangle {
             Layout.fillWidth: true
@@ -192,6 +204,10 @@ Item {
                     Layout.fillWidth: true
                     lineHeight: 1.3
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 
