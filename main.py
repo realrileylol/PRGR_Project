@@ -241,8 +241,8 @@ class CaptureManager(QObject):
 
         # === BRIGHTNESS DETECTION (works on monochrome!) ===
         # Golf balls are bright white - threshold to isolate bright regions
-        # MATCHED TO optimized_detection.py (known working values)
-        _, bright_mask = cv2.threshold(enhanced_gray, 150, 255, cv2.THRESH_BINARY)
+        # Adjusted for actual lighting conditions (diagnostics showed 100 works better than 150)
+        _, bright_mask = cv2.threshold(enhanced_gray, 100, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -327,13 +327,13 @@ class CaptureManager(QObject):
                 if region.size == 0:
                     continue
 
-                # === BRIGHTNESS VALIDATION (optimized_detection.py) ===
+                # === BRIGHTNESS VALIDATION ===
                 mean_brightness = np.mean(region)
                 std_dev = np.std(region)
 
-                # Golf balls are bright (>130) and relatively uniform
-                # MATCHED TO optimized_detection.py
-                if mean_brightness > 130:
+                # Golf balls are brighter than background (adjusted for actual lighting)
+                # Diagnostics showed ball brightness 50-180, so lowered from >130 to >80
+                if mean_brightness > 80:
                     # Prefer uniform circles (low std dev = more likely ball)
                     score = mean_brightness * (1.0 - np.clip(std_dev / 100, 0, 0.5))
 

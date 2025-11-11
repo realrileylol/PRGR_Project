@@ -47,9 +47,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === BRIGHTNESS DETECTION (works on monochrome!) ===
     // Golf balls are bright white - threshold to isolate bright regions
-    // MATCHED TO optimized_detection.py (known working value)
+    // Adjusted for actual lighting conditions (diagnostics showed 100 works better than 150)
     cv::Mat bright_mask;
-    cv::threshold(enhanced_gray, bright_mask, 150, 255, cv::THRESH_BINARY);
+    cv::threshold(enhanced_gray, bright_mask, 100, 255, cv::THRESH_BINARY);
 
     // Clean up noise with morphological operations
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
@@ -143,11 +143,12 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             if (region.empty()) continue;
 
             // === 1. BRIGHTNESS VALIDATION ===
-            // Golf balls are bright (>130) - MATCHED TO optimized_detection.py
+            // Golf balls are brighter than background (adjusted for actual lighting)
+            // Diagnostics showed ball brightness 50-180, so lowered from >130 to >80
             cv::Scalar mean, stddev;
             cv::meanStdDev(region, mean, stddev);
             double mean_brightness = mean[0];
-            if (mean_brightness < 130) continue;
+            if (mean_brightness < 80) continue;
 
             // === SIMPLIFIED VALIDATION (RELAXED for monochrome) ===
             double std_dev = stddev[0];
