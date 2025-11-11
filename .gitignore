@@ -13,6 +13,11 @@ __pycache__/
 *.pyc
 *.pyo
 
+# C++ build artifacts
+cpp_module/build/
+cpp_module/*.so
+cpp_module/*.egg-info/
+
 # Qt cache
 *.qmlc
 *.jsc
