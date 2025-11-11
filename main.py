@@ -234,10 +234,15 @@ class CaptureManager(QObject):
         else:
             gray = frame  # Already grayscale (OV9281)
 
+        # === CLAHE PREPROCESSING (PiTrac-style) ===
+        # Enhance contrast for better ball detection in varying lighting
+        clahe = cv2.createCLAHE(clipLimit=6.0, tileGridSize=(6, 6))
+        enhanced_gray = clahe.apply(gray)
+
         # === BRIGHTNESS DETECTION (works on monochrome!) ===
         # Golf balls are bright white - threshold to isolate bright regions
         # MATCHED TO optimized_detection.py (known working values)
-        _, bright_mask = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+        _, bright_mask = cv2.threshold(enhanced_gray, 150, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -245,7 +250,7 @@ class CaptureManager(QObject):
         bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, kernel)  # Fill small gaps
 
         # === EDGE DETECTION (sharp circular edges) ===
-        edges = cv2.Canny(gray, 50, 150)
+        edges = cv2.Canny(enhanced_gray, 50, 150)
 
         # Combine bright regions + edges for robust detection
         combined = cv2.bitwise_or(bright_mask, edges)
@@ -254,17 +259,26 @@ class CaptureManager(QObject):
         # MATCHED TO optimized_detection.py
         blurred = cv2.GaussianBlur(combined, (9, 9), 2)
 
-        # === CIRCLE DETECTION (optimized_detection.py params) ===
-        circles = cv2.HoughCircles(
-            blurred,
-            cv2.HOUGH_GRADIENT,
-            dp=1,
-            minDist=80,         # MATCHED TO optimized_detection.py
-            param1=30,          # MATCHED TO optimized_detection.py
-            param2=20,          # MATCHED TO optimized_detection.py
-            minRadius=15,       # MATCHED TO optimized_detection.py
-            maxRadius=200       # MATCHED TO optimized_detection.py
-        )
+        # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
+        # Try multiple param2 values to adapt to lighting conditions
+        param2_values = [20, 18, 22, 16, 24, 15, 26]  # Start with known good value, then vary
+        circles = None
+
+        for param2 in param2_values:
+            circles = cv2.HoughCircles(
+                blurred,
+                cv2.HOUGH_GRADIENT,
+                dp=1,
+                minDist=80,
+                param1=30,
+                param2=param2,      # ADAPTIVE: try different sensitivities
+                minRadius=15,
+                maxRadius=200
+            )
+
+            # Stop if we found 1-4 circles (ideal range)
+            if circles is not None and 1 <= len(circles[0]) <= 4:
+                break
 
         if circles is not None and len(circles[0]) > 0:
             circles = np.uint16(np.around(circles))
@@ -327,8 +341,62 @@ class CaptureManager(QObject):
                         best_score = score
                         best_circle = circle
 
-            # Return best circle if found
+            # === CIRCLE REFINEMENT (PiTrac-style) ===
+            # Refine best detection with 1.5× radius search region
             if best_circle is not None:
+                x, y, r = int(best_circle[0]), int(best_circle[1]), int(best_circle[2])
+
+                # Create 1.5× radius ROI around detected ball
+                search_radius = int(r * 1.5)
+                roi_x1 = max(0, x - search_radius)
+                roi_y1 = max(0, y - search_radius)
+                roi_x2 = min(enhanced_gray.shape[1], x + search_radius)
+                roi_y2 = min(enhanced_gray.shape[0], y + search_radius)
+
+                roi = enhanced_gray[roi_y1:roi_y2, roi_x1:roi_x2]
+
+                if roi.size > 0:
+                    # Apply refined Canny for precise edge detection
+                    refined_edges = cv2.Canny(roi, 55, 110)
+                    refined_blur = cv2.GaussianBlur(refined_edges, (7, 7), 2)
+
+                    # Search for circles in refined region with tighter radius bounds
+                    min_r = int(r * 0.85)
+                    max_r = int(r * 1.10)
+
+                    refined_circles = cv2.HoughCircles(
+                        refined_blur,
+                        cv2.HOUGH_GRADIENT,
+                        dp=1,
+                        minDist=30,
+                        param1=30,
+                        param2=15,  # More sensitive for refinement
+                        minRadius=min_r,
+                        maxRadius=max_r
+                    )
+
+                    # Average multiple refined detections for better accuracy
+                    if refined_circles is not None and len(refined_circles[0]) > 0:
+                        refined_circles = np.uint16(np.around(refined_circles))
+
+                        # Average up to 4 best circles
+                        avg_x, avg_y, avg_r = 0, 0, 0
+                        count = min(4, len(refined_circles[0]))
+
+                        for i in range(count):
+                            rc = refined_circles[0][i]
+                            avg_x += int(rc[0])
+                            avg_y += int(rc[1])
+                            avg_r += int(rc[2])
+
+                        # Convert back to full image coordinates
+                        final_x = roi_x1 + (avg_x // count)
+                        final_y = roi_y1 + (avg_y // count)
+                        final_r = avg_r // count
+
+                        return np.array([final_x, final_y, final_r])
+
+                # Return original if refinement fails
                 return best_circle  # (x, y, radius)
 
         return None
