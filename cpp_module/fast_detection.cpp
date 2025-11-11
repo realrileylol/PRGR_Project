@@ -154,67 +154,20 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             double mean_brightness = mean[0];
             if (mean_brightness < 85) continue;
 
-            // === 2. CIRCULARITY VALIDATION ===
-            cv::Mat thresh_region;
-            cv::threshold(region, thresh_region, 85, 255, cv::THRESH_BINARY);
-
-            std::vector<std::vector<cv::Point>> contours;
-            cv::findContours(thresh_region, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-            if (contours.empty()) continue;
-
-            // Get largest contour
-            auto largest_contour = *std::max_element(contours.begin(), contours.end(),
-                [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
-                    return cv::contourArea(a) < cv::contourArea(b);
-                });
-
-            double contour_area = cv::contourArea(largest_contour);
-            double perimeter = cv::arcLength(largest_contour, true);
-            if (perimeter == 0) continue;
-
-            // Circularity = 4π × Area / Perimeter²
-            double circularity = (4.0 * M_PI * contour_area) / (perimeter * perimeter);
-            if (circularity < 0.75) continue;
-
-            // === 3. ASPECT RATIO VALIDATION ===
-            if (largest_contour.size() < 5) continue;
-
-            cv::RotatedRect ellipse = cv::fitEllipse(largest_contour);
-            double width = ellipse.size.width;
-            double height = ellipse.size.height;
-            if (width <= 0 || height <= 0) continue;
-
-            double aspect_ratio = std::min(width, height) / std::max(width, height);
-            if (aspect_ratio < 0.85) continue;
-
-            // === 4. SOLIDITY VALIDATION ===
-            std::vector<cv::Point> hull;
-            cv::convexHull(largest_contour, hull);
-            double hull_area = cv::contourArea(hull);
-            if (hull_area <= 0) continue;
-
-            double solidity = contour_area / hull_area;
-            if (solidity < 0.90) continue;
-
-            // === 5. UNIFORMITY VALIDATION ===
+            // === SIMPLIFIED VALIDATION (RELAXED for monochrome) ===
             double std_dev = stddev[0];
             double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
-            if (uniformity_score < 0.5) continue;
 
-            // === 6. EDGE STRENGTH VALIDATION ===
             double edge_strength = edge_region.empty() ? 0.0 : cv::mean(edge_region)[0];
             double edge_score = std::min(edge_strength / 50.0, 1.0);
-            if (edge_score < 0.1) continue;
 
-            // === 7. SIZE PLAUSIBILITY ===
-            if (r < 15 || r > 150) continue;
+            // ONLY check size and basic brightness - let velocity filter false hits
+            if (r < 10 || r > 200) continue;
 
-            // === FINAL SCORING ===
-            double score = (circularity * 0.4 +
-                          (mean_brightness / 255.0) * 0.3 +
-                          uniformity_score * 0.2 +
-                          edge_score * 0.1) * 100.0;
+            // Simple scoring: brightness + uniformity + edge
+            double score = ((mean_brightness / 255.0) * 0.5 +
+                          uniformity_score * 0.3 +
+                          edge_score * 0.2) * 100.0;
 
             if (score > best_score) {
                 best_score = score;
@@ -224,8 +177,8 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             }
         }
 
-        // Only return if high-quality match found
-        if (best_x >= 0 && best_score > 40.0) {
+        // Return best circle if any found (removed minimum score requirement)
+        if (best_x >= 0) {
             return py::make_tuple(best_x, best_y, best_r);
         }
     }
