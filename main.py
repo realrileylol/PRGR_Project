@@ -236,8 +236,8 @@ class CaptureManager(QObject):
 
         # === BRIGHTNESS DETECTION (works on monochrome!) ===
         # Golf balls are bright white - threshold to isolate bright regions
-        # ULTRA-SENSITIVE: Lowered from 135 to 100 for maximum detection range
-        _, bright_mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+        # MATCHED TO optimized_detection.py (known working values)
+        _, bright_mask = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -251,41 +251,23 @@ class CaptureManager(QObject):
         combined = cv2.bitwise_or(bright_mask, edges)
 
         # Blur for smoother circle detection
-        blurred = cv2.GaussianBlur(combined, (5, 5), 2)  # Smaller kernel = faster
+        # MATCHED TO optimized_detection.py
+        blurred = cv2.GaussianBlur(combined, (9, 9), 2)
 
-        # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
-        # Try multiple sensitivity levels to adapt to lighting conditions
-        # ULTRA-SENSITIVE: Triple detection range for maximum ball detection
-        param2_values = [8, 6, 10, 5, 12, 15]  # Ultra-sensitive (lower = easier detection)
-        all_circles = None
-        best_param2 = None
+        # === CIRCLE DETECTION (optimized_detection.py params) ===
+        circles = cv2.HoughCircles(
+            blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=80,         # MATCHED TO optimized_detection.py
+            param1=30,          # MATCHED TO optimized_detection.py
+            param2=20,          # MATCHED TO optimized_detection.py
+            minRadius=15,       # MATCHED TO optimized_detection.py
+            maxRadius=200       # MATCHED TO optimized_detection.py
+        )
 
-        for param2 in param2_values:
-            circles = cv2.HoughCircles(
-                blurred,
-                cv2.HOUGH_GRADIENT,
-                dp=1,
-                minDist=50,         # Reduced from 70: allows many more circles
-                param1=18,          # Reduced from 25: ultra-sensitive to edges
-                param2=param2,      # ADAPTIVE: try different sensitivities
-                minRadius=5,        # Reduced from 10: detects tiny/far balls
-                maxRadius=250       # Increased from 200: detects very close balls
-            )
-
-            if circles is not None:
-                num_circles = len(circles[0])
-                # Ideal: 1-3 circles detected
-                if 1 <= num_circles <= 3:
-                    all_circles = circles
-                    best_param2 = param2
-                    break  # Found good detection, no need to try other values
-                elif all_circles is None:
-                    # Save first detection as fallback
-                    all_circles = circles
-                    best_param2 = param2
-
-        if all_circles is not None and len(all_circles[0]) > 0:
-            circles = np.uint16(np.around(all_circles))
+        if circles is not None and len(circles[0]) > 0:
+            circles = np.uint16(np.around(circles))
 
             # === CONCENTRIC CIRCLE REMOVAL (PiTrac-style) ===
             # Remove duplicate circles with same center but different radius
@@ -306,8 +288,8 @@ class CaptureManager(QObject):
                     filtered_circles.append(circle)
                     used_centers.add((x, y))
 
-            # === PITRAC-STYLE STRICT VALIDATION (adapted for monochrome) ===
-            # Score all filtered circles with sophisticated shape/texture analysis
+            # === SIMPLIFIED VALIDATION (optimized_detection.py style) ===
+            # Score all filtered circles
             best_circle = None
             best_score = 0
 
@@ -327,37 +309,25 @@ class CaptureManager(QObject):
                 x2 = min(gray.shape[1], x + r)
 
                 region = gray[y1:y2, x1:x2]
-                edge_region = edges[y1:y2, x1:x2]
 
                 if region.size == 0:
                     continue
 
-                # === 1. BRIGHTNESS VALIDATION ===
+                # === BRIGHTNESS VALIDATION (optimized_detection.py) ===
                 mean_brightness = np.mean(region)
-                if mean_brightness < 85:  # Must be reasonably bright
-                    continue
-
-                # === SIMPLIFIED VALIDATION (RELAXED for monochrome) ===
                 std_dev = np.std(region)
-                uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
 
-                edge_strength = np.mean(edge_region) if edge_region.size > 0 else 0
-                edge_score = np.clip(edge_strength / 50.0, 0, 1.0)
+                # Golf balls are bright (>130) and relatively uniform
+                # MATCHED TO optimized_detection.py
+                if mean_brightness > 130:
+                    # Prefer uniform circles (low std dev = more likely ball)
+                    score = mean_brightness * (1.0 - np.clip(std_dev / 100, 0, 0.5))
 
-                # ONLY check size and basic brightness - let velocity filter false hits
-                if r < 10 or r > 200:  # Very wide size range
-                    continue
+                    if score > best_score:
+                        best_score = score
+                        best_circle = circle
 
-                # Simple scoring: brightness + uniformity + edge
-                score = ((mean_brightness / 255.0) * 0.5 +
-                        uniformity_score * 0.3 +
-                        edge_score * 0.2) * 100
-
-                if score > best_score:
-                    best_score = score
-                    best_circle = circle
-
-            # Return best circle if any found (removed minimum score requirement)
+            # Return best circle if found
             if best_circle is not None:
                 return best_circle  # (x, y, radius)
 

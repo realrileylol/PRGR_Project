@@ -41,9 +41,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === BRIGHTNESS DETECTION (works on monochrome!) ===
     // Golf balls are bright white - threshold to isolate bright regions
-    // ULTRA-SENSITIVE: Lowered from 135 to 100 for maximum detection range
+    // MATCHED TO optimized_detection.py (known working value)
     cv::Mat bright_mask;
-    cv::threshold(gray, bright_mask, 100, 255, cv::THRESH_BINARY);
+    cv::threshold(gray, bright_mask, 150, 255, cv::THRESH_BINARY);
 
     // Clean up noise with morphological operations
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
@@ -59,69 +59,27 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
     cv::bitwise_or(bright_mask, edges, combined);
 
     // Blur for smoother circle detection
+    // MATCHED TO optimized_detection.py
     cv::Mat blurred;
-    cv::GaussianBlur(combined, blurred, cv::Size(5, 5), 2);
+    cv::GaussianBlur(combined, blurred, cv::Size(9, 9), 2);
 
-    // === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
-    // Try multiple sensitivity levels to adapt to lighting conditions
-    // ULTRA-SENSITIVE: Triple detection range for maximum ball detection
-    std::vector<int> param2_values = {8, 6, 10, 5, 12, 15};  // Ultra-sensitive values
-    std::vector<cv::Vec3f> all_circles;
-    bool found_good_detection = false;
+    // === CIRCLE DETECTION (optimized_detection.py params) ===
+    // Single-pass detection with known working parameters
+    std::vector<cv::Vec3f> circles;
+    cv::HoughCircles(
+        blurred,
+        circles,
+        cv::HOUGH_GRADIENT,
+        1,          // dp
+        80,         // minDist - MATCHED TO optimized_detection.py
+        30,         // param1 - MATCHED TO optimized_detection.py
+        20,         // param2 - MATCHED TO optimized_detection.py
+        15,         // minRadius - MATCHED TO optimized_detection.py
+        200         // maxRadius - MATCHED TO optimized_detection.py
+    );
 
-    for (int param2 : param2_values) {
-        std::vector<cv::Vec3f> circles;
-        cv::HoughCircles(
-            blurred,
-            circles,
-            cv::HOUGH_GRADIENT,
-            1,          // dp
-            50,         // minDist (reduced from 70)
-            18,         // param1 (reduced from 25)
-            param2,     // ADAPTIVE: try different sensitivities
-            5,          // minRadius (reduced from 10)
-            250         // maxRadius (increased from 200)
-        );
-
-        if (!circles.empty()) {
-            size_t num_circles = circles.size();
-            // Ideal: 1-3 circles detected
-            if (num_circles >= 1 && num_circles <= 3) {
-                all_circles = circles;
-                found_good_detection = true;
-                break;  // Found good detection
-            } else if (all_circles.empty()) {
-                // Save first detection as fallback
-                all_circles = circles;
-            }
-        }
-    }
-
-    // === CONCENTRIC CIRCLE REMOVAL (PiTrac-style) ===
-    std::vector<cv::Vec3f> filtered_circles;
-    if (!all_circles.empty()) {
-        std::vector<std::pair<int, int>> used_centers;
-
-        for (const auto& circle : all_circles) {
-            int x = cvRound(circle[0]);
-            int y = cvRound(circle[1]);
-            int r = cvRound(circle[2]);
-
-            // Check if this center is already used (within 10px tolerance)
-            bool is_duplicate = false;
-            for (const auto& center : used_centers) {
-                if (std::abs(x - center.first) < 10 && std::abs(y - center.second) < 10) {
-                    is_duplicate = true;
-                    break;
-                }
-            }
-
-            if (!is_duplicate) {
-                filtered_circles.push_back(circle);
-                used_centers.push_back({x, y});
-            }
-        }
-    }
+    // No need for concentric circle removal - simpler approach works
+    std::vector<cv::Vec3f> filtered_circles = circles;
 
     // === PITRAC-STYLE STRICT VALIDATION (adapted for monochrome) ===
     if (!filtered_circles.empty()) {
@@ -149,10 +107,11 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             if (region.empty()) continue;
 
             // === 1. BRIGHTNESS VALIDATION ===
+            // Golf balls are bright (>130) - MATCHED TO optimized_detection.py
             cv::Scalar mean, stddev;
             cv::meanStdDev(region, mean, stddev);
             double mean_brightness = mean[0];
-            if (mean_brightness < 85) continue;
+            if (mean_brightness < 130) continue;
 
             // === SIMPLIFIED VALIDATION (RELAXED for monochrome) ===
             double std_dev = stddev[0];
@@ -162,7 +121,8 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             double edge_score = std::min(edge_strength / 50.0, 1.0);
 
             // ONLY check size and basic brightness - let velocity filter false hits
-            if (r < 10 || r > 200) continue;
+            // MATCHED TO optimized_detection.py (15-200px)
+            if (r < 15 || r > 200) continue;
 
             // Simple scoring: brightness + uniformity + edge
             double score = ((mean_brightness / 255.0) * 0.5 +
