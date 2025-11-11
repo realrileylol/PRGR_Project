@@ -561,7 +561,9 @@ class CaptureManager(QObject):
                         # and stays gone for 3 frames, it's likely a shot (not club positioning)
                         if len(detection_history) >= 7:
                             # Look at frames -7 to -4 (before disappearance)
-                            pre_disappearance = detection_history[-7:-3]
+                            # Convert deque to list for slicing (deques don't support slice notation)
+                            history_list = list(detection_history)
+                            pre_disappearance = history_list[-7:-3]
                             consecutive_before = sum(pre_disappearance)
 
                             # If ball was visible in 2+ of last 4 frames before disappearing
