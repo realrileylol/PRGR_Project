@@ -327,19 +327,32 @@ class CaptureManager(QObject):
                 if region.size == 0:
                     continue
 
-                # === BRIGHTNESS VALIDATION ===
+                # === CIRCLE SCORING (adapted for very dark camera conditions) ===
                 mean_brightness = np.mean(region)
                 std_dev = np.std(region)
 
-                # Golf balls are brighter than background (adjusted for actual lighting)
-                # Diagnostics showed ball brightness 50-180, so lowered from >130 to >80
-                if mean_brightness > 80:
-                    # Prefer uniform circles (low std dev = more likely ball)
-                    score = mean_brightness * (1.0 - np.clip(std_dev / 100, 0, 0.5))
+                # For dark camera conditions, score based on:
+                # 1. Uniformity (low std deviation = consistent circular region)
+                # 2. Size appropriateness
+                # 3. Slight brightness preference if available
 
-                    if score > best_score:
-                        best_score = score
-                        best_circle = circle
+                # Uniformity is key - golf balls have consistent appearance
+                uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
+
+                # Size score - prefer mid-size circles (too small = noise, too large = false detection)
+                size_score = 1.0 - abs(r - 25) / 100  # Prefer ~25px radius
+
+                # Brightness bonus (but not required for dark conditions)
+                brightness_score = np.clip(mean_brightness / 100, 0, 1.0)
+
+                # Combined score: uniformity most important, then size, then brightness
+                score = (uniformity_score * 0.5 +
+                        size_score * 0.3 +
+                        brightness_score * 0.2) * 100
+
+                if score > best_score:
+                    best_score = score
+                    best_circle = circle
 
             # === CIRCLE REFINEMENT (PiTrac-style) ===
             # Refine best detection with 1.5× radius search region

@@ -142,29 +142,33 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
             if (region.empty()) continue;
 
-            // === 1. BRIGHTNESS VALIDATION ===
-            // Golf balls are brighter than background (adjusted for actual lighting)
-            // Diagnostics showed ball brightness 50-180, so lowered from >130 to >80
+            // === CIRCLE SCORING (adapted for very dark camera conditions) ===
             cv::Scalar mean, stddev;
             cv::meanStdDev(region, mean, stddev);
             double mean_brightness = mean[0];
-            if (mean_brightness < 80) continue;
-
-            // === SIMPLIFIED VALIDATION (RELAXED for monochrome) ===
             double std_dev = stddev[0];
+
+            // For dark camera conditions, score based on:
+            // 1. Uniformity (low std deviation = consistent circular region)
+            // 2. Size appropriateness
+            // 3. Slight brightness preference if available
+
+            // Uniformity is key - golf balls have consistent appearance
             double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
 
-            double edge_strength = edge_region.empty() ? 0.0 : cv::mean(edge_region)[0];
-            double edge_score = std::min(edge_strength / 50.0, 1.0);
+            // Size score - prefer mid-size circles (too small = noise, too large = false detection)
+            double size_score = 1.0 - std::abs(r - 25) / 100.0;  // Prefer ~25px radius
 
-            // ONLY check size and basic brightness - let velocity filter false hits
-            // MATCHED TO optimized_detection.py (15-200px)
+            // Brightness bonus (but not required for dark conditions)
+            double brightness_score = std::min(mean_brightness / 100.0, 1.0);
+
+            // Keep reasonable size bounds
             if (r < 15 || r > 200) continue;
 
-            // Simple scoring: brightness + uniformity + edge
-            double score = ((mean_brightness / 255.0) * 0.5 +
-                          uniformity_score * 0.3 +
-                          edge_score * 0.2) * 100.0;
+            // Combined score: uniformity most important, then size, then brightness
+            double score = (uniformity_score * 0.5 +
+                          size_score * 0.3 +
+                          brightness_score * 0.2) * 100.0;
 
             if (score > best_score) {
                 best_score = score;
