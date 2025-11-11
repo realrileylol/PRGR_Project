@@ -306,7 +306,8 @@ class CaptureManager(QObject):
                     filtered_circles.append(circle)
                     used_centers.add((x, y))
 
-            # Score all filtered circles and return best match
+            # === PITRAC-STYLE STRICT VALIDATION (adapted for monochrome) ===
+            # Score all filtered circles with sophisticated shape/texture analysis
             best_circle = None
             best_score = 0
 
@@ -326,35 +327,107 @@ class CaptureManager(QObject):
                 x2 = min(gray.shape[1], x + r)
 
                 region = gray[y1:y2, x1:x2]
+                edge_region = edges[y1:y2, x1:x2]
 
                 if region.size == 0:
                     continue
 
-                # === ENHANCED SCORING (brightness + uniformity + edge strength) ===
+                # === 1. BRIGHTNESS VALIDATION ===
                 mean_brightness = np.mean(region)
+                if mean_brightness < 85:  # Must be reasonably bright
+                    continue
+
+                # === 2. CIRCULARITY VALIDATION (replaces PiTrac's color check) ===
+                # Create circular mask to check how circular the detected region actually is
+                mask = np.zeros_like(region, dtype=np.uint8)
+                center = (region.shape[1]//2, region.shape[0]//2)
+                cv2.circle(mask, center, r, 255, -1)
+
+                # Threshold the region to get actual bright areas
+                _, thresh_region = cv2.threshold(region, 85, 255, cv2.THRESH_BINARY)
+
+                # Find contours in thresholded region
+                contours, _ = cv2.findContours(thresh_region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                if len(contours) == 0:
+                    continue
+
+                # Get largest contour (should be the ball)
+                largest_contour = max(contours, key=cv2.contourArea)
+                contour_area = cv2.contourArea(largest_contour)
+
+                # Calculate circularity: 4π × Area / Perimeter²
+                # Perfect circle = 1.0, irregular shapes < 0.8
+                perimeter = cv2.arcLength(largest_contour, True)
+                if perimeter == 0:
+                    continue
+                circularity = (4 * np.pi * contour_area) / (perimeter * perimeter)
+
+                # Golf balls must be very circular (>0.75)
+                if circularity < 0.75:
+                    continue
+
+                # === 3. ASPECT RATIO VALIDATION ===
+                # Golf balls are perfectly round, aspect ratio ~1.0
+                if len(largest_contour) >= 5:  # Need at least 5 points to fit ellipse
+                    ellipse = cv2.fitEllipse(largest_contour)
+                    (_, (width, height), _) = ellipse
+                    if width > 0 and height > 0:
+                        aspect_ratio = min(width, height) / max(width, height)
+                        # Must be nearly circular (aspect ratio > 0.85)
+                        if aspect_ratio < 0.85:
+                            continue
+                    else:
+                        continue
+                else:
+                    continue
+
+                # === 4. SOLIDITY VALIDATION ===
+                # Solidity = contour_area / convex_hull_area
+                # Golf balls are solid spheres (solidity ~1.0), hands/shoes are irregular
+                hull = cv2.convexHull(largest_contour)
+                hull_area = cv2.contourArea(hull)
+                if hull_area > 0:
+                    solidity = contour_area / hull_area
+                    # Must be solid (>0.90)
+                    if solidity < 0.90:
+                        continue
+                else:
+                    continue
+
+                # === 5. UNIFORMITY VALIDATION ===
                 std_dev = np.std(region)
+                # Golf balls have consistent texture (dimples create moderate std_dev)
+                # Too uniform = flat surface, too varied = complex object
+                uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
+                if uniformity_score < 0.5:  # Require decent uniformity
+                    continue
 
-                # Calculate edge strength within circle (circular objects have strong edges)
-                edge_region = edges[y1:y2, x1:x2]
+                # === 6. EDGE STRENGTH VALIDATION ===
                 edge_strength = np.mean(edge_region) if edge_region.size > 0 else 0
+                # Golf balls have moderate edges (not too strong like metal, not too weak)
+                edge_score = np.clip(edge_strength / 50.0, 0, 1.0)
+                if edge_score < 0.1:  # Must have some edge definition
+                    continue
 
-                # Must be bright (>85) to be a golf ball
-                # ULTRA-SENSITIVE: Lowered from 115 to 85 for maximum detection range
-                if mean_brightness > 85:
-                    # Uniformity: Low std dev = uniform texture = more likely a ball
-                    uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
+                # === 7. SIZE PLAUSIBILITY ===
+                # Golf ball at 4-5 feet should be reasonable size (not tiny dot, not huge)
+                if r < 15 or r > 150:  # Plausible radius range
+                    continue
 
-                    # Edge circularity: balls have moderate edge strength (not too high like metal)
-                    edge_score = np.clip(edge_strength / 50.0, 0, 1.0)
+                # === FINAL SCORING (all validations passed) ===
+                # Weight: circularity (40%) + brightness (30%) + uniformity (20%) + edge (10%)
+                score = (circularity * 0.4 +
+                        (mean_brightness / 255.0) * 0.3 +
+                        uniformity_score * 0.2 +
+                        edge_score * 0.1) * 100
 
-                    # Combined score: brightness * uniformity * edge presence
-                    score = mean_brightness * uniformity_score * (0.3 + 0.7 * edge_score)
+                if score > best_score:
+                    best_score = score
+                    best_circle = circle
 
-                    if score > best_score:
-                        best_score = score
-                        best_circle = circle
-
-            if best_circle is not None:
+            # Only return if we found a high-quality match
+            if best_circle is not None and best_score > 40:  # Require minimum score
                 return best_circle  # (x, y, radius)
 
         return None
