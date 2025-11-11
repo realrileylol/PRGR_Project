@@ -370,6 +370,17 @@ class CaptureManager(QObject):
 
         return distance > threshold
 
+    def _ball_displacement(self, prev_ball, curr_ball):
+        """Calculate displacement distance between two ball positions in pixels"""
+        if prev_ball is None or curr_ball is None:
+            return 0
+
+        dx = int(curr_ball[0]) - int(prev_ball[0])
+        dy = int(curr_ball[1]) - int(prev_ball[1])
+        distance = np.sqrt(dx**2 + dy**2)
+
+        return distance
+
     def _is_same_ball(self, ball1, ball2, radius_tolerance=0.5):
         """Check if two detections are the same ball based on position and radius
 
@@ -558,23 +569,102 @@ class CaptureManager(QObject):
                             original_ball = smoothed_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
-                            print(f"   Ball can move freely - ONLY triggers on actual shot (ball exits frame)")
-                            print(f"   You can walk around, grab ball, move it - no false triggers")
+                            print(f"   Triggers on: RAPID movement (>20px/frame) OR ball exits frame")
+                            print(f"   Slow movements (adjusting, walking) ignored - no false triggers")
                             stable_frames = 0
                             prev_ball = None
                             frames_since_lock = 0
 
-                    # Ball is locked and still visible - just update tracking
+                    # Ball is locked and still visible - check for RAPID MOVEMENT (hit detection)
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
-                        # Ball detected and matches - keep tracking
-                        # Allow ball to move anywhere, we don't care about position
-                        # ONLY trigger when ball completely disappears (shot)
+                        # Ball detected and matches - check if it's moving rapidly (being hit)
+
+                        # Calculate displacement from original locked position
+                        displacement = self._ball_displacement(original_ball, current_ball)
+
+                        # Check if ball moved significantly (potential hit)
+                        # At 100 FPS: 30px/frame = 3000 px/sec
+                        # At 100 FPS: 20px/frame = 2000 px/sec
+                        if displacement > 20:  # Rapid movement in single frame = HIT!
+                            # Ball is moving fast - this is a shot!
+                            print(f"🏌️ RAPID BALL MOVEMENT DETECTED!")
+                            print(f"   Displacement: {displacement:.1f} px in one frame")
+                            print(f"   Estimated velocity: {displacement * frame_rate:.1f} px/sec")
+                            self.statusChanged.emit("Capturing...", "red")
+
+                            # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
+                            print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
+
+                            # Capture post-impact frames
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(5):
+                                capture_frame = self.picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
+
+                            print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
+
+                            # Save frames
+                            for i, save_frame in enumerate(frames):
+                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                filepath = os.path.join(captures_folder, filename)
+                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Stop after capture
+                            self.picam2.stop()
+                            self.picam2 = None
+                            self.is_running = False
+                            return
+
                         frames_since_lock += 1
-                        pass
 
                     # Detected a ball but radius doesn't match locked ball
                     elif original_ball is not None and not self._is_same_ball(original_ball, current_ball):
-                        # Different ball detected - ignore it, keep tracking original
+                        # Different ball detected - could be original ball that moved VERY fast
+                        # Check displacement anyway in case it's a hit
+                        displacement = self._ball_displacement(original_ball, current_ball)
+
+                        # Even if radius doesn't match, check for rapid movement
+                        # Ball being hit can cause radius variation due to motion blur
+                        if displacement > 30:  # Higher threshold since radius changed
+                            print(f"🏌️ RAPID BALL MOVEMENT DETECTED (radius mismatch)!")
+                            print(f"   Displacement: {displacement:.1f} px in one frame")
+                            print(f"   Estimated velocity: {displacement * frame_rate:.1f} px/sec")
+                            self.statusChanged.emit("Capturing...", "red")
+
+                            # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                            frames = list(frame_buffer)
+                            print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
+
+                            # Capture post-impact frames
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(5):
+                                capture_frame = self.picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
+
+                            print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
+
+                            # Save frames
+                            for i, save_frame in enumerate(frames):
+                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                filepath = os.path.join(captures_folder, filename)
+                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Stop after capture
+                            self.picam2.stop()
+                            self.picam2 = None
+                            self.is_running = False
+                            return
+
+                        # No rapid movement - ignore this detection
                         # (verbose logging removed to reduce console spam)
                         frames_since_lock += 1
 
@@ -629,9 +719,10 @@ class CaptureManager(QObject):
                                     gray_check = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
                                     mean_scene_brightness = np.mean(gray_check)
 
-                                if mean_scene_brightness < 25:
-                                    # Scene is very dark - camera is covered by hand/object
-                                    # Lowered from 40 to 25: ball leaving frame reduces brightness, don't reject real hits
+                                if mean_scene_brightness < 10:
+                                    # Scene is COMPLETELY dark - camera is covered by hand/object
+                                    # Very low threshold (10) because ball leaving naturally reduces brightness
+                                    # Only reject if camera is truly covered (pitch black)
                                     print(f"⚠️ Camera appears to be covered (scene brightness: {int(mean_scene_brightness)}) - NOT a shot!")
                                     # Reset the lock since camera is blocked
                                     original_ball = None
