@@ -41,8 +41,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === BRIGHTNESS DETECTION (works on monochrome!) ===
     // Golf balls are bright white - threshold to isolate bright regions
+    // Lowered from 150 to 135 for easier detection in varied lighting
     cv::Mat bright_mask;
-    cv::threshold(gray, bright_mask, 150, 255, cv::THRESH_BINARY);
+    cv::threshold(gray, bright_mask, 135, 255, cv::THRESH_BINARY);
 
     // Clean up noise with morphological operations
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
@@ -63,7 +64,7 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
     // Try multiple sensitivity levels to adapt to lighting conditions
-    std::vector<int> param2_values = {20, 15, 25, 10, 30};
+    std::vector<int> param2_values = {15, 12, 20, 10, 8, 25};  // More sensitive values
     std::vector<cv::Vec3f> all_circles;
     bool found_good_detection = false;
 
@@ -74,10 +75,10 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             circles,
             cv::HOUGH_GRADIENT,
             1,          // dp
-            80,         // minDist
-            30,         // param1
+            70,         // minDist (reduced from 80)
+            25,         // param1 (reduced from 30)
             param2,     // ADAPTIVE: try different sensitivities
-            15,         // minRadius
+            10,         // minRadius (reduced from 15)
             200         // maxRadius
         );
 
@@ -155,8 +156,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             // Calculate edge strength within circle
             double edge_strength = edge_region.empty() ? 0.0 : cv::mean(edge_region)[0];
 
-            // Must be bright (>130) to be a golf ball
-            if (mean_brightness > 130) {
+            // Must be bright (>115) to be a golf ball
+            // Lowered from 130 to 115 for easier detection in varied lighting
+            if (mean_brightness > 115) {
                 // Uniformity: Low std dev = uniform texture = more likely a ball
                 double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
 

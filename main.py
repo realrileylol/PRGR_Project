@@ -236,7 +236,8 @@ class CaptureManager(QObject):
 
         # === BRIGHTNESS DETECTION (works on monochrome!) ===
         # Golf balls are bright white - threshold to isolate bright regions
-        _, bright_mask = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+        # Lowered from 150 to 135 for easier detection in varied lighting
+        _, bright_mask = cv2.threshold(gray, 135, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -255,7 +256,7 @@ class CaptureManager(QObject):
         # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
         # Try multiple sensitivity levels to adapt to lighting conditions
         # Like PiTrac: adjust parameters iteratively for optimal detection
-        param2_values = [20, 15, 25, 10, 30]  # Start with default, then try more/less sensitive
+        param2_values = [15, 12, 20, 10, 8, 25]  # More sensitive values (lower = easier detection)
         all_circles = None
         best_param2 = None
 
@@ -264,10 +265,10 @@ class CaptureManager(QObject):
                 blurred,
                 cv2.HOUGH_GRADIENT,
                 dp=1,
-                minDist=80,         # Minimum distance between circles
-                param1=30,          # Edge threshold (lower = more sensitive)
+                minDist=70,         # Reduced from 80: allows closer circles
+                param1=25,          # Reduced from 30: more sensitive to edges
                 param2=param2,      # ADAPTIVE: try different sensitivities
-                minRadius=15,       # Smaller min for distant balls
+                minRadius=10,       # Reduced from 15: detects smaller/farther balls
                 maxRadius=200       # Larger max for close balls
             )
 
@@ -337,8 +338,9 @@ class CaptureManager(QObject):
                 edge_region = edges[y1:y2, x1:x2]
                 edge_strength = np.mean(edge_region) if edge_region.size > 0 else 0
 
-                # Must be bright (>130) to be a golf ball
-                if mean_brightness > 130:
+                # Must be bright (>115) to be a golf ball
+                # Lowered from 130 to 115 for easier detection in varied lighting
+                if mean_brightness > 115:
                     # Uniformity: Low std dev = uniform texture = more likely a ball
                     uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
 
@@ -627,8 +629,9 @@ class CaptureManager(QObject):
                                     gray_check = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
                                     mean_scene_brightness = np.mean(gray_check)
 
-                                if mean_scene_brightness < 40:
+                                if mean_scene_brightness < 25:
                                     # Scene is very dark - camera is covered by hand/object
+                                    # Lowered from 40 to 25: ball leaving frame reduces brightness, don't reject real hits
                                     print(f"⚠️ Camera appears to be covered (scene brightness: {int(mean_scene_brightness)}) - NOT a shot!")
                                     # Reset the lock since camera is blocked
                                     original_ball = None
