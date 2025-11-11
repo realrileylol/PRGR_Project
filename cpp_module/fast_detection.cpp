@@ -61,26 +61,72 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
     cv::Mat blurred;
     cv::GaussianBlur(combined, blurred, cv::Size(5, 5), 2);
 
-    // === HOUGH CIRCLE DETECTION ===
-    std::vector<cv::Vec3f> circles;
-    cv::HoughCircles(
-        blurred,
-        circles,
-        cv::HOUGH_GRADIENT,
-        1,          // dp
-        80,         // minDist (reduced for better detection)
-        30,         // param1 (lower = more sensitive)
-        20,         // param2 (lower = more sensitive)
-        15,         // minRadius (smaller for distant balls)
-        200         // maxRadius (larger for close balls)
-    );
+    // === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
+    // Try multiple sensitivity levels to adapt to lighting conditions
+    std::vector<int> param2_values = {20, 15, 25, 10, 30};
+    std::vector<cv::Vec3f> all_circles;
+    bool found_good_detection = false;
+
+    for (int param2 : param2_values) {
+        std::vector<cv::Vec3f> circles;
+        cv::HoughCircles(
+            blurred,
+            circles,
+            cv::HOUGH_GRADIENT,
+            1,          // dp
+            80,         // minDist
+            30,         // param1
+            param2,     // ADAPTIVE: try different sensitivities
+            15,         // minRadius
+            200         // maxRadius
+        );
+
+        if (!circles.empty()) {
+            size_t num_circles = circles.size();
+            // Ideal: 1-3 circles detected
+            if (num_circles >= 1 && num_circles <= 3) {
+                all_circles = circles;
+                found_good_detection = true;
+                break;  // Found good detection
+            } else if (all_circles.empty()) {
+                // Save first detection as fallback
+                all_circles = circles;
+            }
+        }
+    }
+
+    // === CONCENTRIC CIRCLE REMOVAL (PiTrac-style) ===
+    std::vector<cv::Vec3f> filtered_circles;
+    if (!all_circles.empty()) {
+        std::vector<std::pair<int, int>> used_centers;
+
+        for (const auto& circle : all_circles) {
+            int x = cvRound(circle[0]);
+            int y = cvRound(circle[1]);
+            int r = cvRound(circle[2]);
+
+            // Check if this center is already used (within 10px tolerance)
+            bool is_duplicate = false;
+            for (const auto& center : used_centers) {
+                if (std::abs(x - center.first) < 10 && std::abs(y - center.second) < 10) {
+                    is_duplicate = true;
+                    break;
+                }
+            }
+
+            if (!is_duplicate) {
+                filtered_circles.push_back(circle);
+                used_centers.push_back({x, y});
+            }
+        }
+    }
 
     // === VALIDATE AND SCORE CIRCLES ===
-    if (!circles.empty()) {
+    if (!filtered_circles.empty()) {
         int best_x = -1, best_y = -1, best_r = -1;
         double best_score = 0.0;
 
-        for (const auto& circle : circles) {
+        for (const auto& circle : filtered_circles) {
             int x = cvRound(circle[0]);
             int y = cvRound(circle[1]);
             int r = cvRound(circle[2]);
@@ -96,21 +142,29 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             int x2 = std::min(gray.cols, x + r);
 
             cv::Mat region = gray(cv::Range(y1, y2), cv::Range(x1, x2));
+            cv::Mat edge_region = edges(cv::Range(y1, y2), cv::Range(x1, x2));
 
             if (region.empty()) continue;
 
-            // VALIDATION: Golf balls are bright AND uniform
+            // === ENHANCED SCORING (brightness + uniformity + edge strength) ===
             cv::Scalar mean, stddev;
             cv::meanStdDev(region, mean, stddev);
             double mean_brightness = mean[0];
             double std_dev = stddev[0];
 
+            // Calculate edge strength within circle
+            double edge_strength = edge_region.empty() ? 0.0 : cv::mean(edge_region)[0];
+
             // Must be bright (>130) to be a golf ball
             if (mean_brightness > 130) {
-                // Score based on brightness and uniformity
-                // Low std dev = uniform texture = more likely a ball
+                // Uniformity: Low std dev = uniform texture = more likely a ball
                 double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
-                double score = mean_brightness * uniformity_score;
+
+                // Edge circularity: balls have moderate edge strength
+                double edge_score = std::min(edge_strength / 50.0, 1.0);
+
+                // Combined score: brightness * uniformity * edge presence
+                double score = mean_brightness * uniformity_score * (0.3 + 0.7 * edge_score);
 
                 if (score > best_score) {
                     best_score = score;

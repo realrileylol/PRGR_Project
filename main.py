@@ -252,26 +252,64 @@ class CaptureManager(QObject):
         # Blur for smoother circle detection
         blurred = cv2.GaussianBlur(combined, (5, 5), 2)  # Smaller kernel = faster
 
-        # === CIRCLE DETECTION ===
-        circles = cv2.HoughCircles(
-            blurred,
-            cv2.HOUGH_GRADIENT,
-            dp=1,
-            minDist=80,         # Minimum distance between circles
-            param1=30,          # Edge threshold (lower = more sensitive)
-            param2=20,          # Accumulator threshold (lower = more sensitive)
-            minRadius=15,       # Smaller min for distant balls
-            maxRadius=200       # Larger max for close balls
-        )
+        # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
+        # Try multiple sensitivity levels to adapt to lighting conditions
+        # Like PiTrac: adjust parameters iteratively for optimal detection
+        param2_values = [20, 15, 25, 10, 30]  # Start with default, then try more/less sensitive
+        all_circles = None
+        best_param2 = None
 
-        if circles is not None and len(circles[0]) > 0:
-            circles = np.uint16(np.around(circles))
+        for param2 in param2_values:
+            circles = cv2.HoughCircles(
+                blurred,
+                cv2.HOUGH_GRADIENT,
+                dp=1,
+                minDist=80,         # Minimum distance between circles
+                param1=30,          # Edge threshold (lower = more sensitive)
+                param2=param2,      # ADAPTIVE: try different sensitivities
+                minRadius=15,       # Smaller min for distant balls
+                maxRadius=200       # Larger max for close balls
+            )
 
-            # Score all detected circles and return best match
+            if circles is not None:
+                num_circles = len(circles[0])
+                # Ideal: 1-3 circles detected
+                if 1 <= num_circles <= 3:
+                    all_circles = circles
+                    best_param2 = param2
+                    break  # Found good detection, no need to try other values
+                elif all_circles is None:
+                    # Save first detection as fallback
+                    all_circles = circles
+                    best_param2 = param2
+
+        if all_circles is not None and len(all_circles[0]) > 0:
+            circles = np.uint16(np.around(all_circles))
+
+            # === CONCENTRIC CIRCLE REMOVAL (PiTrac-style) ===
+            # Remove duplicate circles with same center but different radius
+            filtered_circles = []
+            used_centers = set()
+
+            for circle in circles[0]:
+                x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
+
+                # Check if this center is already used (within 10px tolerance)
+                is_duplicate = False
+                for (cx, cy) in used_centers:
+                    if abs(x - cx) < 10 and abs(y - cy) < 10:
+                        is_duplicate = True
+                        break
+
+                if not is_duplicate:
+                    filtered_circles.append(circle)
+                    used_centers.add((x, y))
+
+            # Score all filtered circles and return best match
             best_circle = None
             best_score = 0
 
-            for circle in circles[0]:
+            for circle in filtered_circles:
                 x, y, r = int(circle[0]), int(circle[1]), int(circle[2])
 
                 # Validate bounds
@@ -291,16 +329,24 @@ class CaptureManager(QObject):
                 if region.size == 0:
                     continue
 
-                # VALIDATION: Golf balls are bright AND uniform
+                # === ENHANCED SCORING (brightness + uniformity + edge strength) ===
                 mean_brightness = np.mean(region)
                 std_dev = np.std(region)
 
+                # Calculate edge strength within circle (circular objects have strong edges)
+                edge_region = edges[y1:y2, x1:x2]
+                edge_strength = np.mean(edge_region) if edge_region.size > 0 else 0
+
                 # Must be bright (>130) to be a golf ball
                 if mean_brightness > 130:
-                    # Score based on brightness and uniformity
-                    # Low std dev = uniform texture = more likely a ball (not grass/club)
+                    # Uniformity: Low std dev = uniform texture = more likely a ball
                     uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
-                    score = mean_brightness * uniformity_score
+
+                    # Edge circularity: balls have moderate edge strength (not too high like metal)
+                    edge_score = np.clip(edge_strength / 50.0, 0, 1.0)
+
+                    # Combined score: brightness * uniformity * edge presence
+                    score = mean_brightness * uniformity_score * (0.3 + 0.7 * edge_score)
 
                     if score > best_score:
                         best_score = score
