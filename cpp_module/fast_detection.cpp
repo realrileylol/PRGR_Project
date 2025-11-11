@@ -41,9 +41,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === BRIGHTNESS DETECTION (works on monochrome!) ===
     // Golf balls are bright white - threshold to isolate bright regions
-    // Lowered from 150 to 135 for easier detection in varied lighting
+    // ULTRA-SENSITIVE: Lowered from 135 to 100 for maximum detection range
     cv::Mat bright_mask;
-    cv::threshold(gray, bright_mask, 135, 255, cv::THRESH_BINARY);
+    cv::threshold(gray, bright_mask, 100, 255, cv::THRESH_BINARY);
 
     // Clean up noise with morphological operations
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
@@ -64,7 +64,8 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
 
     // === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
     // Try multiple sensitivity levels to adapt to lighting conditions
-    std::vector<int> param2_values = {15, 12, 20, 10, 8, 25};  // More sensitive values
+    // ULTRA-SENSITIVE: Triple detection range for maximum ball detection
+    std::vector<int> param2_values = {8, 6, 10, 5, 12, 15};  // Ultra-sensitive values
     std::vector<cv::Vec3f> all_circles;
     bool found_good_detection = false;
 
@@ -75,11 +76,11 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             circles,
             cv::HOUGH_GRADIENT,
             1,          // dp
-            70,         // minDist (reduced from 80)
-            25,         // param1 (reduced from 30)
+            50,         // minDist (reduced from 70)
+            18,         // param1 (reduced from 25)
             param2,     // ADAPTIVE: try different sensitivities
-            10,         // minRadius (reduced from 15)
-            200         // maxRadius
+            5,          // minRadius (reduced from 10)
+            250         // maxRadius (increased from 200)
         );
 
         if (!circles.empty()) {
@@ -156,9 +157,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             // Calculate edge strength within circle
             double edge_strength = edge_region.empty() ? 0.0 : cv::mean(edge_region)[0];
 
-            // Must be bright (>115) to be a golf ball
-            // Lowered from 130 to 115 for easier detection in varied lighting
-            if (mean_brightness > 115) {
+            // Must be bright (>85) to be a golf ball
+            // ULTRA-SENSITIVE: Lowered from 115 to 85 for maximum detection range
+            if (mean_brightness > 85) {
                 // Uniformity: Low std dev = uniform texture = more likely a ball
                 double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
 

@@ -236,8 +236,8 @@ class CaptureManager(QObject):
 
         # === BRIGHTNESS DETECTION (works on monochrome!) ===
         # Golf balls are bright white - threshold to isolate bright regions
-        # Lowered from 150 to 135 for easier detection in varied lighting
-        _, bright_mask = cv2.threshold(gray, 135, 255, cv2.THRESH_BINARY)
+        # ULTRA-SENSITIVE: Lowered from 135 to 100 for maximum detection range
+        _, bright_mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -255,8 +255,8 @@ class CaptureManager(QObject):
 
         # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
         # Try multiple sensitivity levels to adapt to lighting conditions
-        # Like PiTrac: adjust parameters iteratively for optimal detection
-        param2_values = [15, 12, 20, 10, 8, 25]  # More sensitive values (lower = easier detection)
+        # ULTRA-SENSITIVE: Triple detection range for maximum ball detection
+        param2_values = [8, 6, 10, 5, 12, 15]  # Ultra-sensitive (lower = easier detection)
         all_circles = None
         best_param2 = None
 
@@ -265,11 +265,11 @@ class CaptureManager(QObject):
                 blurred,
                 cv2.HOUGH_GRADIENT,
                 dp=1,
-                minDist=70,         # Reduced from 80: allows closer circles
-                param1=25,          # Reduced from 30: more sensitive to edges
+                minDist=50,         # Reduced from 70: allows many more circles
+                param1=18,          # Reduced from 25: ultra-sensitive to edges
                 param2=param2,      # ADAPTIVE: try different sensitivities
-                minRadius=10,       # Reduced from 15: detects smaller/farther balls
-                maxRadius=200       # Larger max for close balls
+                minRadius=5,        # Reduced from 10: detects tiny/far balls
+                maxRadius=250       # Increased from 200: detects very close balls
             )
 
             if circles is not None:
@@ -338,9 +338,9 @@ class CaptureManager(QObject):
                 edge_region = edges[y1:y2, x1:x2]
                 edge_strength = np.mean(edge_region) if edge_region.size > 0 else 0
 
-                # Must be bright (>115) to be a golf ball
-                # Lowered from 130 to 115 for easier detection in varied lighting
-                if mean_brightness > 115:
+                # Must be bright (>85) to be a golf ball
+                # ULTRA-SENSITIVE: Lowered from 115 to 85 for maximum detection range
+                if mean_brightness > 85:
                     # Uniformity: Low std dev = uniform texture = more likely a ball
                     uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
 
