@@ -556,11 +556,32 @@ class CaptureManager(QObject):
             target_frame_time = 1.0 / frame_rate
             print(f"🎯 Target frame time: {target_frame_time*1000:.1f}ms ({frame_rate} FPS)")
 
+            # FPS tracking for visualization
+            fps_counter = 0
+            fps_start_time = time.time()
+            current_fps = 0
+
+            # Create visualization window
+            cv2.namedWindow("Ball Detection - Live Feed", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("Ball Detection - Live Feed", 800, 600)
+            print("📺 Visualization window opened - showing live ball detection")
+
             while self.is_running:
                 loop_start_time = time.time()
 
                 frame = self.picam2.capture_array()
                 frame_buffer.append(frame.copy())  # Store frame in circular buffer
+
+                # Update FPS counter
+                fps_counter += 1
+                if time.time() - fps_start_time >= 1.0:
+                    current_fps = fps_counter
+                    fps_counter = 0
+                    fps_start_time = time.time()
+
+                # Create visualization frame
+                vis_frame = frame.copy()
+
                 current_ball = self._detect_ball(frame)
 
                 if current_ball is not None:
@@ -849,6 +870,48 @@ class CaptureManager(QObject):
                             last_seen_ball = None
                             radius_history.clear()  # Reset radius smoothing
 
+                # === VISUALIZATION RENDERING ===
+                # Draw ball tracking circle if detected
+                if current_ball is not None:
+                    x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
+                    # Green circle around detected ball
+                    cv2.circle(vis_frame, (x, y), r, (0, 255, 0), 3)
+                    # Center point
+                    cv2.circle(vis_frame, (x, y), 3, (0, 255, 0), -1)
+                    # Position text
+                    cv2.putText(vis_frame, f"Ball: ({x}, {y}) r={r}", (x + r + 5, y),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+                # Draw FPS counter
+                cv2.putText(vis_frame, f"FPS: {current_fps}", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+                # Draw status
+                if original_ball is not None:
+                    status_text = "LOCKED - Ready to Hit!"
+                    status_color = (0, 255, 0)  # Green
+                elif current_ball is not None:
+                    status_text = f"Detecting... ({stable_frames}/30 frames)"
+                    status_color = (0, 255, 255)  # Yellow
+                else:
+                    status_text = "No Ball Detected"
+                    status_color = (0, 0, 255)  # Red
+
+                cv2.putText(vis_frame, status_text, (10, 70),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, status_color, 2)
+
+                # Draw detection info
+                if current_ball is not None:
+                    info_y = 110
+                    cv2.putText(vis_frame, f"Stable frames: {stable_frames}", (10, info_y),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                    cv2.putText(vis_frame, f"Frames since lock: {frames_since_lock}", (10, info_y + 25),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
+                # Show the visualization
+                cv2.imshow("Ball Detection - Live Feed", vis_frame)
+                cv2.waitKey(1)  # Process window events
+
                 # Adaptive sleep to maintain target frame rate
                 loop_elapsed_time = time.time() - loop_start_time
                 remaining_time = target_frame_time - loop_elapsed_time
@@ -874,6 +937,14 @@ class CaptureManager(QObject):
                     print("📷 Camera released in cleanup")
             except Exception as e:
                 print(f"⚠️ Error releasing camera: {e}")
+
+            # Close visualization window
+            try:
+                cv2.destroyAllWindows()
+                print("📺 Visualization window closed")
+            except Exception as e:
+                print(f"⚠️ Error closing visualization: {e}")
+
             self.is_running = False
             self._stopping = False
             self.capture_thread = None
