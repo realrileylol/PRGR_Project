@@ -555,9 +555,11 @@ class CaptureManager(QObject):
                 # Only accept circles with bright regions (actual ball)
                 region_brightness = region.mean()
 
-                # CRITICAL: Ball must be bright (>40 in original gray, not CLAHE)
-                # This filters out false detections in completely black background
-                if region_brightness < 40:
+                # CRITICAL: Ball must be bright enough to distinguish from background
+                # Lowered from 40 to 25 to work with darker camera settings (30 FPS vs 100 FPS)
+                # At 30 FPS: ball brightness ~35-40
+                # At 100 FPS: ball brightness ~60-65
+                if region_brightness < 25:
                     continue
 
                 # === CIRCULARITY CHECK ===
@@ -568,8 +570,8 @@ class CaptureManager(QObject):
 
                 # Good ball: max=200, mean=100, contrast=100 (bright center)
                 # Mat grain: max=80, mean=70, contrast=10 (uniform texture)
-                # Require at least 30 contrast for ball (helps reject mat texture)
-                if brightness_contrast < 30:
+                # Lowered from 30 to 20 for darker camera settings
+                if brightness_contrast < 20:
                     continue
 
                 # === SMART SCORING ===
