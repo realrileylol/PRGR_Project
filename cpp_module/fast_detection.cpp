@@ -116,18 +116,95 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
         }
     }
 
-    // === ULTRA-LENIENT VALIDATION ===
-    // Just take the first valid circle - velocity detection will filter false hits
-    if (!filtered_circles.empty()) {
-        const auto& circle = filtered_circles[0];
+    // === SMART FILTERING - Reject dark false detections ===
+    // In ultra-dark scenes, HoughCircles detects noise patterns as circles
+    // Filter to find the BRIGHT ball on the mat, not dark noise circles
+    int best_x = -1, best_y = -1, best_r = -1;
+    double best_score = 0.0;
+
+    for (const auto& circle : filtered_circles) {
         int x = cvRound(circle[0]);
         int y = cvRound(circle[1]);
         int r = cvRound(circle[2]);
 
-        // Only check basic bounds
-        if (x - r >= 0 && x + r < gray.cols && y - r >= 0 && y + r < gray.rows) {
-            return py::make_tuple(x, y, r);
+        // Validate bounds
+        if (x - r < 0 || x + r >= gray.cols || y - r < 0 || y + r >= gray.rows) {
+            continue;
         }
+
+        // Ball size filtering - golf ball should be 20-100px radius at typical distance
+        if (r < 20 || r > 100) {
+            continue;
+        }
+
+        // Extract ball region for brightness validation
+        int y1 = std::max(0, y - r);
+        int y2 = std::min(gray.rows, y + r);
+        int x1 = std::max(0, x - r);
+        int x2 = std::min(gray.cols, x + r);
+
+        cv::Mat region = gray(cv::Range(y1, y2), cv::Range(x1, x2));
+
+        if (region.empty()) {
+            continue;
+        }
+
+        // === BRIGHTNESS FILTERING ===
+        // Reject circles in pitch-black areas (noise patterns)
+        double region_brightness = cv::mean(region)[0];
+
+        // CRITICAL: Ball must be bright (>40 in original gray, not CLAHE)
+        if (region_brightness < 40.0) {
+            continue;
+        }
+
+        // === CIRCULARITY CHECK ===
+        // Ball should have high peak brightness in center (smooth surface reflects light)
+        // Mat texture is grainy with uniform brightness (no bright center)
+        double max_brightness;
+        cv::minMaxLoc(region, nullptr, &max_brightness);
+        double brightness_contrast = max_brightness - region_brightness;
+
+        // Good ball: max=200, mean=100, contrast=100 (bright center)
+        // Mat grain: max=80, mean=70, contrast=10 (uniform texture)
+        // Require at least 30 contrast for ball (helps reject mat texture)
+        if (brightness_contrast < 30.0) {
+            continue;
+        }
+
+        // === SMART SCORING ===
+        // Prioritize: peak brightness > circularity > position > size
+        double score = 0.0;
+
+        // Peak brightness score (ball has bright center from light reflection)
+        score += max_brightness * 1.5;
+
+        // Brightness contrast score (smooth ball vs grainy mat)
+        score += brightness_contrast * 2.0;
+
+        // Mean brightness score
+        score += region_brightness * 1.0;
+
+        // Position score (ball is usually in bottom 2/3 of frame on hitting mat)
+        double position_score = (static_cast<double>(y) / gray.rows) * 30.0;
+        score += position_score;
+
+        // Size score (ideal ball radius is 30-60px)
+        if (r >= 30 && r <= 60) {
+            score += 30.0;
+        }
+
+        if (score > best_score) {
+            best_score = score;
+            best_x = x;
+            best_y = y;
+            best_r = r;
+        }
+    }
+
+    // Return best circle if found
+    if (best_x >= 0) {
+        return py::make_tuple(best_x, best_y, best_r);
     }
 
     // No ball detected

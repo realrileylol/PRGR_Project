@@ -379,8 +379,9 @@ class CaptureManager(QObject):
                     filtered_circles.append(circle)
                     used_centers.add((x, y))
 
-            # === SIMPLIFIED VALIDATION (optimized_detection.py style) ===
-            # Score all filtered circles
+            # === SMART FILTERING - Reject dark false detections ===
+            # In ultra-dark scenes, HoughCircles detects noise patterns as circles
+            # Filter to find the BRIGHT ball on the mat, not dark noise circles
             best_circle = None
             best_score = 0
 
@@ -391,6 +392,10 @@ class CaptureManager(QObject):
                 if x - r < 0 or x + r >= gray.shape[1]:
                     continue
                 if y - r < 0 or y + r >= gray.shape[0]:
+                    continue
+
+                # Ball size filtering - golf ball should be 20-100px radius at typical distance
+                if r < 20 or r > 100:
                     continue
 
                 # Extract ball region for validation
@@ -404,10 +409,53 @@ class CaptureManager(QObject):
                 if region.size == 0:
                     continue
 
-                # === ULTRA-LENIENT SCORING (accept almost anything circular) ===
-                # Just take the first circle found - velocity detection will filter false hits
-                best_circle = circle
-                break  # Take first valid circle
+                # === BRIGHTNESS FILTERING ===
+                # Reject circles in pitch-black areas (noise patterns)
+                # Only accept circles with bright regions (actual ball)
+                region_brightness = region.mean()
+
+                # CRITICAL: Ball must be bright (>40 in original gray, not CLAHE)
+                # This filters out false detections in completely black background
+                if region_brightness < 40:
+                    continue
+
+                # === CIRCULARITY CHECK ===
+                # Ball should have high peak brightness in center (smooth surface reflects light)
+                # Mat texture is grainy with uniform brightness (no bright center)
+                max_brightness = region.max()
+                brightness_contrast = max_brightness - region_brightness
+
+                # Good ball: max=200, mean=100, contrast=100 (bright center)
+                # Mat grain: max=80, mean=70, contrast=10 (uniform texture)
+                # Require at least 30 contrast for ball (helps reject mat texture)
+                if brightness_contrast < 30:
+                    continue
+
+                # === SMART SCORING ===
+                # Prioritize: peak brightness > circularity > position > size
+                score = 0
+
+                # Peak brightness score (ball has bright center from light reflection)
+                score += max_brightness * 1.5
+
+                # Brightness contrast score (smooth ball vs grainy mat)
+                score += brightness_contrast * 2.0
+
+                # Mean brightness score
+                score += region_brightness * 1.0
+
+                # Position score (ball is usually in bottom 2/3 of frame on hitting mat)
+                # Higher Y = bottom of frame = higher score
+                position_score = (y / gray.shape[0]) * 30
+                score += position_score
+
+                # Size score (ideal ball radius is 30-60px)
+                if 30 <= r <= 60:
+                    score += 30
+
+                if score > best_score:
+                    best_score = score
+                    best_circle = circle
 
             # Return best circle immediately (skip refinement for ultra-fast detection)
             if best_circle is not None:
