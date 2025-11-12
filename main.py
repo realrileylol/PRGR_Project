@@ -41,11 +41,14 @@ class CameraManager(QObject):
     """Manages Raspberry Pi camera using rpicam-vid"""
 
     snapshotSaved = Signal(str)  # Signal emitted when snapshot is saved (with filename)
+    trainingModeProgress = Signal(int, int)  # Signal (current_count, total_count) for training progress
 
     def __init__(self, settings_manager=None):
         super().__init__()
         self.camera_process = None
         self.settings_manager = settings_manager
+        self.training_thread = None
+        self.training_active = False
 
     @Slot()
     def startCamera(self):
@@ -204,6 +207,140 @@ class CameraManager(QObject):
                 print("   Restarting preview...")
                 time.sleep(0.5)  # Brief pause before restarting
                 self.startCamera()
+
+    @Slot(int)
+    def startTrainingMode(self, num_frames=100):
+        """
+        Rapid capture mode for collecting ML training data
+        Captures num_frames images at max speed (1-2 per second)
+        """
+        if self.training_active:
+            print("⚠️ Training mode already running")
+            return
+
+        if not CAMERA_AVAILABLE:
+            print("❌ Camera not available")
+            return
+
+        self.training_active = True
+        self.training_thread = threading.Thread(
+            target=self._training_capture_loop,
+            args=(num_frames,),
+            daemon=True
+        )
+        self.training_thread.start()
+        print(f"🎓 Training mode started - will capture {num_frames} frames")
+
+    def _training_capture_loop(self, num_frames):
+        """Background thread for rapid training data capture"""
+        import os
+        from datetime import datetime
+
+        # Create training data folder with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        training_folder = f"training_data/session_{timestamp}"
+        os.makedirs(training_folder, exist_ok=True)
+
+        # Create metadata file
+        metadata_path = os.path.join(training_folder, "metadata.txt")
+
+        # Remember if preview was running
+        preview_was_running = self.camera_process is not None
+
+        try:
+            # Load camera settings
+            shutter_speed = 5000
+            gain = 2.0
+            frame_rate = 30
+
+            if self.settings_manager:
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+
+            # Write metadata
+            with open(metadata_path, 'w') as f:
+                f.write(f"Training Session: {timestamp}\n")
+                f.write(f"Camera Settings:\n")
+                f.write(f"  Shutter: {shutter_speed}µs\n")
+                f.write(f"  Gain: {gain}x\n")
+                f.write(f"  Frame Rate: {frame_rate} FPS\n")
+                f.write(f"  Target Frames: {num_frames}\n\n")
+                f.write(f"Instructions for labeling:\n")
+                f.write(f"1. Use Roboflow or LabelImg to label images\n")
+                f.write(f"2. Classes: ball_stationary, ball_moving, club_stationary, club_swinging\n")
+                f.write(f"3. Export in YOLO format for training\n\n")
+
+            # Stop preview if running
+            if preview_was_running:
+                self.stopCamera()
+                time.sleep(1)
+
+            # Initialize camera
+            picam2 = Picamera2()
+            config = picam2.create_still_configuration(
+                main={"size": (640, 480)},
+                controls={
+                    "FrameRate": frame_rate,
+                    "ExposureTime": shutter_speed,
+                    "AnalogueGain": gain
+                }
+            )
+            picam2.configure(config)
+            picam2.start()
+            time.sleep(0.5)
+
+            print(f"📸 Capturing {num_frames} training frames...")
+
+            # Capture frames
+            for i in range(num_frames):
+                if not self.training_active:
+                    print("⚠️ Training mode cancelled")
+                    break
+
+                filename = f"frame_{i:04d}.jpg"
+                filepath = os.path.join(training_folder, filename)
+
+                picam2.capture_file(filepath)
+
+                # Emit progress
+                self.trainingModeProgress.emit(i + 1, num_frames)
+
+                # Log every 10 frames
+                if (i + 1) % 10 == 0:
+                    print(f"   Captured {i + 1}/{num_frames} frames...")
+
+                # Brief delay between captures (captures ~2 per second)
+                time.sleep(0.5)
+
+            picam2.stop()
+            picam2.close()
+
+            print(f"✅ Training data captured: {training_folder}")
+            print(f"   Next steps:")
+            print(f"   1. Label images in Roboflow (https://roboflow.com)")
+            print(f"   2. Export in YOLO format")
+            print(f"   3. Train YOLOv8 model on Google Colab")
+
+        except Exception as e:
+            print(f"❌ Training capture error: {e}")
+
+        finally:
+            # Restart preview if it was running
+            if preview_was_running:
+                time.sleep(0.5)
+                self.startCamera()
+
+            self.training_active = False
+            self.training_thread = None
+            self.trainingModeProgress.emit(num_frames, num_frames)  # Signal completion
+
+    @Slot()
+    def stopTrainingMode(self):
+        """Stop training mode capture"""
+        if self.training_active:
+            print("🛑 Stopping training mode...")
+            self.training_active = False
 
     def __del__(self):
         """Cleanup on destruction"""

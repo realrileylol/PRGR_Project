@@ -248,6 +248,37 @@ Item {
                         snapshotTimer.start()
                     }
                 }
+
+                // Training Mode button
+                Button {
+                    text: "🎓 Training (100)"
+                    implicitHeight: 50
+                    implicitWidth: 170
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#7B3FF2" : "#9B5FF2"
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        cameraManager.startTrainingMode(100)
+                        trainingMessage.visible = true
+                        trainingProgressBar.value = 0
+                    }
+                }
             }
         }
 
@@ -301,6 +332,95 @@ Item {
         id: snapshotTimer
         interval: 2000
         onTriggered: snapshotMessage.visible = false
+    }
+
+    // Training mode progress message
+    Rectangle {
+        id: trainingMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 350
+        height: 100
+        radius: 10
+        color: "#9B5FF2"
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 10
+            width: parent.width - 40
+
+            Text {
+                text: "🎓 Collecting Training Data..."
+                color: "white"
+                font.pixelSize: 16
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            // Progress bar
+            Rectangle {
+                id: trainingProgressBar
+                Layout.fillWidth: true
+                height: 20
+                radius: 10
+                color: "#7B3FF2"
+                border.color: "white"
+                border.width: 2
+
+                property real value: 0
+
+                Rectangle {
+                    width: parent.width * (parent.value / 100)
+                    height: parent.height
+                    radius: parent.radius
+                    color: "white"
+
+                    Behavior on width { NumberAnimation { duration: 200 } }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Math.round(trainingProgressBar.value) + "%"
+                    color: trainingProgressBar.value > 50 ? "#9B5FF2" : "white"
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+            }
+
+            Text {
+                id: trainingProgressText
+                text: "0/100 frames captured"
+                color: "white"
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+        }
+    }
+
+    // Handle training progress updates
+    Connections {
+        target: cameraManager
+        function onTrainingModeProgress(current, total) {
+            trainingProgressBar.value = (current / total) * 100
+            trainingProgressText.text = current + "/" + total + " frames captured"
+
+            // Hide message when complete
+            if (current >= total) {
+                trainingCompleteTimer.start()
+            }
+        }
+    }
+
+    Timer {
+        id: trainingCompleteTimer
+        interval: 3000
+        onTriggered: trainingMessage.visible = false
     }
 
     Component.onDestruction: {

@@ -2,6 +2,9 @@
 ball_captures/
 BallSnapshotTest/
 
+# ML Training data (do not commit - can be large)
+training_data/
+
 # Other test output files
 *.jpg
 *.png
