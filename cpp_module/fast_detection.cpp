@@ -45,11 +45,10 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
     cv::Mat enhanced_gray;
     clahe->apply(gray, enhanced_gray);
 
-    // === BRIGHTNESS DETECTION (works on monochrome!) ===
-    // Golf balls are bright white - threshold to isolate bright regions
-    // Adjusted for actual lighting conditions (diagnostics showed 100 works better than 150)
+    // === BRIGHTNESS DETECTION (ultra-sensitive for dark camera) ===
+    // User's ball has brightness of only 24, so threshold must be very low
     cv::Mat bright_mask;
-    cv::threshold(enhanced_gray, bright_mask, 100, 255, cv::THRESH_BINARY);
+    cv::threshold(enhanced_gray, bright_mask, 50, 255, cv::THRESH_BINARY);
 
     // Clean up noise with morphological operations
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
@@ -69,9 +68,9 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
     cv::Mat blurred;
     cv::GaussianBlur(combined, blurred, cv::Size(9, 9), 2);
 
-    // === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
-    // Try multiple param2 values to adapt to lighting conditions
-    std::vector<int> param2_values = {20, 18, 22, 16, 24, 15, 26};  // Start with known good value
+    // === ULTRA-SENSITIVE CIRCLE DETECTION ===
+    // Very low param2 values for maximum sensitivity
+    std::vector<int> param2_values = {10, 8, 12, 15, 7, 6, 5};  // Much more sensitive
     std::vector<cv::Vec3f> circles;
 
     for (int param2 : param2_values) {
@@ -81,15 +80,15 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
             circles,
             cv::HOUGH_GRADIENT,
             1,          // dp
-            80,         // minDist
-            30,         // param1
-            param2,     // ADAPTIVE: try different sensitivities
-            15,         // minRadius
-            200         // maxRadius
+            50,         // minDist - Reduced from 80 for easier detection
+            20,         // param1 - Reduced from 30 for easier detection
+            param2,     // ULTRA-SENSITIVE values
+            10,         // minRadius - Reduced from 15 to catch smaller balls
+            250         // maxRadius - Increased to catch larger detections
         );
 
-        // Stop if we found 1-4 circles (ideal range)
-        if (!circles.empty() && circles.size() >= 1 && circles.size() <= 4) {
+        // Accept any circles found (no ideal range restriction)
+        if (!circles.empty()) {
             break;
         }
     }
@@ -117,123 +116,17 @@ py::object detect_ball(py::array_t<uint8_t> frame_array) {
         }
     }
 
-    // === PITRAC-STYLE STRICT VALIDATION (adapted for monochrome) ===
+    // === ULTRA-LENIENT VALIDATION ===
+    // Just take the first valid circle - velocity detection will filter false hits
     if (!filtered_circles.empty()) {
-        int best_x = -1, best_y = -1, best_r = -1;
-        double best_score = 0.0;
+        const auto& circle = filtered_circles[0];
+        int x = cvRound(circle[0]);
+        int y = cvRound(circle[1]);
+        int r = cvRound(circle[2]);
 
-        for (const auto& circle : filtered_circles) {
-            int x = cvRound(circle[0]);
-            int y = cvRound(circle[1]);
-            int r = cvRound(circle[2]);
-
-            // Check bounds
-            if (x - r < 0 || x + r >= gray.cols) continue;
-            if (y - r < 0 || y + r >= gray.rows) continue;
-
-            // Extract ball region for validation
-            int y1 = std::max(0, y - r);
-            int y2 = std::min(gray.rows, y + r);
-            int x1 = std::max(0, x - r);
-            int x2 = std::min(gray.cols, x + r);
-
-            cv::Mat region = gray(cv::Range(y1, y2), cv::Range(x1, x2));
-            cv::Mat edge_region = edges(cv::Range(y1, y2), cv::Range(x1, x2));
-
-            if (region.empty()) continue;
-
-            // === CIRCLE SCORING (adapted for very dark camera conditions) ===
-            cv::Scalar mean, stddev;
-            cv::meanStdDev(region, mean, stddev);
-            double mean_brightness = mean[0];
-            double std_dev = stddev[0];
-
-            // For dark camera conditions, score based on:
-            // 1. Uniformity (low std deviation = consistent circular region)
-            // 2. Size appropriateness
-            // 3. Slight brightness preference if available
-
-            // Uniformity is key - golf balls have consistent appearance
-            double uniformity_score = 1.0 - std::min(std_dev / 100.0, 0.5);
-
-            // Size score - prefer mid-size circles (too small = noise, too large = false detection)
-            double size_score = 1.0 - std::abs(r - 25) / 100.0;  // Prefer ~25px radius
-
-            // Brightness bonus (but not required for dark conditions)
-            double brightness_score = std::min(mean_brightness / 100.0, 1.0);
-
-            // Keep reasonable size bounds
-            if (r < 15 || r > 200) continue;
-
-            // Combined score: uniformity most important, then size, then brightness
-            double score = (uniformity_score * 0.5 +
-                          size_score * 0.3 +
-                          brightness_score * 0.2) * 100.0;
-
-            if (score > best_score) {
-                best_score = score;
-                best_x = x;
-                best_y = y;
-                best_r = r;
-            }
-        }
-
-        // === CIRCLE REFINEMENT (PiTrac-style) ===
-        // Refine best detection with 1.5× radius search region
-        if (best_x >= 0) {
-            int search_radius = static_cast<int>(best_r * 1.5);
-            int roi_x1 = std::max(0, best_x - search_radius);
-            int roi_y1 = std::max(0, best_y - search_radius);
-            int roi_x2 = std::min(enhanced_gray.cols, best_x + search_radius);
-            int roi_y2 = std::min(enhanced_gray.rows, best_y + search_radius);
-
-            cv::Mat roi = enhanced_gray(cv::Range(roi_y1, roi_y2), cv::Range(roi_x1, roi_x2));
-
-            if (!roi.empty()) {
-                // Apply refined Canny for precise edge detection
-                cv::Mat refined_edges, refined_blur;
-                cv::Canny(roi, refined_edges, 55, 110);
-                cv::GaussianBlur(refined_edges, refined_blur, cv::Size(7, 7), 2);
-
-                // Search for circles in refined region with tighter radius bounds
-                int min_r = static_cast<int>(best_r * 0.85);
-                int max_r = static_cast<int>(best_r * 1.10);
-
-                std::vector<cv::Vec3f> refined_circles;
-                cv::HoughCircles(
-                    refined_blur,
-                    refined_circles,
-                    cv::HOUGH_GRADIENT,
-                    1,          // dp
-                    30,         // minDist
-                    30,         // param1
-                    15,         // param2 (more sensitive for refinement)
-                    min_r,
-                    max_r
-                );
-
-                // Average multiple refined detections for better accuracy
-                if (!refined_circles.empty()) {
-                    int avg_x = 0, avg_y = 0, avg_r = 0;
-                    int count = std::min(4, static_cast<int>(refined_circles.size()));
-
-                    for (int i = 0; i < count; i++) {
-                        avg_x += cvRound(refined_circles[i][0]);
-                        avg_y += cvRound(refined_circles[i][1]);
-                        avg_r += cvRound(refined_circles[i][2]);
-                    }
-
-                    // Convert back to full image coordinates
-                    int final_x = roi_x1 + (avg_x / count);
-                    int final_y = roi_y1 + (avg_y / count);
-                    int final_r = avg_r / count;
-
-                    return py::make_tuple(final_x, final_y, final_r);
-                }
-            }
-
-            // Return original if refinement fails
-            return py::make_tuple(best_x, best_y, best_r);
+        // Only check basic bounds
+        if (x - r >= 0 && x + r < gray.cols && y - r >= 0 && y + r < gray.rows) {
+            return py::make_tuple(x, y, r);
         }
     }
 

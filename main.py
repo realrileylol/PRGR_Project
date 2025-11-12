@@ -239,10 +239,9 @@ class CaptureManager(QObject):
         clahe = cv2.createCLAHE(clipLimit=6.0, tileGridSize=(6, 6))
         enhanced_gray = clahe.apply(gray)
 
-        # === BRIGHTNESS DETECTION (works on monochrome!) ===
-        # Golf balls are bright white - threshold to isolate bright regions
-        # Adjusted for actual lighting conditions (diagnostics showed 100 works better than 150)
-        _, bright_mask = cv2.threshold(enhanced_gray, 100, 255, cv2.THRESH_BINARY)
+        # === BRIGHTNESS DETECTION (ultra-sensitive for dark camera) ===
+        # User's ball has brightness of only 24, so threshold must be very low
+        _, bright_mask = cv2.threshold(enhanced_gray, 50, 255, cv2.THRESH_BINARY)
 
         # Clean up noise with morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -259,9 +258,9 @@ class CaptureManager(QObject):
         # MATCHED TO optimized_detection.py
         blurred = cv2.GaussianBlur(combined, (9, 9), 2)
 
-        # === ADAPTIVE CIRCLE DETECTION (PiTrac-style) ===
-        # Try multiple param2 values to adapt to lighting conditions
-        param2_values = [20, 18, 22, 16, 24, 15, 26]  # Start with known good value, then vary
+        # === ULTRA-SENSITIVE CIRCLE DETECTION ===
+        # Very low param2 values for maximum sensitivity
+        param2_values = [10, 8, 12, 15, 7, 6, 5]  # Much more sensitive than before
         circles = None
 
         for param2 in param2_values:
@@ -269,15 +268,15 @@ class CaptureManager(QObject):
                 blurred,
                 cv2.HOUGH_GRADIENT,
                 dp=1,
-                minDist=80,
-                param1=30,
-                param2=param2,      # ADAPTIVE: try different sensitivities
-                minRadius=15,
-                maxRadius=200
+                minDist=50,         # Reduced from 80 for easier detection
+                param1=20,          # Reduced from 30 for easier detection
+                param2=param2,      # ULTRA-SENSITIVE values
+                minRadius=10,       # Reduced from 15 to catch smaller balls
+                maxRadius=250       # Increased to catch larger detections
             )
 
-            # Stop if we found 1-4 circles (ideal range)
-            if circles is not None and 1 <= len(circles[0]) <= 4:
+            # Accept any circles found (no ideal range restriction)
+            if circles is not None:
                 break
 
         if circles is not None and len(circles[0]) > 0:
@@ -327,32 +326,10 @@ class CaptureManager(QObject):
                 if region.size == 0:
                     continue
 
-                # === CIRCLE SCORING (adapted for very dark camera conditions) ===
-                mean_brightness = np.mean(region)
-                std_dev = np.std(region)
-
-                # For dark camera conditions, score based on:
-                # 1. Uniformity (low std deviation = consistent circular region)
-                # 2. Size appropriateness
-                # 3. Slight brightness preference if available
-
-                # Uniformity is key - golf balls have consistent appearance
-                uniformity_score = 1.0 - np.clip(std_dev / 100, 0, 0.5)
-
-                # Size score - prefer mid-size circles (too small = noise, too large = false detection)
-                size_score = 1.0 - abs(r - 25) / 100  # Prefer ~25px radius
-
-                # Brightness bonus (but not required for dark conditions)
-                brightness_score = np.clip(mean_brightness / 100, 0, 1.0)
-
-                # Combined score: uniformity most important, then size, then brightness
-                score = (uniformity_score * 0.5 +
-                        size_score * 0.3 +
-                        brightness_score * 0.2) * 100
-
-                if score > best_score:
-                    best_score = score
-                    best_circle = circle
+                # === ULTRA-LENIENT SCORING (accept almost anything circular) ===
+                # Just take the first circle found - velocity detection will filter false hits
+                best_circle = circle
+                break  # Take first valid circle
 
             # === CIRCLE REFINEMENT (PiTrac-style) ===
             # Refine best detection with 1.5× radius search region
@@ -550,7 +527,7 @@ class CaptureManager(QObject):
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
-            frame_buffer = deque(maxlen=5)  # Circular buffer for pre-impact frames
+            frame_buffer = deque(maxlen=10)  # Circular buffer for 10 pre-impact frames
 
             # Calculate target frame time for adaptive sleep
             target_frame_time = 1.0 / frame_rate
@@ -640,12 +617,12 @@ class CaptureManager(QObject):
 
                         prev_ball = smoothed_ball  # Use smoothed radius for consistency
 
-                        if stable_frames >= 30:  # Require 30 stable frames (0.5s at 60fps) to ensure it's truly a ball
+                        if stable_frames >= 5:  # Only 5 stable frames needed for ULTRA-FAST locking
                             original_ball = smoothed_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
                             print(f"   Triggers on: RAPID movement (>20px/frame) OR ball exits frame")
-                            print(f"   Slow movements (adjusting, walking) ignored - no false triggers")
+                            print(f"   Will capture 20 frames (10 before + 10 after impact)")
                             stable_frames = 0
                             prev_ball = None
                             frames_since_lock = 0
@@ -673,12 +650,12 @@ class CaptureManager(QObject):
 
                             # Capture post-impact frames
                             frame_delay = 1.0 / frame_rate
-                            for i in range(5):
+                            for i in range(10):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured (10 before + 10 after impact)")
 
                             # Save frames
                             for i, save_frame in enumerate(frames):
@@ -717,12 +694,12 @@ class CaptureManager(QObject):
 
                             # Capture post-impact frames
                             frame_delay = 1.0 / frame_rate
-                            for i in range(5):
+                            for i in range(10):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured (10 before + 10 after impact)")
 
                             # Save frames
                             for i, save_frame in enumerate(frames):
@@ -890,7 +867,7 @@ class CaptureManager(QObject):
                     status_text = "LOCKED - Ready to Hit!"
                     status_color = (0, 255, 0)  # Green
                 elif current_ball is not None:
-                    status_text = f"Detecting... ({stable_frames}/30 frames)"
+                    status_text = f"Detecting... ({stable_frames}/5 frames)"
                     status_color = (0, 255, 255)  # Yellow
                 else:
                     status_text = "No Ball Detected"
@@ -914,7 +891,7 @@ class CaptureManager(QObject):
                     cv2.imwrite(debug_filename, cv2.cvtColor(vis_frame, cv2.COLOR_RGB2BGR))
                     # Print detection info every second
                     if current_ball is not None:
-                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Stable: {stable_frames}/30 | Status: {'LOCKED' if original_ball is not None else 'Detecting'}")
+                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Stable: {stable_frames}/5 | Status: {'LOCKED' if original_ball is not None else 'Detecting'}")
                     else:
                         print(f"📊 FPS: {current_fps} | Status: No Ball Detected")
 
