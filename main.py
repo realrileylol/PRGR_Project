@@ -147,6 +147,9 @@ class CameraManager(QObject):
 
         print(f"📸 Taking snapshot...")
 
+        # Remember if preview was running
+        preview_was_running = self.camera_process is not None
+
         try:
             if not CAMERA_AVAILABLE:
                 print("❌ Camera not available - cannot take snapshot")
@@ -156,11 +159,19 @@ class CameraManager(QObject):
             shutter_speed = 5000
             gain = 2.0
             frame_rate = 30
+            ev_compensation = 0.0
 
             if self.settings_manager:
                 shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
                 gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
                 frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+                ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
+
+            # Stop camera preview if running (to release camera)
+            if preview_was_running:
+                print("   Stopping preview to release camera...")
+                self.stopCamera()
+                time.sleep(1)  # Give camera time to fully release
 
             # Use Picamera2 to capture a single frame
             picam2 = Picamera2()
@@ -186,6 +197,13 @@ class CameraManager(QObject):
 
         except Exception as e:
             print(f"❌ Failed to take snapshot: {e}")
+
+        finally:
+            # Restart preview if it was running before
+            if preview_was_running:
+                print("   Restarting preview...")
+                time.sleep(0.5)  # Brief pause before restarting
+                self.startCamera()
 
     def __del__(self):
         """Cleanup on destruction"""
