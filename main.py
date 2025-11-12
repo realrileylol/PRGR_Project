@@ -331,63 +331,9 @@ class CaptureManager(QObject):
                 best_circle = circle
                 break  # Take first valid circle
 
-            # === CIRCLE REFINEMENT (PiTrac-style) ===
-            # Refine best detection with 1.5× radius search region
+            # Return best circle immediately (skip refinement for ultra-fast detection)
             if best_circle is not None:
-                x, y, r = int(best_circle[0]), int(best_circle[1]), int(best_circle[2])
-
-                # Create 1.5× radius ROI around detected ball
-                search_radius = int(r * 1.5)
-                roi_x1 = max(0, x - search_radius)
-                roi_y1 = max(0, y - search_radius)
-                roi_x2 = min(enhanced_gray.shape[1], x + search_radius)
-                roi_y2 = min(enhanced_gray.shape[0], y + search_radius)
-
-                roi = enhanced_gray[roi_y1:roi_y2, roi_x1:roi_x2]
-
-                if roi.size > 0:
-                    # Apply refined Canny for precise edge detection
-                    refined_edges = cv2.Canny(roi, 55, 110)
-                    refined_blur = cv2.GaussianBlur(refined_edges, (7, 7), 2)
-
-                    # Search for circles in refined region with tighter radius bounds
-                    min_r = int(r * 0.85)
-                    max_r = int(r * 1.10)
-
-                    refined_circles = cv2.HoughCircles(
-                        refined_blur,
-                        cv2.HOUGH_GRADIENT,
-                        dp=1,
-                        minDist=30,
-                        param1=30,
-                        param2=15,  # More sensitive for refinement
-                        minRadius=min_r,
-                        maxRadius=max_r
-                    )
-
-                    # Average multiple refined detections for better accuracy
-                    if refined_circles is not None and len(refined_circles[0]) > 0:
-                        refined_circles = np.uint16(np.around(refined_circles))
-
-                        # Average up to 4 best circles
-                        avg_x, avg_y, avg_r = 0, 0, 0
-                        count = min(4, len(refined_circles[0]))
-
-                        for i in range(count):
-                            rc = refined_circles[0][i]
-                            avg_x += int(rc[0])
-                            avg_y += int(rc[1])
-                            avg_r += int(rc[2])
-
-                        # Convert back to full image coordinates
-                        final_x = roi_x1 + (avg_x // count)
-                        final_y = roi_y1 + (avg_y // count)
-                        final_r = avg_r // count
-
-                        return np.array([final_x, final_y, final_r])
-
-                # Return original if refinement fails
-                return best_circle  # (x, y, radius)
+                return best_circle
 
         return None
 
