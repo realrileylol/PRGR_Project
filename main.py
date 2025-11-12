@@ -40,6 +40,8 @@ except ImportError:
 class CameraManager(QObject):
     """Manages Raspberry Pi camera using rpicam-vid"""
 
+    snapshotSaved = Signal(str)  # Signal emitted when snapshot is saved (with filename)
+
     def __init__(self, settings_manager=None):
         super().__init__()
         self.camera_process = None
@@ -126,6 +128,64 @@ class CameraManager(QObject):
             print("✅ Camera stopped")
         else:
             print("⚠️ Camera is not running")
+
+    @Slot()
+    def takeSnapshot(self):
+        """Capture a single frame and save to BallSnapshotTest folder"""
+        import os
+        import time
+        from datetime import datetime
+
+        # Create BallSnapshotTest folder if it doesn't exist
+        snapshot_folder = "BallSnapshotTest"
+        os.makedirs(snapshot_folder, exist_ok=True)
+
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"snapshot_{timestamp}.jpg"
+        filepath = os.path.join(snapshot_folder, filename)
+
+        print(f"📸 Taking snapshot...")
+
+        try:
+            if not CAMERA_AVAILABLE:
+                print("❌ Camera not available - cannot take snapshot")
+                return
+
+            # Load camera settings
+            shutter_speed = 5000
+            gain = 2.0
+            frame_rate = 30
+
+            if self.settings_manager:
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+
+            # Use Picamera2 to capture a single frame
+            picam2 = Picamera2()
+            config = picam2.create_still_configuration(
+                main={"size": (640, 480)},
+                controls={
+                    "FrameRate": frame_rate,
+                    "ExposureTime": shutter_speed,
+                    "AnalogueGain": gain
+                }
+            )
+            picam2.configure(config)
+            picam2.start()
+            time.sleep(0.5)  # Let camera stabilize
+
+            # Capture and save
+            picam2.capture_file(filepath)
+            picam2.stop()
+            picam2.close()
+
+            print(f"✅ Snapshot saved: {filepath}")
+            self.snapshotSaved.emit(filename)
+
+        except Exception as e:
+            print(f"❌ Failed to take snapshot: {e}")
 
     def __del__(self):
         """Cleanup on destruction"""

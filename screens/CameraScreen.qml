@@ -217,6 +217,37 @@ Item {
                         }
                     }
                 }
+
+                // Snapshot button
+                Button {
+                    text: "📸 Snapshot"
+                    implicitHeight: 50
+                    implicitWidth: 150
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#2D9A4F" : success
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        cameraManager.takeSnapshot()
+                        snapshotMessage.visible = true
+                        snapshotTimer.start()
+                    }
+                }
             }
         }
 
@@ -229,6 +260,47 @@ Item {
             font.italic: true
             horizontalAlignment: Text.AlignHCenter
         }
+    }
+
+    // Snapshot confirmation message
+    Rectangle {
+        id: snapshotMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 300
+        height: 60
+        radius: 10
+        color: success
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 10
+
+            Text {
+                text: "✓"
+                color: "white"
+                font.pixelSize: 24
+                font.bold: true
+            }
+
+            Text {
+                text: "Snapshot saved to\nBallSnapshotTest folder"
+                color: "white"
+                font.pixelSize: 14
+                font.bold: true
+                horizontalAlignment: Text.AlignLeft
+            }
+        }
+    }
+
+    Timer {
+        id: snapshotTimer
+        interval: 2000
+        onTriggered: snapshotMessage.visible = false
     }
 
     Component.onDestruction: {

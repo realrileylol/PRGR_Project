@@ -1,5 +1,6 @@
 # Ball capture test images
 ball_captures/
+BallSnapshotTest/
 
 # Other test output files
 *.jpg
