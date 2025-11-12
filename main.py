@@ -815,6 +815,32 @@ class CaptureManager(QObject):
 
             self.statusChanged.emit("Detecting ball...", "yellow")
 
+            # === IMMEDIATE DEBUG - Save first frame to see what camera is capturing ===
+            print("🔍 Capturing first frame for diagnosis...", flush=True)
+            first_frame = self.picam2.capture_array()
+            cv2.imwrite("capture_first_frame.jpg", cv2.cvtColor(first_frame, cv2.COLOR_RGB2BGR))
+            print(f"   Frame shape: {first_frame.shape}", flush=True)
+            print(f"   Frame dtype: {first_frame.dtype}", flush=True)
+            print(f"   Frame min/max: {first_frame.min()}/{first_frame.max()}", flush=True)
+
+            # Test detection on first frame
+            test_ball = self._detect_ball(first_frame)
+            if test_ball is not None:
+                print(f"   ✅ Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
+            else:
+                print(f"   ❌ No ball detected on first frame", flush=True)
+                # Save debug images
+                if len(first_frame.shape) == 3:
+                    gray = cv2.cvtColor(first_frame, cv2.COLOR_RGB2GRAY)
+                else:
+                    gray = first_frame
+                cv2.imwrite("capture_gray.jpg", gray)
+                clahe = cv2.createCLAHE(clipLimit=6.0, tileGridSize=(6, 6))
+                enhanced = clahe.apply(gray)
+                cv2.imwrite("capture_clahe.jpg", enhanced)
+                print(f"   Gray stats: min={gray.min()}, max={gray.max()}, mean={gray.mean():.1f}", flush=True)
+                print(f"   Debug images saved: capture_first_frame.jpg, capture_gray.jpg, capture_clahe.jpg", flush=True)
+
             original_ball = None
             stable_frames = 0
             last_seen_ball = None
