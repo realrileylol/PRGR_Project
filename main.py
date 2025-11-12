@@ -561,10 +561,9 @@ class CaptureManager(QObject):
             fps_start_time = time.time()
             current_fps = 0
 
-            # Create visualization window
-            cv2.namedWindow("Ball Detection - Live Feed", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("Ball Detection - Live Feed", 800, 600)
-            print("📺 Visualization window opened - showing live ball detection")
+            # Debug frame saving (saves every 10 frames to avoid file spam)
+            debug_frame_counter = 0
+            print("📺 Debug mode: Saving detection frames to debug_detection_*.jpg every 1 second")
 
             while self.is_running:
                 loop_start_time = time.time()
@@ -908,9 +907,16 @@ class CaptureManager(QObject):
                     cv2.putText(vis_frame, f"Frames since lock: {frames_since_lock}", (10, info_y + 25),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
-                # Show the visualization
-                cv2.imshow("Ball Detection - Live Feed", vis_frame)
-                cv2.waitKey(1)  # Process window events
+                # Save debug frame every ~1 second (based on frame rate)
+                debug_frame_counter += 1
+                if debug_frame_counter % max(frame_rate, 10) == 0:  # Every 1 second
+                    debug_filename = "debug_detection_latest.jpg"
+                    cv2.imwrite(debug_filename, cv2.cvtColor(vis_frame, cv2.COLOR_RGB2BGR))
+                    # Print detection info every second
+                    if current_ball is not None:
+                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Stable: {stable_frames}/30 | Status: {'LOCKED' if original_ball is not None else 'Detecting'}")
+                    else:
+                        print(f"📊 FPS: {current_fps} | Status: No Ball Detected")
 
                 # Adaptive sleep to maintain target frame rate
                 loop_elapsed_time = time.time() - loop_start_time
@@ -938,17 +944,11 @@ class CaptureManager(QObject):
             except Exception as e:
                 print(f"⚠️ Error releasing camera: {e}")
 
-            # Close visualization window
-            try:
-                cv2.destroyAllWindows()
-                print("📺 Visualization window closed")
-            except Exception as e:
-                print(f"⚠️ Error closing visualization: {e}")
-
             self.is_running = False
             self._stopping = False
             self.capture_thread = None
             print("🔓 Capture thread fully stopped and cleaned up")
+            print("📺 Debug frames saved to: debug_detection_latest.jpg")
 
 # ============================================
 # Sound Manager Class
