@@ -403,7 +403,7 @@ class CaptureManager(QObject):
         self.is_running = True
         self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self.capture_thread.start()
-        print("🎥 Capture started")
+        print("🎥 Capture started", flush=True)
 
     @Slot()
     def stopCapture(self):
@@ -776,7 +776,7 @@ class CaptureManager(QObject):
             gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
             frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
 
-            print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+            print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
             # Initialize camera with retry logic (camera hardware may need time to release)
             camera_initialized = False
@@ -799,7 +799,7 @@ class CaptureManager(QObject):
                     self.picam2.start()
                     time.sleep(2)
                     camera_initialized = True
-                    print("✅ Camera initialized successfully")
+                    print("✅ Camera initialized successfully", flush=True)
                     break
                 except Exception as e:
                     print(f"⚠️ Camera init attempt {attempt + 1} failed: {e}")
@@ -837,8 +837,8 @@ class CaptureManager(QObject):
 
             # Debug frame saving (saves every 10 frames to avoid file spam)
             debug_frame_counter = 0
-            print("📺 Edge Velocity Tracking enabled - Motion-based ball detection")
-            print("📺 Debug mode: Saving detection frames to debug_detection_*.jpg every 1 second")
+            print("📺 Edge Velocity Tracking enabled - Motion-based ball detection", flush=True)
+            print("📺 Debug mode: Saving detection frames to debug_detection_*.jpg every 1 second", flush=True)
 
             # Edge velocity tracking state
             prev_frame_for_motion = None
@@ -1212,9 +1212,9 @@ class CaptureManager(QObject):
                     # Print detection info every second with velocity tracking
                     if current_ball is not None:
                         lock_status = 'LOCKED' if original_ball is not None else 'Detecting'
-                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Velocity: {velocity:.1f}px/f | Motion: {motion_state} | Stable: {stable_frames}/5 | {lock_status}")
+                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Velocity: {velocity:.1f}px/f | Motion: {motion_state} | Stable: {stable_frames}/5 | {lock_status}", flush=True)
                     else:
-                        print(f"📊 FPS: {current_fps} | Status: No Ball Detected")
+                        print(f"📊 FPS: {current_fps} | Status: No Ball Detected", flush=True)
 
                 # Adaptive sleep to maintain target frame rate
                 loop_elapsed_time = time.time() - loop_start_time
