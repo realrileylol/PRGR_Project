@@ -552,26 +552,22 @@ class CaptureManager(QObject):
 
                 # === BRIGHTNESS FILTERING ===
                 # Reject circles in pitch-black areas (noise patterns)
-                # Only accept circles with bright regions (actual ball)
                 region_brightness = region.mean()
 
-                # CRITICAL: Ball must be bright enough to distinguish from background
-                # Lowered from 40 to 25 to work with darker camera settings (30 FPS vs 100 FPS)
-                # At 30 FPS: ball brightness ~35-40
-                # At 100 FPS: ball brightness ~60-65
-                if region_brightness < 25:
+                # Ball brightness with diagnostic settings (100 FPS, 1500µs, 8x): ~60-65
+                # Using same threshold as diagnostic
+                if region_brightness < 50:
                     continue
 
                 # === CIRCULARITY CHECK ===
-                # Ball should have high peak brightness in center (smooth surface reflects light)
-                # Mat texture is grainy with uniform brightness (no bright center)
+                # Ball has bright center from light reflection
+                # Mat texture is grainy and uniform
                 max_brightness = region.max()
                 brightness_contrast = max_brightness - region_brightness
 
-                # Good ball: max=200, mean=100, contrast=100 (bright center)
-                # Mat grain: max=80, mean=70, contrast=10 (uniform texture)
-                # Lowered from 30 to 20 for darker camera settings
-                if brightness_contrast < 20:
+                # Diagnostic showed ball contrast ~190-200
+                # Keep lenient threshold
+                if brightness_contrast < 30:
                     continue
 
                 # === SMART SCORING ===
@@ -774,11 +770,12 @@ class CaptureManager(QObject):
                 next_shot = 0
 
             # Load camera settings
-            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
-            gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
-            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+            # FORCE settings that work in diagnostic (100% detection rate)
+            shutter_speed = 1500  # Same as diagnostic
+            gain = 8.0  # Same as diagnostic
+            frame_rate = 100  # Same as diagnostic
 
-            print(f"📷 Capture settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"📷 Using diagnostic settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
             # Initialize camera with retry logic (camera hardware may need time to release)
             camera_initialized = False
