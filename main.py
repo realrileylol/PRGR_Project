@@ -366,6 +366,10 @@ class CaptureManager(QObject):
         self.picam2 = None  # Store camera instance for cleanup
         self._stopping = False  # Flag to track if we're in the process of stopping
 
+        # Edge velocity tracking state
+        self.prev_gray = None  # Previous frame for optical flow
+        self.ball_motion_history = deque(maxlen=10)  # Track ball velocity over time
+
     @Slot()
     def startCapture(self):
         """Start the capture process in a background thread"""
@@ -600,6 +604,90 @@ class CaptureManager(QObject):
 
         return None
 
+    def _detect_ball_with_motion(self, frame, prev_frame=None):
+        """
+        EDGE VELOCITY TRACKING - Motion-based ball detection
+
+        Uses optical flow to track movement patterns and distinguish:
+        - Ball: Small, bright, stationary (then sudden motion on impact)
+        - Club: Large, elongated, continuous motion during swing
+        - Mat/Hands: Large, low contrast, irregular motion
+
+        Returns: (ball_position, velocity, motion_state)
+        - ball_position: (x, y, r) or None
+        - velocity: pixels per frame
+        - motion_state: "STATIONARY", "MOVING", or "IMPACT"
+        """
+
+        # Convert to grayscale
+        if len(frame.shape) == 3:
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = frame
+
+        # First pass: Detect potential balls using traditional method
+        ball = self._detect_ball(frame)
+
+        if ball is None or prev_frame is None:
+            return (ball, 0, "UNKNOWN")
+
+        # Convert previous frame to grayscale
+        if len(prev_frame.shape) == 3:
+            prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY)
+        else:
+            prev_gray = prev_frame
+
+        # === OPTICAL FLOW - Track motion between frames ===
+        try:
+            flow = cv2.calcOpticalFlowFarneback(
+                prev_gray, gray, None,
+                pyr_scale=0.5,   # Image pyramid scale
+                levels=3,        # Number of pyramid layers
+                winsize=15,      # Averaging window size
+                iterations=3,    # Iterations at each pyramid level
+                poly_n=5,        # Polynomial expansion size
+                poly_sigma=1.2,  # Gaussian standard deviation
+                flags=0
+            )
+
+            # Calculate magnitude and angle of flow vectors
+            magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+
+            # Extract ball region's motion
+            x, y, r = int(ball[0]), int(ball[1]), int(ball[2])
+
+            # Get motion in ball region (expand slightly for better coverage)
+            y1 = max(0, y - r - 10)
+            y2 = min(gray.shape[0], y + r + 10)
+            x1 = max(0, x - r - 10)
+            x2 = min(gray.shape[1], x + r + 10)
+
+            ball_motion = magnitude[y1:y2, x1:x2]
+
+            if ball_motion.size == 0:
+                return (ball, 0, "UNKNOWN")
+
+            # Calculate ball velocity (mean motion in ball region)
+            ball_velocity = ball_motion.mean()
+
+            # === MOTION STATE CLASSIFICATION ===
+            # Stationary: Very low velocity (<2 px/frame)
+            # Moving: Moderate velocity (2-20 px/frame)
+            # Impact: High velocity (>20 px/frame)
+
+            if ball_velocity < 2.0:
+                motion_state = "STATIONARY"
+            elif ball_velocity < 20.0:
+                motion_state = "MOVING"
+            else:
+                motion_state = "IMPACT"
+
+            return (ball, ball_velocity, motion_state)
+
+        except Exception as e:
+            # Optical flow failed - fall back to ball detection only
+            return (ball, 0, "UNKNOWN")
+
     def _ball_has_moved(self, prev_ball, curr_ball, threshold=40):
         """Check if ball has moved significantly"""
         if prev_ball is None or curr_ball is None:
@@ -749,7 +837,11 @@ class CaptureManager(QObject):
 
             # Debug frame saving (saves every 10 frames to avoid file spam)
             debug_frame_counter = 0
+            print("📺 Edge Velocity Tracking enabled - Motion-based ball detection")
             print("📺 Debug mode: Saving detection frames to debug_detection_*.jpg every 1 second")
+
+            # Edge velocity tracking state
+            prev_frame_for_motion = None
 
             while self.is_running:
                 loop_start_time = time.time()
@@ -767,7 +859,13 @@ class CaptureManager(QObject):
                 # Create visualization frame
                 vis_frame = frame.copy()
 
-                current_ball = self._detect_ball(frame)
+                # === EDGE VELOCITY TRACKING ===
+                # Detect ball with motion analysis
+                ball_result, velocity, motion_state = self._detect_ball_with_motion(frame, prev_frame_for_motion)
+                current_ball = ball_result
+
+                # Store frame for next iteration
+                prev_frame_for_motion = frame.copy()
 
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
@@ -1059,38 +1157,51 @@ class CaptureManager(QObject):
                 # Draw ball tracking circle if detected
                 if current_ball is not None:
                     x, y, r = int(current_ball[0]), int(current_ball[1]), int(current_ball[2])
-                    # Green circle around detected ball
-                    cv2.circle(vis_frame, (x, y), r, (0, 255, 0), 3)
+
+                    # Color code by motion state
+                    if motion_state == "STATIONARY":
+                        circle_color = (0, 255, 0)  # Green = stationary (locked)
+                    elif motion_state == "MOVING":
+                        circle_color = (0, 255, 255)  # Yellow = moving
+                    elif motion_state == "IMPACT":
+                        circle_color = (0, 0, 255)  # Red = impact detected
+                    else:
+                        circle_color = (255, 255, 255)  # White = unknown
+
+                    # Ball circle
+                    cv2.circle(vis_frame, (x, y), r, circle_color, 3)
                     # Center point
-                    cv2.circle(vis_frame, (x, y), 3, (0, 255, 0), -1)
-                    # Position text
-                    cv2.putText(vis_frame, f"Ball: ({x}, {y}) r={r}", (x + r + 5, y),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.circle(vis_frame, (x, y), 3, circle_color, -1)
+                    # Position + velocity text
+                    cv2.putText(vis_frame, f"Ball: ({x}, {y}) r={r} v={velocity:.1f}px/f", (x + r + 5, y),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, circle_color, 2)
 
                 # Draw FPS counter
                 cv2.putText(vis_frame, f"FPS: {current_fps}", (10, 30),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
-                # Draw status
+                # Draw status with motion state
                 if original_ball is not None:
-                    status_text = "LOCKED - Ready to Hit!"
+                    status_text = f"LOCKED - {motion_state}"
                     status_color = (0, 255, 0)  # Green
                 elif current_ball is not None:
-                    status_text = f"Detecting... ({stable_frames}/5 frames)"
+                    status_text = f"Detecting ({stable_frames}/5) - {motion_state}"
                     status_color = (0, 255, 255)  # Yellow
                 else:
                     status_text = "No Ball Detected"
                     status_color = (0, 0, 255)  # Red
 
                 cv2.putText(vis_frame, status_text, (10, 70),
-                           cv2.FONT_HERSHEY_SIMPLEX, 1, status_color, 2)
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
 
-                # Draw detection info
+                # Draw edge velocity tracking info
                 if current_ball is not None:
                     info_y = 110
-                    cv2.putText(vis_frame, f"Stable frames: {stable_frames}", (10, info_y),
+                    cv2.putText(vis_frame, f"Velocity: {velocity:.2f} px/frame", (10, info_y),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-                    cv2.putText(vis_frame, f"Frames since lock: {frames_since_lock}", (10, info_y + 25),
+                    cv2.putText(vis_frame, f"Motion: {motion_state}", (10, info_y + 25),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                    cv2.putText(vis_frame, f"Stable: {stable_frames}/5", (10, info_y + 50),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
                 # Save debug frame every ~1 second (based on frame rate)
@@ -1098,9 +1209,10 @@ class CaptureManager(QObject):
                 if debug_frame_counter % max(frame_rate, 10) == 0:  # Every 1 second
                     debug_filename = "debug_detection_latest.jpg"
                     cv2.imwrite(debug_filename, cv2.cvtColor(vis_frame, cv2.COLOR_RGB2BGR))
-                    # Print detection info every second
+                    # Print detection info every second with velocity tracking
                     if current_ball is not None:
-                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Stable: {stable_frames}/5 | Status: {'LOCKED' if original_ball is not None else 'Detecting'}")
+                        lock_status = 'LOCKED' if original_ball is not None else 'Detecting'
+                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Velocity: {velocity:.1f}px/f | Motion: {motion_state} | Stable: {stable_frames}/5 | {lock_status}")
                     else:
                         print(f"📊 FPS: {current_fps} | Status: No Ball Detected")
 
