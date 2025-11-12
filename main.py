@@ -787,8 +787,10 @@ class CaptureManager(QObject):
                         time.sleep(2)  # Wait longer between retries
 
                     self.picam2 = Picamera2()
-                    config = self.picam2.create_video_configuration(
-                        main={"size": (640, 480), "format": "RGB888"},
+                    # Use still configuration for better compatibility with monochrome sensor
+                    # This matches what works in diagnostic script
+                    config = self.picam2.create_still_configuration(
+                        main={"size": (640, 480)},  # Let camera choose native format
                         controls={
                             "FrameRate": frame_rate,
                             "ExposureTime": shutter_speed,
