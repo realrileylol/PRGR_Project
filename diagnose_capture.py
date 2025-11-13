@@ -14,9 +14,10 @@ print("🔍 Starting capture diagnostic...")
 print("This will run for 10 seconds and show why detection is failing\n")
 
 # Initialize camera with same settings as capture loop
-shutter_speed = 5000
-gain = 2.0
-frame_rate = 30
+# FORCE diagnostic settings that work
+shutter_speed = 1500
+gain = 8.0
+frame_rate = 100
 
 picam2 = Picamera2()
 config = picam2.create_video_configuration(
