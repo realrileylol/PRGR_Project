@@ -1008,13 +1008,8 @@ class CaptureManager(QObject):
                                 prev_ball = None
                                 radius_history.clear()  # Reset radius smoothing
                                 continue
-                            elif self._ball_has_moved(prev_ball, current_ball, threshold=15):
-                                # Ball moved too much, reset stability counter (relaxed to 15px threshold)
-                                dx = abs(current_ball[0] - prev_ball[0])
-                                dy = abs(current_ball[1] - prev_ball[1])
-                                print(f"⚠️ Ball moved: dx={dx}px, dy={dy}px - resetting ({stable_frames} frames)")
-                                stable_frames = 0
                             else:
+                                # Radius is consistent - that's all we need for locking
                                 stable_frames += 1
                                 if stable_frames <= 3:  # Only print first few frames
                                     print(f"✓ Stable frame {stable_frames}/3 - Ball at ({x}, {y}) r={r}px")
