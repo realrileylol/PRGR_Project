@@ -809,12 +809,12 @@ class CaptureManager(QObject):
                 next_shot = 0
 
             # Load camera settings
-            # FORCE settings that work in diagnostic (100% detection rate)
-            shutter_speed = 1500  # Same as diagnostic
-            gain = 8.0  # Same as diagnostic
-            frame_rate = 100  # Same as diagnostic
+            # Optimized settings for hit detection
+            shutter_speed = 8500  # 8.5ms exposure for motion clarity
+            gain = 5.0  # 5x gain for brightness
+            frame_rate = 60  # 60 FPS for smooth tracking
 
-            print(f"📷 Using diagnostic settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"📷 Using optimized settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
             # Initialize camera with retry logic (camera hardware may need time to release)
             camera_initialized = False
