@@ -214,7 +214,7 @@ Item {
                 Button {
                     text: cameraActive ? "Stop Camera" : "Start Camera"
                     implicitHeight: 50
-                    implicitWidth: 150
+                    implicitWidth: 120
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -227,7 +227,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -247,9 +247,9 @@ Item {
 
                 // Record button
                 Button {
-                    text: recordingActive ? "⏹ Stop Rec" : "⏺ Record"
+                    text: recordingActive ? "⏹ Stop" : "⏺ Record"
                     implicitHeight: 50
-                    implicitWidth: 150
+                    implicitWidth: 110
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -262,7 +262,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -284,7 +284,7 @@ Item {
                 Button {
                     text: "📸 Snapshot"
                     implicitHeight: 50
-                    implicitWidth: 150
+                    implicitWidth: 120
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -297,7 +297,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -313,9 +313,9 @@ Item {
 
                 // Training Mode button
                 Button {
-                    text: "🎓 Training (100)"
+                    text: "🎓 Train"
                     implicitHeight: 50
-                    implicitWidth: 170
+                    implicitWidth: 100
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -328,7 +328,7 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
