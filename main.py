@@ -409,7 +409,8 @@ class CaptureManager(QObject):
         if self.picam2 is not None:
             try:
                 self.picam2.stop()
-                print("   Camera stopped")
+                self.picam2.close()
+                print("   Camera stopped and closed")
             except Exception as e:
                 print(f"   Warning stopping camera: {e}")
             self.picam2 = None
@@ -819,13 +820,22 @@ class CaptureManager(QObject):
 
             print(f"📷 Using optimized settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
+            # Force cleanup of any lingering camera instances
+            try:
+                from picamera2 import Picamera2
+                # Close any existing global camera instances
+                print("🧹 Cleaning up any existing camera instances...", flush=True)
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"   Camera cleanup check: {e}")
+
             # Initialize camera with retry logic (camera hardware may need time to release)
             camera_initialized = False
             for attempt in range(3):
                 try:
                     if attempt > 0:
                         print(f"   Retry attempt {attempt + 1}/3...")
-                        time.sleep(2)  # Wait longer between retries
+                        time.sleep(3)  # Wait longer between retries (was 2, now 3)
 
                     self.picam2 = Picamera2()
                     # Use native monochrome format - OV9281 outputs Y (grayscale)
@@ -1039,14 +1049,20 @@ class CaptureManager(QObject):
                         # Calculate displacement from original locked position
                         displacement = self._ball_displacement(original_ball, current_ball)
 
-                        # Check if ball moved significantly (potential hit)
-                        # At 100 FPS: 30px/frame = 3000 px/sec
-                        # At 100 FPS: 20px/frame = 2000 px/sec
-                        if displacement > 20:  # Rapid movement in single frame = HIT!
+                        # Calculate velocity in pixels/second
+                        velocity_px_per_sec = displacement * frame_rate
+
+                        # VELOCITY-BASED HIT DETECTION
+                        # Backswing is slow (~30-40 px/frame = 1800-2400 px/sec @ 60fps)
+                        # Ball hit is FAST (should be 80+ px/frame = 4800+ px/sec @ 60fps)
+                        # Set threshold at 4000 px/sec (~67 px/frame) to ignore backswing
+                        velocity_threshold = 4000  # px/sec (approximately 20+ mph ball speed)
+
+                        if velocity_px_per_sec > velocity_threshold:  # FAST movement = HIT!
                             # Ball is moving fast - this is a shot!
-                            print(f"🏌️ RAPID BALL MOVEMENT DETECTED!")
-                            print(f"   Displacement: {displacement:.1f} px in one frame")
-                            print(f"   Estimated velocity: {displacement * frame_rate:.1f} px/sec")
+                            print(f"🏌️ BALL HIT DETECTED!")
+                            print(f"   Velocity: {velocity_px_per_sec:.0f} px/sec ({displacement:.1f} px/frame)")
+                            print(f"   Threshold: {velocity_threshold} px/sec (backswing ignored)")
                             self.statusChanged.emit("Capturing...", "red")
 
                             # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
@@ -1085,12 +1101,16 @@ class CaptureManager(QObject):
                         # Check displacement anyway in case it's a hit
                         displacement = self._ball_displacement(original_ball, current_ball)
 
-                        # Even if radius doesn't match, check for rapid movement
+                        # Calculate velocity
+                        velocity_px_per_sec = displacement * frame_rate
+
+                        # Even if radius doesn't match, check for rapid movement (velocity-based)
                         # Ball being hit can cause radius variation due to motion blur
-                        if displacement > 30:  # Higher threshold since radius changed
-                            print(f"🏌️ RAPID BALL MOVEMENT DETECTED (radius mismatch)!")
-                            print(f"   Displacement: {displacement:.1f} px in one frame")
-                            print(f"   Estimated velocity: {displacement * frame_rate:.1f} px/sec")
+                        # Use higher threshold since radius changed (more uncertainty)
+                        if velocity_px_per_sec > 5000:  # Higher velocity threshold for mismatched radius
+                            print(f"🏌️ BALL HIT DETECTED (radius mismatch - motion blur)!")
+                            print(f"   Velocity: {velocity_px_per_sec:.0f} px/sec ({displacement:.1f} px/frame)")
+                            print(f"   Radius changed: {original_ball[2]}px → {current_ball[2]}px")
                             self.statusChanged.emit("Capturing...", "red")
 
                             # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
@@ -1309,7 +1329,12 @@ class CaptureManager(QObject):
                     # Print detection info periodically
                     if current_ball is not None:
                         lock_status = 'LOCKED' if original_ball is not None else 'Detecting'
-                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status}", flush=True)
+                        if original_ball is not None:
+                            # Show velocity if locked (for monitoring backswing vs hit)
+                            vel_px_sec = velocity * frame_rate
+                            print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status} | Vel: {vel_px_sec:.0f}px/s (hit@4000+)", flush=True)
+                        else:
+                            print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status}", flush=True)
                     else:
                         print(f"📊 FPS: {current_fps} | No Ball", flush=True)
 
@@ -1334,10 +1359,13 @@ class CaptureManager(QObject):
             try:
                 if self.picam2 is not None:
                     self.picam2.stop()
+                    self.picam2.close()  # Properly close camera, not just stop
                     self.picam2 = None
-                    print("📷 Camera released in cleanup")
+                    print("📷 Camera released and closed in cleanup")
             except Exception as e:
                 print(f"⚠️ Error releasing camera: {e}")
+                # Force set to None even if close fails
+                self.picam2 = None
 
             self.is_running = False
             self._stopping = False
