@@ -5,6 +5,11 @@ BallSnapshotTest/
 # ML Training data (do not commit - can be large)
 training_data/
 
+# Video recordings (can be large)
+Videos/
+*.h264
+*.mp4
+
 # Other test output files
 *.jpg
 *.png

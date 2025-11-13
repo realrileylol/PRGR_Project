@@ -42,6 +42,7 @@ class CameraManager(QObject):
 
     snapshotSaved = Signal(str)  # Signal emitted when snapshot is saved (with filename)
     trainingModeProgress = Signal(int, int)  # Signal (current_count, total_count) for training progress
+    recordingSaved = Signal(str)  # Signal emitted when recording is saved (with filename)
 
     def __init__(self, settings_manager=None):
         super().__init__()
@@ -49,6 +50,9 @@ class CameraManager(QObject):
         self.settings_manager = settings_manager
         self.training_thread = None
         self.training_active = False
+        self.recording_process = None
+        self.is_recording = False
+        self.current_recording_path = None
 
     @Slot()
     def startCamera(self):
@@ -342,9 +346,97 @@ class CameraManager(QObject):
             print("🛑 Stopping training mode...")
             self.training_active = False
 
+    @Slot()
+    def startRecording(self):
+        """Start recording video to file"""
+        if self.is_recording:
+            print("⚠️ Already recording")
+            return
+
+        # Create Videos folder if it doesn't exist
+        videos_folder = "Videos"
+        os.makedirs(videos_folder, exist_ok=True)
+
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"video_{timestamp}.h264"
+        filepath = os.path.join(videos_folder, filename)
+        self.current_recording_path = filepath
+
+        # Load camera settings
+        shutter_speed = 8500
+        gain = 5.0
+        frame_rate = 60
+
+        if self.settings_manager:
+            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
+            gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
+
+        try:
+            print(f"🎬 Starting video recording: {filename}")
+
+            # Stop camera preview if running
+            if self.camera_process is not None:
+                self.stopCamera()
+                time.sleep(0.5)
+
+            # Start recording with rpicam-vid
+            cmd = [
+                'rpicam-vid',
+                '--timeout', '0',  # Run indefinitely until stopped
+                '--width', '640',
+                '--height', '480',
+                '--framerate', str(frame_rate),
+                '--shutter', str(shutter_speed),
+                '--gain', str(gain),
+                '--output', filepath,
+                '--codec', 'h264',
+                '--preview', '22,82,756,254'  # Show preview while recording
+            ]
+
+            self.recording_process = subprocess.Popen(cmd)
+            self.is_recording = True
+            print(f"✅ Recording started: {filepath}")
+
+        except Exception as e:
+            print(f"❌ Failed to start recording: {e}")
+            self.is_recording = False
+            self.current_recording_path = None
+
+    @Slot()
+    def stopRecording(self):
+        """Stop recording and save video"""
+        if not self.is_recording or self.recording_process is None:
+            print("⚠️ Not currently recording")
+            return
+
+        try:
+            print("🛑 Stopping recording...")
+            self.recording_process.terminate()
+            self.recording_process.wait(timeout=2)
+            self.recording_process = None
+            self.is_recording = False
+
+            if self.current_recording_path and os.path.exists(self.current_recording_path):
+                # Get file size for confirmation
+                file_size = os.path.getsize(self.current_recording_path) / (1024 * 1024)  # MB
+                print(f"✅ Recording saved: {self.current_recording_path} ({file_size:.1f} MB)")
+                self.recordingSaved.emit(os.path.basename(self.current_recording_path))
+
+            self.current_recording_path = None
+
+        except Exception as e:
+            print(f"❌ Error stopping recording: {e}")
+            self.is_recording = False
+            self.recording_process = None
+            self.current_recording_path = None
+
     def __del__(self):
         """Cleanup on destruction"""
         self.stopCamera()
+        if self.is_recording:
+            self.stopRecording()
 
 # ============================================
 # Capture Manager Class

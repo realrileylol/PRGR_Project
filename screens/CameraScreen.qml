@@ -9,6 +9,7 @@ Item {
 
     property var win
     property bool cameraActive: false
+    property bool recordingActive: false
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -127,13 +128,39 @@ Item {
                     color: success
                     font.pixelSize: 16
                     font.bold: true
-                    visible: cameraActive
+                    visible: cameraActive && !recordingActive
                     background: Rectangle {
                         color: "#000000"
                         opacity: 0.7
                         radius: 6
                     }
                     padding: 10
+                }
+
+                // Recording indicator
+                Label {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 15
+                    text: "● REC"
+                    color: danger
+                    font.pixelSize: 16
+                    font.bold: true
+                    visible: recordingActive
+                    background: Rectangle {
+                        color: "#000000"
+                        opacity: 0.7
+                        radius: 6
+                    }
+                    padding: 10
+
+                    // Blinking animation
+                    SequentialAnimation on opacity {
+                        running: recordingActive
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 800 }
+                        NumberAnimation { to: 1.0; duration: 800 }
+                    }
                 }
             }
         }
@@ -214,6 +241,41 @@ Item {
                         } else {
                             cameraManager.startCamera()
                             cameraActive = true
+                        }
+                    }
+                }
+
+                // Record button
+                Button {
+                    text: recordingActive ? "⏹ Stop Rec" : "⏺ Record"
+                    implicitHeight: 50
+                    implicitWidth: 150
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? (recordingActive ? "#B32824" : "#DA3633") : (recordingActive ? danger : "#DA3633")
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        if (recordingActive) {
+                            cameraManager.stopRecording()
+                            recordingActive = false
+                        } else {
+                            cameraManager.startRecording()
+                            recordingActive = true
                         }
                     }
                 }
@@ -334,6 +396,48 @@ Item {
         onTriggered: snapshotMessage.visible = false
     }
 
+    // Recording confirmation message
+    Rectangle {
+        id: recordingMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 300
+        height: 60
+        radius: 10
+        color: danger
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 10
+
+            Text {
+                text: "✓"
+                color: "white"
+                font.pixelSize: 24
+                font.bold: true
+            }
+
+            Text {
+                id: recordingMessageText
+                text: "Recording saved to\nVideos folder"
+                color: "white"
+                font.pixelSize: 14
+                font.bold: true
+                horizontalAlignment: Text.AlignLeft
+            }
+        }
+    }
+
+    Timer {
+        id: recordingTimer
+        interval: 3000
+        onTriggered: recordingMessage.visible = false
+    }
+
     // Training mode progress message
     Rectangle {
         id: trainingMessage
@@ -415,6 +519,12 @@ Item {
                 trainingCompleteTimer.start()
             }
         }
+
+        function onRecordingSaved(filename) {
+            recordingMessageText.text = "Recording saved:\n" + filename
+            recordingMessage.visible = true
+            recordingTimer.start()
+        }
     }
 
     Timer {
@@ -426,6 +536,9 @@ Item {
     Component.onDestruction: {
         if (cameraActive) {
             cameraManager.stopCamera()
+        }
+        if (recordingActive) {
+            cameraManager.stopRecording()
         }
     }
 }
