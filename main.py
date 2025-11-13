@@ -27,6 +27,14 @@ except ImportError:
     CAMERA_AVAILABLE = False
     print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
 
+# Try to import PIL for GIF creation
+try:
+    from PIL import Image as PILImage
+    GIF_AVAILABLE = True
+except ImportError:
+    GIF_AVAILABLE = False
+    print("⚠️ PIL/Pillow not available - install with: pip install Pillow")
+
 # Try to import fast C++ detection module (3-5x speedup)
 try:
     import fast_detection
@@ -767,6 +775,7 @@ class CaptureManager(QObject):
     statusChanged = Signal(str, str)  # (status, color) - e.g. ("Ball Locked", "green")
     shotCaptured = Signal(int)  # shot_number
     errorOccurred = Signal(str)  # error_message
+    replayReady = Signal(str)  # gif_filepath - emitted when replay GIF is ready to display
 
     def __init__(self, settings_manager=None, camera_manager=None):
         super().__init__()
@@ -1208,6 +1217,64 @@ class CaptureManager(QObject):
 
         return distance > hitbox_radius_px
 
+    def _create_replay_gif(self, frames, output_path, fps=60):
+        """Create animated GIF from captured frames (Snapchat-style replay)"""
+        if not GIF_AVAILABLE:
+            print("⚠️ PIL not available - cannot create GIF")
+            return None
+
+        try:
+            print(f"🎬 Creating replay GIF with {len(frames)} frames...")
+
+            # Convert frames to PIL Images
+            pil_frames = []
+            for frame in frames:
+                # Convert frame to RGB for GIF (handle all formats)
+                if len(frame.shape) == 2:
+                    # Grayscale (H, W) - convert to RGB
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                elif len(frame.shape) == 3:
+                    if frame.shape[2] == 1:
+                        # Grayscale (H, W, 1) - squeeze and convert to RGB
+                        rgb_frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2RGB)
+                    elif frame.shape[2] == 3:
+                        # RGB - keep as-is
+                        rgb_frame = frame
+                    elif frame.shape[2] == 4:
+                        # RGBA/XBGR - convert to RGB
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
+                else:
+                    print(f"❌ Unsupported frame shape for GIF: {frame.shape}")
+                    continue
+
+                # Convert numpy array to PIL Image
+                pil_frame = PILImage.fromarray(rgb_frame)
+                pil_frames.append(pil_frame)
+
+            if len(pil_frames) == 0:
+                print("❌ No valid frames to create GIF")
+                return None
+
+            # Calculate frame duration in milliseconds
+            frame_duration = int(1000 / fps)  # ms per frame
+
+            # Save as animated GIF
+            pil_frames[0].save(
+                output_path,
+                save_all=True,
+                append_images=pil_frames[1:],
+                duration=frame_duration,
+                loop=0,  # Loop forever
+                optimize=False  # Don't optimize for faster creation
+            )
+
+            print(f"✅ Replay GIF saved: {output_path}")
+            return output_path
+
+        except Exception as e:
+            print(f"❌ Failed to create GIF: {e}")
+            return None
+
     def _capture_loop(self):
         """Main capture loop running in background thread"""
         try:
@@ -1499,6 +1566,17 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
+                            # Create replay GIF (Snapchat-style: 5 before + 5 after)
+                            # Use middle 10 frames (skip first/last 5 of the 20 captured)
+                            replay_frames = frames[5:15]  # 5 frames before + 5 frames after impact
+                            gif_filename = f"shot_{next_shot:03d}_replay.gif"
+                            gif_path = os.path.join(captures_folder, gif_filename)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+
+                            if gif_result:
+                                print(f"🎬 Replay GIF created: {gif_filename}")
+                                self.replayReady.emit(gif_result)  # Signal QML to show popup
+
                             # Stop after capture
                             self.picam2.stop()
                             self.picam2 = None
@@ -1546,6 +1624,16 @@ class CaptureManager(QObject):
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
+
+                            # Create replay GIF (Snapchat-style: 5 before + 5 after)
+                            replay_frames = frames[5:15]  # 5 frames before + 5 frames after impact
+                            gif_filename = f"shot_{next_shot:03d}_replay.gif"
+                            gif_path = os.path.join(captures_folder, gif_filename)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+
+                            if gif_result:
+                                print(f"🎬 Replay GIF created: {gif_filename}")
+                                self.replayReady.emit(gif_result)  # Signal QML to show popup
 
                             # Stop after capture
                             self.picam2.stop()
@@ -1648,6 +1736,22 @@ class CaptureManager(QObject):
 
                                     print(f"✅ Shot #{next_shot} saved!")
                                     self.shotCaptured.emit(next_shot)
+
+                                    # Create replay GIF (Snapchat-style: 5 before + 5 after)
+                                    # This path captures fewer frames (10 from buffer + 5 new = 15 total)
+                                    # Take middle 10 for consistent replay length
+                                    if len(frames) >= 10:
+                                        replay_frames = frames[-10:]  # Last 10 frames (closest to impact)
+                                    else:
+                                        replay_frames = frames  # Use all if fewer than 10
+
+                                    gif_filename = f"shot_{next_shot:03d}_replay.gif"
+                                    gif_path = os.path.join(captures_folder, gif_filename)
+                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+
+                                    if gif_result:
+                                        print(f"🎬 Replay GIF created: {gif_filename}")
+                                        self.replayReady.emit(gif_result)  # Signal QML to show popup
 
                                     # Stop after capture
                                     self.picam2.stop()

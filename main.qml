@@ -259,4 +259,174 @@ ApplicationWindow {
         }
     }
 
+    /* ==========================================================
+       REPLAY GIF OVERLAY (Snapchat-style popup)
+    ========================================================== */
+    Rectangle {
+        id: replayOverlay
+        anchors.fill: parent
+        color: "#DD000000"  // Semi-transparent black background
+        visible: false
+        z: 9999  // On top of everything
+
+        // Click to dismiss
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                replayOverlay.visible = false
+                soundManager.playClick()
+            }
+        }
+
+        // Smooth fade-in animation
+        Behavior on opacity {
+            NumberAnimation { duration: 300 }
+        }
+
+        // Replay GIF container
+        Rectangle {
+            id: replayContainer
+            anchors.centerIn: parent
+            width: Math.min(parent.width * 0.85, 680)
+            height: Math.min(parent.height * 0.75, 510)
+            color: "#1A1D23"
+            radius: 20
+            border.color: "#3A86FF"
+            border.width: 3
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 15
+
+                // Header
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Text {
+                        text: "🏌️ Impact Replay"
+                        color: "white"
+                        font.pixelSize: 24
+                        font.bold: true
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Button {
+                        text: "✕"
+                        implicitWidth: 40
+                        implicitHeight: 40
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#DA3633" : "#5F6B7A"
+                            radius: 20
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 20
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            replayOverlay.visible = false
+                            soundManager.playClick()
+                        }
+                    }
+                }
+
+                // GIF replay area
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "#000000"
+                    radius: 12
+                    border.color: "#5F6B7A"
+                    border.width: 2
+
+                    AnimatedImage {
+                        id: replayGif
+                        anchors.fill: parent
+                        anchors.margins: 2
+                        fillMode: Image.PreserveAspectFit
+                        playing: replayOverlay.visible
+                        speed: 1.0  // Normal speed
+                        cache: false
+
+                        // Fallback message if GIF fails to load
+                        onStatusChanged: {
+                            if (status === Image.Error) {
+                                console.log("❌ Failed to load replay GIF")
+                            } else if (status === Image.Ready) {
+                                console.log("✅ Replay GIF loaded successfully")
+                            }
+                        }
+                    }
+
+                    // Loading indicator
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Loading replay..."
+                        color: "#5F6B7A"
+                        font.pixelSize: 18
+                        font.italic: true
+                        visible: replayGif.status === Image.Loading
+                    }
+                }
+
+                // Info text
+                Text {
+                    Layout.fillWidth: true
+                    text: "5 frames before + 5 frames after impact"
+                    color: "#5F6B7A"
+                    font.pixelSize: 14
+                    font.italic: true
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
+        }
+
+        // Scale-in animation for container
+        ParallelAnimation {
+            id: replayEnterAnimation
+            running: false
+
+            NumberAnimation {
+                target: replayContainer
+                property: "scale"
+                from: 0.7
+                to: 1.0
+                duration: 300
+                easing.type: Easing.OutBack
+            }
+
+            NumberAnimation {
+                target: replayContainer
+                property: "opacity"
+                from: 0.0
+                to: 1.0
+                duration: 300
+            }
+        }
+    }
+
+    // Handle replay ready signal from capture manager
+    Connections {
+        target: captureManager
+
+        function onReplayReady(gifPath) {
+            console.log("🎬 Replay ready:", gifPath)
+            // Convert file path to URL
+            replayGif.source = "file://" + gifPath
+            replayOverlay.visible = true
+            replayOverlay.opacity = 1.0
+            replayEnterAnimation.restart()
+        }
+    }
+
 }
