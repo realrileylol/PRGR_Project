@@ -62,7 +62,7 @@ Item {
                 onClicked: {
                     soundManager.playClick()
                     if (cameraActive) {
-                        cameraManager.stopCamera()
+                        cameraManager.stopPreview()
                         cameraActive = false
                     }
                     stack.goBack()
@@ -92,11 +92,33 @@ Item {
             border.color: edge
             border.width: 2
 
-            // Camera preview placeholder
+            // High-FPS camera preview (direct Qt rendering)
             Item {
                 id: cameraContainer
                 anchors.fill: parent
                 anchors.margins: 2
+
+                // Live camera feed from frame provider
+                Image {
+                    id: cameraImage
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    source: "image://frame/live"
+                    cache: false  // Disable caching for real-time video
+                    asynchronous: false  // Synchronous for lower latency
+                    visible: cameraActive
+
+                    // Auto-refresh when new frame is ready
+                    property int frameCounter: 0
+                    Connections {
+                        target: cameraManager
+                        function onFrameReady() {
+                            // Force image reload by changing source slightly
+                            cameraImage.frameCounter++
+                            cameraImage.source = "image://frame/live?" + cameraImage.frameCounter
+                        }
+                    }
+                }
 
                 // Message when camera is not active
                 Rectangle {
@@ -111,7 +133,7 @@ Item {
                     Label {
                         id: messageText
                         anchors.centerIn: parent
-                        text: "Camera preview will appear here\n\nClick 'Start Camera' below"
+                        text: "High-FPS Preview (60-100 FPS)\n\nClick 'Start Camera' below"
                         color: "white"
                         font.pixelSize: 16
                         font.bold: true
@@ -236,10 +258,10 @@ Item {
                     onClicked: {
                         soundManager.playClick()
                         if (cameraActive) {
-                            cameraManager.stopCamera()
+                            cameraManager.stopPreview()
                             cameraActive = false
                         } else {
-                            cameraManager.startCamera()
+                            cameraManager.startPreview()
                             cameraActive = true
                         }
                     }
@@ -535,7 +557,7 @@ Item {
 
     Component.onDestruction: {
         if (cameraActive) {
-            cameraManager.stopCamera()
+            cameraManager.stopPreview()
         }
         if (recordingActive) {
             cameraManager.stopRecording()

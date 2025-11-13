@@ -9,9 +9,10 @@ from datetime import datetime
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
 
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
-from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl
+from PySide6.QtGui import QGuiApplication, QImage, QPixmap
+from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType, QQmlImageProviderBase
+from PySide6.QtQuick import QQuickImageProvider
+from PySide6.QtCore import qInstallMessageHandler, QObject, Signal, Slot, QUrl, QSize, QMutex, QMutexLocker
 from PySide6.QtMultimedia import QSoundEffect
 from ProfileManager import ProfileManager
 from HistoryManager import HistoryManager
@@ -36,6 +37,59 @@ except ImportError:
     print("⚠️ Fast C++ detection not available - using Python fallback (build with: ./build_fast_detection.sh)")
 
 # ============================================
+# Frame Provider Class (for high-FPS Qt preview)
+# ============================================
+class FrameProvider(QQuickImageProvider):
+    """Provides camera frames to QML Image components for smooth high-FPS preview"""
+
+    def __init__(self):
+        super().__init__(QQmlImageProviderBase.ImageType.Pixmap)
+        self.pixmap = QPixmap(640, 480)
+        self.pixmap.fill(0x000000)  # Black initial frame
+        self.mutex = QMutex()
+
+    def requestPixmap(self, id, size):
+        """Called by QML Image to get the latest frame"""
+        with QMutexLocker(self.mutex):
+            return self.pixmap, self.pixmap.size()
+
+    def updateFrame(self, frame):
+        """Update the frame from numpy array (called from capture thread)"""
+        try:
+            # Convert numpy array to QImage
+            if len(frame.shape) == 2:
+                # Grayscale (H, W)
+                height, width = frame.shape
+                bytes_per_line = width
+                qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
+            elif len(frame.shape) == 3:
+                height, width, channels = frame.shape
+                if channels == 1:
+                    # Grayscale (H, W, 1) - squeeze to 2D
+                    bytes_per_line = width
+                    qimage = QImage(frame[:, :, 0].data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
+                elif channels == 3:
+                    # RGB (H, W, 3)
+                    bytes_per_line = width * 3
+                    qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+                elif channels == 4:
+                    # RGBA/XBGR (H, W, 4)
+                    bytes_per_line = width * 4
+                    qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
+                else:
+                    print(f"❌ Unsupported channel count: {channels}")
+                    return
+            else:
+                print(f"❌ Unsupported frame shape: {frame.shape}")
+                return
+
+            # Convert to pixmap and store (thread-safe)
+            with QMutexLocker(self.mutex):
+                self.pixmap = QPixmap.fromImage(qimage.copy())
+        except Exception as e:
+            print(f"❌ Frame update error: {e}")
+
+# ============================================
 # Camera Manager Class
 # ============================================
 class CameraManager(QObject):
@@ -45,8 +99,9 @@ class CameraManager(QObject):
     trainingModeProgress = Signal(int, int)  # Signal (current_count, total_count) for training progress
     recordingSaved = Signal(str)  # Signal emitted when recording is saved (with filename)
     testResults = Signal(float, float, str)  # Signal (actual_fps, brightness, recommendation)
+    frameReady = Signal()  # Signal emitted when new preview frame is available
 
-    def __init__(self, settings_manager=None):
+    def __init__(self, settings_manager=None, frame_provider=None):
         super().__init__()
         self.camera_process = None
         self.settings_manager = settings_manager
@@ -55,10 +110,162 @@ class CameraManager(QObject):
         self.recording_process = None
         self.is_recording = False
         self.current_recording_path = None
+        self.frame_provider = frame_provider
+
+        # Preview state (direct Qt rendering)
+        self.preview_active = False
+        self.preview_thread = None
+        self.preview_picam2 = None
+        self._preview_stopping = False
+
+    @Slot()
+    def startPreview(self):
+        """Start high-FPS camera preview with direct Qt rendering (no rpicam-vid lag)"""
+        if not CAMERA_AVAILABLE:
+            print("❌ Camera not available")
+            return
+
+        if self.preview_active:
+            print("⚠️ Preview already running")
+            return
+
+        if self._preview_stopping:
+            print("⚠️ Previous preview still stopping - wait a moment")
+            return
+
+        self.preview_active = True
+        self.preview_thread = threading.Thread(target=self._preview_loop, daemon=True)
+        self.preview_thread.start()
+        print("🎥 High-FPS preview started (direct Qt rendering)")
+
+    @Slot()
+    def stopPreview(self):
+        """Stop the high-FPS preview"""
+        if not self.preview_active:
+            print("⚠️ Preview not running")
+            return
+
+        print("🛑 Stopping preview...")
+        self._preview_stopping = True
+        self.preview_active = False
+
+        # Stop camera
+        if self.preview_picam2 is not None:
+            try:
+                self.preview_picam2.stop()
+                self.preview_picam2.close()
+                print("   Camera stopped and closed")
+            except Exception as e:
+                print(f"   Warning stopping camera: {e}")
+            self.preview_picam2 = None
+
+        # Wait for thread
+        if self.preview_thread is not None:
+            print("   Waiting for preview thread...")
+            self.preview_thread.join(timeout=2.0)
+            if self.preview_thread.is_alive():
+                print("   ⚠️ Thread still running (will exit naturally)")
+            else:
+                print("   ✅ Thread finished")
+            self.preview_thread = None
+
+        self._preview_stopping = False
+        print("✅ Preview stopped")
+
+    def _preview_loop(self):
+        """Background thread for high-FPS preview rendering"""
+        try:
+            # Load camera settings - optimized for smooth preview
+            # Use 60 FPS for preview (good balance of smoothness vs CPU usage)
+            # Can go up to 100 FPS if needed
+            shutter_speed = 8500   # 8.5ms for indoor
+            gain = 5.0             # Good indoor gain
+            frame_rate = 60        # Smooth preview (can increase to 100)
+
+            if self.settings_manager:
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
+                # Use slightly lower FPS for preview to reduce CPU load
+                # Ball capture still uses 100 FPS for detection
+                frame_rate = 60
+
+            print(f"📷 Preview settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+
+            # Initialize camera
+            self.preview_picam2 = Picamera2()
+            config = self.preview_picam2.create_video_configuration(
+                main={"size": (640, 480)},
+                controls={
+                    "FrameRate": frame_rate,
+                    "ExposureTime": shutter_speed,
+                    "AnalogueGain": gain
+                }
+            )
+            self.preview_picam2.configure(config)
+            self.preview_picam2.start()
+
+            # Warmup
+            print("   Warming up camera...")
+            time.sleep(0.5)
+            for i in range(5):
+                _ = self.preview_picam2.capture_array()
+                time.sleep(0.02)
+            print("   ✅ Camera ready")
+
+            # Calculate target frame time
+            target_frame_time = 1.0 / frame_rate
+
+            # FPS counter
+            fps_counter = 0
+            fps_start = time.time()
+            current_fps = 0
+
+            # Main preview loop
+            while self.preview_active:
+                loop_start = time.time()
+
+                # Capture frame
+                frame = self.preview_picam2.capture_array()
+
+                # Update frame provider (thread-safe)
+                if self.frame_provider is not None:
+                    self.frame_provider.updateFrame(frame)
+                    self.frameReady.emit()  # Signal QML to refresh
+
+                # FPS tracking
+                fps_counter += 1
+                if time.time() - fps_start >= 1.0:
+                    current_fps = fps_counter
+                    print(f"📊 Preview FPS: {current_fps}")
+                    fps_counter = 0
+                    fps_start = time.time()
+
+                # Frame rate control
+                loop_elapsed = time.time() - loop_start
+                remaining = target_frame_time - loop_elapsed
+                if remaining > 0.001:
+                    time.sleep(remaining)
+
+            print("🔓 Preview loop finished")
+
+        except Exception as e:
+            print(f"❌ Preview error: {e}")
+        finally:
+            if self.preview_picam2 is not None:
+                try:
+                    self.preview_picam2.stop()
+                    self.preview_picam2.close()
+                except:
+                    pass
+                self.preview_picam2 = None
+
+            self.preview_active = False
+            self._preview_stopping = False
+            print("✅ Preview cleanup complete")
 
     @Slot()
     def startCamera(self):
-        """Start the Raspberry Pi camera preview embedded in the UI"""
+        """Start the Raspberry Pi camera preview embedded in the UI (OLD - uses rpicam-vid)"""
         if self.camera_process is not None:
             print("⚠️ Camera is already running")
             return
@@ -1635,16 +1842,20 @@ qInstallMessageHandler(handler)
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
 
+    # Create QML engine
+    engine = QQmlApplicationEngine()
+
+    # Create frame provider for high-FPS preview
+    frame_provider = FrameProvider()
+    engine.addImageProvider("frame", frame_provider)
+
     # Create managers
     settings_manager = SettingsManager()
-    camera_manager = CameraManager(settings_manager)
+    camera_manager = CameraManager(settings_manager, frame_provider)
     capture_manager = CaptureManager(settings_manager, camera_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
     history_manager = HistoryManager()
-
-    # Create QML engine
-    engine = QQmlApplicationEngine()
 
     # Expose managers to QML
     engine.rootContext().setContextProperty("cameraManager", camera_manager)
