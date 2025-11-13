@@ -428,13 +428,19 @@ class CaptureManager(QObject):
         print("✅ Capture stop requested (background thread will cleanup)")
 
     def _save_frame(self, filename, frame):
-        """Save frame to file, handling 3 or 4 channel images"""
+        """Save frame to file, handling all image formats (grayscale, RGB, RGBA)"""
         if len(frame.shape) == 3:
-            if frame.shape[2] == 4:
+            if frame.shape[2] == 1:
+                # Single channel (native Y) - squeeze to 2D
+                cv2.imwrite(filename, frame[:, :, 0])
+            elif frame.shape[2] == 4:
+                # 4-channel (RGBA/BGRA) - convert to BGR
                 cv2.imwrite(filename, cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR))
-            else:
+            elif frame.shape[2] == 3:
+                # 3-channel (RGB) - convert to BGR
                 cv2.imwrite(filename, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         else:
+            # Already 2D grayscale
             cv2.imwrite(filename, frame)
 
     def _detect_ball(self, frame):
@@ -458,20 +464,23 @@ class CaptureManager(QObject):
         # Python fallback - OPTIMIZED for OV9281 monochrome camera
         # Works on both color and grayscale cameras
 
-        # Convert to grayscale (handles RGB, RGBA/XBGR, and monochrome input)
+        # Convert to grayscale (handles all formats: native Y, RGB, RGBA/XBGR)
         if len(frame.shape) == 3:
-            if frame.shape[2] == 4:
-                # 4-channel (XBGR8888) - convert to BGR first, then grayscale
+            if frame.shape[2] == 1:
+                # Single channel (native Y format from OV9281) - squeeze to 2D
+                gray = frame[:, :, 0]
+            elif frame.shape[2] == 4:
+                # 4-channel (XBGR8888) - convert to grayscale
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
             elif frame.shape[2] == 3:
                 # 3-channel RGB
                 gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
             else:
-                raise ValueError(f"Unexpected image format. Expected 3 or 4 channels, got {frame.shape[2]}")
+                raise ValueError(f"Unexpected image format. Expected 1, 3, or 4 channels, got {frame.shape[2]}")
         elif len(frame.shape) == 2:
-            gray = frame  # Already grayscale (OV9281 native)
+            gray = frame  # Already grayscale (H,W)
         else:
-            raise ValueError(f"Unexpected image format. Expected (H,W), (H,W,3), or (H,W,4), got shape {frame.shape}")
+            raise ValueError(f"Unexpected image format. Expected (H,W), (H,W,1), (H,W,3), or (H,W,4), got shape {frame.shape}")
 
         # === CLAHE PREPROCESSING (PiTrac-style) ===
         # Enhance contrast for better ball detection in varying lighting
@@ -637,14 +646,16 @@ class CaptureManager(QObject):
         - motion_state: "STATIONARY", "MOVING", or "IMPACT"
         """
 
-        # Convert to grayscale (handle 3 or 4 channel images)
+        # Convert to grayscale (handle all formats)
         if len(frame.shape) == 3:
-            if frame.shape[2] == 4:
+            if frame.shape[2] == 1:
+                gray = frame[:, :, 0]  # Native Y format - squeeze to 2D
+            elif frame.shape[2] == 4:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
-            else:
+            elif frame.shape[2] == 3:
                 gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         else:
-            gray = frame
+            gray = frame  # Already grayscale
 
         # First pass: Detect potential balls using traditional method
         ball = self._detect_ball(frame)
@@ -652,14 +663,16 @@ class CaptureManager(QObject):
         if ball is None or prev_frame is None:
             return (ball, 0, "UNKNOWN")
 
-        # Convert previous frame to grayscale (handle 3 or 4 channel images)
+        # Convert previous frame to grayscale (handle all formats)
         if len(prev_frame.shape) == 3:
-            if prev_frame.shape[2] == 4:
+            if prev_frame.shape[2] == 1:
+                prev_gray = prev_frame[:, :, 0]  # Native Y format - squeeze to 2D
+            elif prev_frame.shape[2] == 4:
                 prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGRA2GRAY)
-            else:
+            elif prev_frame.shape[2] == 3:
                 prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY)
         else:
-            prev_gray = prev_frame
+            prev_gray = prev_frame  # Already grayscale
 
         # === OPTICAL FLOW - Track motion between frames ===
         try:
@@ -812,10 +825,10 @@ class CaptureManager(QObject):
                         time.sleep(2)  # Wait longer between retries
 
                     self.picam2 = Picamera2()
-                    # FORCE exact diagnostic configuration (100% detection rate)
-                    # NOTE: Do NOT set AeEnable - diagnostic doesn't set it and it works
+                    # Use native monochrome format - OV9281 outputs Y (grayscale)
+                    # RGB888 conversion is broken/slow, causing black images and FPS drop
                     config = self.picam2.create_video_configuration(
-                        main={"size": (640, 480), "format": "RGB888"},
+                        main={"size": (640, 480)},  # Let camera use native Y format
                         controls={
                             "FrameRate": frame_rate,
                             "ExposureTime": shutter_speed,
@@ -824,7 +837,15 @@ class CaptureManager(QObject):
                     )
                     self.picam2.configure(config)
                     self.picam2.start()
+
+                    # Extended warmup - let camera stabilize and discard first frames
+                    print("   Warming up camera (5 seconds)...", flush=True)
                     time.sleep(2)
+                    # Capture and discard first 10 frames (often dark/unstable)
+                    for i in range(10):
+                        _ = self.picam2.capture_array()
+                        time.sleep(0.05)
+                    print("   Camera warmed up", flush=True)
                     camera_initialized = True
                     print("✅ Camera initialized successfully", flush=True)
                     break
@@ -859,14 +880,16 @@ class CaptureManager(QObject):
                 print(f"   ✅ Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
             else:
                 print(f"   ❌ No ball detected on first frame", flush=True)
-                # Save debug images (handle 3 or 4 channel)
+                # Save debug images (handle all formats)
                 if len(first_frame.shape) == 3:
-                    if first_frame.shape[2] == 4:
+                    if first_frame.shape[2] == 1:
+                        gray = first_frame[:, :, 0]  # Native Y - squeeze to 2D
+                    elif first_frame.shape[2] == 4:
                         gray = cv2.cvtColor(first_frame, cv2.COLOR_BGRA2GRAY)
-                    else:
+                    elif first_frame.shape[2] == 3:
                         gray = cv2.cvtColor(first_frame, cv2.COLOR_RGB2GRAY)
                 else:
-                    gray = first_frame
+                    gray = first_frame  # Already 2D grayscale
                 cv2.imwrite("capture_gray.jpg", gray)
                 clahe = cv2.createCLAHE(clipLimit=6.0, tileGridSize=(6, 6))
                 enhanced = clahe.apply(gray)
@@ -915,8 +938,19 @@ class CaptureManager(QObject):
                     fps_counter = 0
                     fps_start_time = time.time()
 
-                # Create visualization frame
-                vis_frame = frame.copy()
+                # Create visualization frame (convert grayscale to BGR for colored annotations)
+                if len(frame.shape) == 2:
+                    # 2D grayscale - convert to BGR for colored circles/text
+                    vis_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+                elif len(frame.shape) == 3 and frame.shape[2] == 1:
+                    # 1-channel 3D grayscale - convert to BGR
+                    vis_frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2BGR)
+                elif len(frame.shape) == 3 and frame.shape[2] == 3:
+                    # RGB - convert to BGR for cv2
+                    vis_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_RGB2BGR)
+                else:
+                    # Already BGR or other format
+                    vis_frame = frame.copy()
 
                 # === EDGE VELOCITY TRACKING ===
                 # Detect ball with motion analysis
