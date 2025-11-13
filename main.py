@@ -497,29 +497,41 @@ class CameraManager(QObject):
                 # Generate recommendation
                 recommendation = ""
 
-                if actual_fps < fps * 0.7:
-                    recommendation += f"⚠️ Only achieving {actual_fps:.0f} FPS (target: {fps})\n"
-                    recommendation += "• Reduce FPS or increase shutter speed\n"
-                else:
+                # FPS Analysis
+                if actual_fps >= 42:
                     recommendation += f"✓ Good FPS: {actual_fps:.0f} FPS\n"
+                    recommendation += "NOTE: ~45 FPS is the practical maximum\n"
+                    recommendation += "with this resolution due to Pi ISP limits.\n"
+                else:
+                    recommendation += f"⚠️ Low FPS: {actual_fps:.0f} FPS\n"
+                    recommendation += "• System struggling - reduce load\n"
 
+                # Brightness Analysis
                 if avg_brightness < 20:
-                    recommendation += "⚠️ Image too dark\n"
+                    recommendation += "\n⚠️ Image too dark\n"
                     recommendation += "• Increase gain or shutter speed\n"
                     recommendation += "• Add more lighting\n"
                 elif avg_brightness > 80:
-                    recommendation += "⚠️ Image too bright\n"
+                    recommendation += "\n⚠️ Image too bright\n"
                     recommendation += "• Decrease gain or shutter speed\n"
                 else:
-                    recommendation += f"✓ Good brightness: {avg_brightness:.0f}%\n"
+                    recommendation += f"\n✓ Good brightness: {avg_brightness:.0f}%\n"
 
-                # Optimal settings recommendation
-                if avg_brightness < 30 and actual_fps >= fps * 0.9:
-                    recommendation += "\n💡 Try: Gain +1.0 for better brightness"
-                elif avg_brightness < 20:
-                    recommendation += "\n💡 Try: Shutter +2000µs OR Gain +2.0"
+                # Specific recommendations
+                if avg_brightness < 30:
+                    recommendation += "\n💡 For indoor: Try Gain 7.0x, Shutter 12ms"
+                elif avg_brightness > 60:
+                    recommendation += "\n💡 For bright conditions: Gain 3.0x, Shutter 5ms"
+
+                # Reality check
+                if actual_fps < 40:
+                    recommendation += "\n\n⚠️ PERFORMANCE ISSUE:"
+                    recommendation += "\n• Close other programs"
+                    recommendation += "\n• Reduce system load"
+                    recommendation += "\n• Check CPU temperature"
 
                 print(f"✅ Test complete: {actual_fps:.1f} FPS, {avg_brightness:.1f}% brightness")
+                print(f"   NOTE: RPi ISP limits 640x480 to ~45 FPS max")
                 self.testResults.emit(actual_fps, avg_brightness, recommendation)
 
             except Exception as e:
