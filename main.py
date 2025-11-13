@@ -446,13 +446,14 @@ class CaptureManager(QObject):
         Uses fast C++ implementation if available (3-5x speedup),
         otherwise falls back to Python version.
         """
-        # Use fast C++ detection if available
-        if FAST_DETECTION_AVAILABLE:
-            result = fast_detection.detect_ball(frame)
-            if result is not None:
-                # C++ returns tuple (x, y, radius)
-                return np.array([result[0], result[1], result[2]], dtype=np.uint16)
-            return None
+        # Disable C++ detection for now - doesn't support 4-channel XBGR8888 format
+        # Will re-enable after updating C++ module to handle 4-channel images
+        # if FAST_DETECTION_AVAILABLE:
+        #     result = fast_detection.detect_ball(frame)
+        #     if result is not None:
+        #         # C++ returns tuple (x, y, radius)
+        #         return np.array([result[0], result[1], result[2]], dtype=np.uint16)
+        #     return None
 
         # Python fallback - OPTIMIZED for OV9281 monochrome camera
         # Works on both color and grayscale cameras
@@ -811,9 +812,9 @@ class CaptureManager(QObject):
                         time.sleep(2)  # Wait longer between retries
 
                     self.picam2 = Picamera2()
-                    # Use native format for monochrome sensor
+                    # FORCE RGB888 format - same as diagnostic (100% detection rate)
                     config = self.picam2.create_video_configuration(
-                        main={"size": (640, 480)},  # Let camera use native format
+                        main={"size": (640, 480), "format": "RGB888"},
                         controls={
                             "FrameRate": frame_rate,
                             "ExposureTime": shutter_speed,
