@@ -747,10 +747,10 @@ class CaptureManager(QObject):
 
         return distance
 
-    def _is_same_ball(self, ball1, ball2, radius_tolerance=0.5):
+    def _is_same_ball(self, ball1, ball2, radius_tolerance=0.6):
         """Check if two detections are the same ball based on position and radius
 
-        Uses relaxed radius tolerance (50%) because HoughCircles can vary
+        Uses relaxed radius tolerance (60%) because HoughCircles can vary
         the detected radius significantly due to ball dimples and lighting.
         """
         if ball1 is None or ball2 is None:
@@ -919,10 +919,9 @@ class CaptureManager(QObject):
             fps_start_time = time.time()
             current_fps = 0
 
-            # Debug frame saving (saves every 10 frames to avoid file spam)
+            # Debug frame saving (saves periodically for diagnostics)
             debug_frame_counter = 0
             print("📺 Edge Velocity Tracking enabled - Motion-based ball detection", flush=True)
-            print("📺 Debug mode: Saving detection frames to debug_detection_*.jpg every 1 second", flush=True)
 
             # Edge velocity tracking state
             prev_frame_for_motion = None
@@ -1004,18 +1003,24 @@ class CaptureManager(QObject):
                         if prev_ball is not None:
                             if not self._is_same_ball(prev_ball, smoothed_ball):
                                 # Radius changed too much, probably different object
-                                print(f"⚠️ Radius inconsistency during lock - resetting")
+                                print(f"⚠️ Radius changed: {prev_ball[2]}px → {smoothed_ball[2]}px - resetting ({stable_frames} frames)")
                                 stable_frames = 0
                                 prev_ball = None
                                 radius_history.clear()  # Reset radius smoothing
                                 continue
-                            elif self._ball_has_moved(prev_ball, current_ball, threshold=10):
-                                # Ball moved too much, reset stability counter
+                            elif self._ball_has_moved(prev_ball, current_ball, threshold=15):
+                                # Ball moved too much, reset stability counter (relaxed to 15px threshold)
+                                dx = abs(current_ball[0] - prev_ball[0])
+                                dy = abs(current_ball[1] - prev_ball[1])
+                                print(f"⚠️ Ball moved: dx={dx}px, dy={dy}px - resetting ({stable_frames} frames)")
                                 stable_frames = 0
                             else:
                                 stable_frames += 1
+                                if stable_frames <= 3:  # Only print first few frames
+                                    print(f"✓ Stable frame {stable_frames}/3 - Ball at ({x}, {y}) r={r}px")
                         else:
                             stable_frames += 1
+                            print(f"✓ First stable frame - Ball at ({x}, {y}) r={r}px")
 
                         prev_ball = smoothed_ball  # Use smoothed radius for consistency
 
@@ -1299,16 +1304,16 @@ class CaptureManager(QObject):
                     cv2.putText(vis_frame, f"Stable: {stable_frames}/5", (10, info_y + 50),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
-                # Save debug frame every ~1 second (based on frame rate)
+                # Save debug frame every ~5 seconds (based on frame rate)
                 debug_frame_counter += 1
-                if debug_frame_counter % max(frame_rate, 10) == 0:  # Every 1 second
+                if debug_frame_counter % (frame_rate * 5) == 0:  # Every 5 seconds
                     self._save_frame("debug_detection_latest.jpg", vis_frame)
-                    # Print detection info every second with velocity tracking
+                    # Print detection info periodically
                     if current_ball is not None:
                         lock_status = 'LOCKED' if original_ball is not None else 'Detecting'
-                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | Velocity: {velocity:.1f}px/f | Motion: {motion_state} | Stable: {stable_frames}/5 | {lock_status}", flush=True)
+                        print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status}", flush=True)
                     else:
-                        print(f"📊 FPS: {current_fps} | Status: No Ball Detected", flush=True)
+                        print(f"📊 FPS: {current_fps} | No Ball", flush=True)
 
                 # Adaptive sleep to maintain target frame rate
                 loop_elapsed_time = time.time() - loop_start_time
