@@ -878,8 +878,10 @@ class CaptureManager(QObject):
             test_ball = self._detect_ball(first_frame)
             if test_ball is not None:
                 print(f"   ✅ Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
+                self.statusChanged.emit("Ball found - Locking on...", "yellow")
             else:
                 print(f"   ❌ No ball detected on first frame", flush=True)
+                self.statusChanged.emit("No Ball Detected", "red")
                 # Save debug images (handle all formats)
                 if len(first_frame.shape) == 3:
                     if first_frame.shape[2] == 1:
@@ -1017,7 +1019,7 @@ class CaptureManager(QObject):
 
                         prev_ball = smoothed_ball  # Use smoothed radius for consistency
 
-                        if stable_frames >= 5:  # Only 5 stable frames needed for ULTRA-FAST locking
+                        if stable_frames >= 3:  # Only 3 stable frames needed for ULTRA-FAST locking (50ms @ 60fps)
                             original_ball = smoothed_ball
                             self.statusChanged.emit("Ready - Hit Ball!", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
