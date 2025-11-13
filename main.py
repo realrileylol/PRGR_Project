@@ -64,16 +64,17 @@ class CameraManager(QObject):
             return
 
         # Load camera settings from SettingsManager
-        shutter_speed = 8500
-        gain = 5.0
+        # OPTIMIZED: 45 FPS matches Pi ISP hardware limit (prevents lag)
+        shutter_speed = 10000  # 10ms for indoor lighting
+        gain = 6.0             # Higher gain for indoor
         ev_compensation = 0.0
-        frame_rate = 60
+        frame_rate = 45        # Match Pi ISP hardware limit
 
         if self.settings_manager:
-            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
-            gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
+            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 10000)
+            gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
             ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
-            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
             time_of_day = self.settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
             print(f"📷 Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f} | FPS: {frame_rate}")
 
@@ -164,16 +165,16 @@ class CameraManager(QObject):
                 print("❌ Camera not available - cannot take snapshot")
                 return
 
-            # Load camera settings
-            shutter_speed = 8500
-            gain = 5.0
-            frame_rate = 60
+            # Load camera settings - optimized for Pi ISP limit + indoor
+            shutter_speed = 10000  # 10ms for indoor
+            gain = 6.0             # Higher gain for brightness
+            frame_rate = 45        # Match hardware limit
             ev_compensation = 0.0
 
             if self.settings_manager:
-                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
-                gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
-                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 10000)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
                 ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
 
             # Stop camera preview if running (to release camera)
@@ -254,15 +255,15 @@ class CameraManager(QObject):
         preview_was_running = self.camera_process is not None
 
         try:
-            # Load camera settings
-            shutter_speed = 8500
-            gain = 5.0
-            frame_rate = 60
+            # Load camera settings - optimized for Pi ISP limit + indoor
+            shutter_speed = 10000  # 10ms for indoor
+            gain = 6.0             # Higher gain for brightness
+            frame_rate = 45        # Match hardware limit
 
             if self.settings_manager:
-                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
-                gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
-                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 10000)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
 
             # Write metadata
             with open(metadata_path, 'w') as f:
@@ -365,15 +366,15 @@ class CameraManager(QObject):
         filepath = os.path.join(videos_folder, filename)
         self.current_recording_path = filepath
 
-        # Load camera settings
-        shutter_speed = 8500
-        gain = 5.0
-        frame_rate = 60
+        # Load camera settings - optimized for Pi ISP limit + indoor
+        shutter_speed = 10000  # 10ms for indoor
+        gain = 6.0             # Higher gain for brightness
+        frame_rate = 45        # Match hardware limit
 
         if self.settings_manager:
-            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
-            gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
-            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
+            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 10000)
+            gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
 
         try:
             print(f"🎬 Starting video recording: {filename}")
@@ -1016,10 +1017,10 @@ class CaptureManager(QObject):
                 next_shot = 0
 
             # Load camera settings
-            # Optimized settings for hit detection
-            shutter_speed = 8500  # 8.5ms exposure for motion clarity
-            gain = 5.0  # 5x gain for brightness
-            frame_rate = 60  # 60 FPS for smooth tracking
+            # Optimized for Pi ISP limit (45 FPS max) + indoor lighting
+            shutter_speed = 10000  # 10ms for indoor brightness
+            gain = 6.0             # Higher gain for better visibility
+            frame_rate = 45        # Match Pi hardware limit (prevents lag)
 
             print(f"📷 Using optimized settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
