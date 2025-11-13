@@ -809,10 +809,10 @@ class CaptureManager(QObject):
                 next_shot = 0
 
             # Load camera settings
-            # FORCE settings that work in diagnostic (100% detection rate)
-            shutter_speed = 1500  # Same as diagnostic
-            gain = 8.0  # Same as diagnostic
-            frame_rate = 100  # Same as diagnostic
+            # Optimized settings for ball detection
+            shutter_speed = 8500  # 8.5ms exposure
+            gain = 5.0  # Analog gain
+            frame_rate = 60  # FPS
 
             print(f"📷 Using diagnostic settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
