@@ -427,6 +427,16 @@ class CaptureManager(QObject):
         self.statusChanged.emit("Stopped", "gray")
         print("✅ Capture stop requested (background thread will cleanup)")
 
+    def _save_frame(self, filename, frame):
+        """Save frame to file, handling 3 or 4 channel images"""
+        if len(frame.shape) == 3:
+            if frame.shape[2] == 4:
+                cv2.imwrite(filename, cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR))
+            else:
+                cv2.imwrite(filename, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        else:
+            cv2.imwrite(filename, frame)
+
     def _detect_ball(self, frame):
         """Detect golf ball in frame using color-filtered circle detection
 
@@ -447,11 +457,20 @@ class CaptureManager(QObject):
         # Python fallback - OPTIMIZED for OV9281 monochrome camera
         # Works on both color and grayscale cameras
 
-        # Convert to grayscale (handles both color RGB and monochrome input)
+        # Convert to grayscale (handles RGB, RGBA/XBGR, and monochrome input)
         if len(frame.shape) == 3:
-            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            if frame.shape[2] == 4:
+                # 4-channel (XBGR8888) - convert to BGR first, then grayscale
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+            elif frame.shape[2] == 3:
+                # 3-channel RGB
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            else:
+                raise ValueError(f"Unexpected image format. Expected 3 or 4 channels, got {frame.shape[2]}")
+        elif len(frame.shape) == 2:
+            gray = frame  # Already grayscale (OV9281 native)
         else:
-            gray = frame  # Already grayscale (OV9281)
+            raise ValueError(f"Unexpected image format. Expected (H,W), (H,W,3), or (H,W,4), got shape {frame.shape}")
 
         # === CLAHE PREPROCESSING (PiTrac-style) ===
         # Enhance contrast for better ball detection in varying lighting
@@ -617,9 +636,12 @@ class CaptureManager(QObject):
         - motion_state: "STATIONARY", "MOVING", or "IMPACT"
         """
 
-        # Convert to grayscale
+        # Convert to grayscale (handle 3 or 4 channel images)
         if len(frame.shape) == 3:
-            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            if frame.shape[2] == 4:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+            else:
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         else:
             gray = frame
 
@@ -629,9 +651,12 @@ class CaptureManager(QObject):
         if ball is None or prev_frame is None:
             return (ball, 0, "UNKNOWN")
 
-        # Convert previous frame to grayscale
+        # Convert previous frame to grayscale (handle 3 or 4 channel images)
         if len(prev_frame.shape) == 3:
-            prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY)
+            if prev_frame.shape[2] == 4:
+                prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGRA2GRAY)
+            else:
+                prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY)
         else:
             prev_gray = prev_frame
 
@@ -819,7 +844,10 @@ class CaptureManager(QObject):
             # === IMMEDIATE DEBUG - Save first frame to see what camera is capturing ===
             print("🔍 Capturing first frame for diagnosis...", flush=True)
             first_frame = self.picam2.capture_array()
-            cv2.imwrite("capture_first_frame.jpg", cv2.cvtColor(first_frame, cv2.COLOR_RGB2BGR))
+
+            # Save first frame for diagnosis
+            self._save_frame("capture_first_frame.jpg", first_frame)
+
             print(f"   Frame shape: {first_frame.shape}", flush=True)
             print(f"   Frame dtype: {first_frame.dtype}", flush=True)
             print(f"   Frame min/max: {first_frame.min()}/{first_frame.max()}", flush=True)
@@ -830,9 +858,12 @@ class CaptureManager(QObject):
                 print(f"   ✅ Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
             else:
                 print(f"   ❌ No ball detected on first frame", flush=True)
-                # Save debug images
+                # Save debug images (handle 3 or 4 channel)
                 if len(first_frame.shape) == 3:
-                    gray = cv2.cvtColor(first_frame, cv2.COLOR_RGB2GRAY)
+                    if first_frame.shape[2] == 4:
+                        gray = cv2.cvtColor(first_frame, cv2.COLOR_BGRA2GRAY)
+                    else:
+                        gray = cv2.cvtColor(first_frame, cv2.COLOR_RGB2GRAY)
                 else:
                     gray = first_frame
                 cv2.imwrite("capture_gray.jpg", gray)
@@ -995,7 +1026,7 @@ class CaptureManager(QObject):
                             for i, save_frame in enumerate(frames):
                                 filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
                                 filepath = os.path.join(captures_folder, filename)
-                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                                self._save_frame(filepath, save_frame)
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
@@ -1039,7 +1070,7 @@ class CaptureManager(QObject):
                             for i, save_frame in enumerate(frames):
                                 filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
                                 filepath = os.path.join(captures_folder, filename)
-                                cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                                self._save_frame(filepath, save_frame)
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
@@ -1234,8 +1265,7 @@ class CaptureManager(QObject):
                 # Save debug frame every ~1 second (based on frame rate)
                 debug_frame_counter += 1
                 if debug_frame_counter % max(frame_rate, 10) == 0:  # Every 1 second
-                    debug_filename = "debug_detection_latest.jpg"
-                    cv2.imwrite(debug_filename, cv2.cvtColor(vis_frame, cv2.COLOR_RGB2BGR))
+                    self._save_frame("debug_detection_latest.jpg", vis_frame)
                     # Print detection info every second with velocity tracking
                     if current_ball is not None:
                         lock_status = 'LOCKED' if original_ball is not None else 'Detecting'
