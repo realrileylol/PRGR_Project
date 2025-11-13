@@ -58,16 +58,16 @@ class CameraManager(QObject):
             return
 
         # Load camera settings from SettingsManager
-        shutter_speed = 5000
-        gain = 2.0
+        shutter_speed = 8500
+        gain = 5.0
         ev_compensation = 0.0
-        frame_rate = 30
+        frame_rate = 60
 
         if self.settings_manager:
-            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
-            gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
+            shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
+            gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
             ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
-            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+            frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
             time_of_day = self.settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
             print(f"📷 Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f} | FPS: {frame_rate}")
 
@@ -159,15 +159,15 @@ class CameraManager(QObject):
                 return
 
             # Load camera settings
-            shutter_speed = 5000
-            gain = 2.0
-            frame_rate = 30
+            shutter_speed = 8500
+            gain = 5.0
+            frame_rate = 60
             ev_compensation = 0.0
 
             if self.settings_manager:
-                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
-                gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
-                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
                 ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
 
             # Stop camera preview if running (to release camera)
@@ -249,14 +249,14 @@ class CameraManager(QObject):
 
         try:
             # Load camera settings
-            shutter_speed = 5000
-            gain = 2.0
-            frame_rate = 30
+            shutter_speed = 8500
+            gain = 5.0
+            frame_rate = 60
 
             if self.settings_manager:
-                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 5000)
-                gain = float(self.settings_manager.getNumber("cameraGain") or 2.0)
-                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 30)
+                shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
+                gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
+                frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 60)
 
             # Write metadata
             with open(metadata_path, 'w') as f:
