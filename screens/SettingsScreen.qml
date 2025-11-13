@@ -578,6 +578,72 @@ Item {
                         }
                     }
 
+                    // CAMERA PERFORMANCE TEST
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 100
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 5
+
+                                Text {
+                                    text: "Camera Performance Test"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: text
+                                }
+
+                                Text {
+                                    text: "Test FPS, find optimal indoor/outdoor settings"
+                                    font.pixelSize: 13
+                                    color: hint
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            Button {
+                                text: "Test"
+                                implicitWidth: 90
+                                implicitHeight: 50
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2D9A4F" : success
+                                    radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    stack.push(Qt.resolvedUrl("CameraTestScreen.qml"), { win: win })
+                                }
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }

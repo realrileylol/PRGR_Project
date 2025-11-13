@@ -44,6 +44,7 @@ class CameraManager(QObject):
     snapshotSaved = Signal(str)  # Signal emitted when snapshot is saved (with filename)
     trainingModeProgress = Signal(int, int)  # Signal (current_count, total_count) for training progress
     recordingSaved = Signal(str)  # Signal emitted when recording is saved (with filename)
+    testResults = Signal(float, float, str)  # Signal (actual_fps, brightness, recommendation)
 
     def __init__(self, settings_manager=None):
         super().__init__()
@@ -432,6 +433,103 @@ class CameraManager(QObject):
             self.is_recording = False
             self.recording_process = None
             self.current_recording_path = None
+
+    @Slot(int, int, float)
+    def testCameraSettings(self, fps, shutter, gain):
+        """Test camera performance with given settings"""
+        if not CAMERA_AVAILABLE:
+            self.testResults.emit(0, 0, "Camera not available on this system")
+            return
+
+        def run_test():
+            try:
+                print(f"🧪 Testing camera: {fps} FPS, {shutter}µs shutter, {gain}x gain")
+
+                from picamera2 import Picamera2
+                picam2 = Picamera2()
+
+                config = picam2.create_video_configuration(
+                    main={"size": (640, 480)},
+                    controls={
+                        "FrameRate": fps,
+                        "ExposureTime": shutter,
+                        "AnalogueGain": gain
+                    }
+                )
+                picam2.configure(config)
+                picam2.start()
+                time.sleep(1)  # Warmup
+
+                # Measure actual FPS over 5 seconds
+                frame_times = []
+                brightness_values = []
+                start_time = time.time()
+                last_time = start_time
+
+                while time.time() - start_time < 5.0:
+                    frame = picam2.capture_array()
+                    current_time = time.time()
+
+                    # Record frame timing
+                    frame_times.append(current_time - last_time)
+                    last_time = current_time
+
+                    # Measure brightness
+                    if len(frame.shape) == 3:
+                        if frame.shape[2] == 1:
+                            gray = frame[:, :, 0]
+                        elif frame.shape[2] == 4:
+                            gray = np.mean(frame[:, :, :3], axis=2)
+                        else:
+                            gray = np.mean(frame, axis=2)
+                    else:
+                        gray = frame
+
+                    brightness_values.append(np.mean(gray))
+
+                picam2.stop()
+                picam2.close()
+
+                # Calculate results
+                actual_fps = len(frame_times) / 5.0
+                avg_brightness = np.mean(brightness_values) / 255.0 * 100  # As percentage
+
+                # Generate recommendation
+                recommendation = ""
+
+                if actual_fps < fps * 0.7:
+                    recommendation += f"⚠️ Only achieving {actual_fps:.0f} FPS (target: {fps})\n"
+                    recommendation += "• Reduce FPS or increase shutter speed\n"
+                else:
+                    recommendation += f"✓ Good FPS: {actual_fps:.0f} FPS\n"
+
+                if avg_brightness < 20:
+                    recommendation += "⚠️ Image too dark\n"
+                    recommendation += "• Increase gain or shutter speed\n"
+                    recommendation += "• Add more lighting\n"
+                elif avg_brightness > 80:
+                    recommendation += "⚠️ Image too bright\n"
+                    recommendation += "• Decrease gain or shutter speed\n"
+                else:
+                    recommendation += f"✓ Good brightness: {avg_brightness:.0f}%\n"
+
+                # Optimal settings recommendation
+                if avg_brightness < 30 and actual_fps >= fps * 0.9:
+                    recommendation += "\n💡 Try: Gain +1.0 for better brightness"
+                elif avg_brightness < 20:
+                    recommendation += "\n💡 Try: Shutter +2000µs OR Gain +2.0"
+
+                print(f"✅ Test complete: {actual_fps:.1f} FPS, {avg_brightness:.1f}% brightness")
+                self.testResults.emit(actual_fps, avg_brightness, recommendation)
+
+            except Exception as e:
+                error_msg = f"Test failed: {str(e)}\n\nMake sure camera is not in use by another process."
+                print(f"❌ {error_msg}")
+                self.testResults.emit(0, 0, error_msg)
+
+        # Run test in background thread
+        test_thread = threading.Thread(target=run_test, daemon=True)
+        test_thread.start()
 
     def __del__(self):
         """Cleanup on destruction"""
