@@ -1017,12 +1017,13 @@ class CaptureManager(QObject):
                 next_shot = 0
 
             # Load camera settings
-            # Optimized for Pi ISP limit (45 FPS max) + indoor lighting
-            shutter_speed = 10000  # 10ms for indoor brightness
-            gain = 6.0             # Higher gain for better visibility
-            frame_rate = 45        # Match Pi hardware limit (prevents lag)
+            # Capture mode: Direct sensor access (no ISP display conversion)
+            # Camera sensor can do 100 FPS - ISP limit only affects preview/recording
+            shutter_speed = 1500   # 1.5ms for fast capture
+            gain = 8.0             # High gain for brightness at fast shutter
+            frame_rate = 100       # Full sensor speed for ball tracking
 
-            print(f"📷 Using optimized settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"📷 Using high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
             # Force cleanup of any lingering camera instances
             try:
