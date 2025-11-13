@@ -381,18 +381,11 @@ class CaptureManager(QObject):
             print("⚠️ Capture already running")
             return
 
-        # Wait for previous capture to fully stop (if stopping)
+        # Safety check - stopCapture should have cleared these
         if self._stopping or self.capture_thread is not None:
-            print("⏳ Waiting for previous capture to finish...")
-            wait_count = 0
-            while (self._stopping or self.capture_thread is not None) and wait_count < 20:
-                time.sleep(0.2)  # Wait up to 4 seconds total
-                wait_count += 1
-
-            if self._stopping:
-                print("⚠️ Previous capture still stopping - please try again")
-                self.errorOccurred.emit("Previous capture still stopping - please wait")
-                return
+            print("⚠️ Previous capture cleanup incomplete - forcing reset")
+            self._stopping = False
+            self.capture_thread = None
 
         # Stop camera preview if it's running
         if self.camera_manager:
@@ -407,7 +400,7 @@ class CaptureManager(QObject):
 
     @Slot()
     def stopCapture(self):
-        """Stop the capture process (non-blocking)"""
+        """Stop the capture process and wait for cleanup"""
         print("🛑 Stopping capture...")
         self._stopping = True
         self.is_running = False
@@ -421,11 +414,21 @@ class CaptureManager(QObject):
                 print(f"   Warning stopping camera: {e}")
             self.picam2 = None
 
-        # Don't block GUI thread with join() - thread will exit naturally
-        # The background thread's finally block will handle cleanup
+        # Wait for background thread to finish (with timeout)
+        if self.capture_thread is not None:
+            print("   Waiting for capture thread to finish...")
+            self.capture_thread.join(timeout=2.0)  # Wait up to 2 seconds
+            if self.capture_thread.is_alive():
+                print("   ⚠️ Thread still running after timeout (will exit naturally)")
+            else:
+                print("   ✅ Thread finished")
+            self.capture_thread = None
+
+        # Clear stopping flag immediately after cleanup attempt
+        self._stopping = False
 
         self.statusChanged.emit("Stopped", "gray")
-        print("✅ Capture stop requested (background thread will cleanup)")
+        print("✅ Capture stopped")
 
     def _save_frame(self, filename, frame):
         """Save frame to file, handling all image formats (grayscale, RGB, RGBA)"""
