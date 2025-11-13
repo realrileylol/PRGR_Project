@@ -812,14 +812,14 @@ class CaptureManager(QObject):
                         time.sleep(2)  # Wait longer between retries
 
                     self.picam2 = Picamera2()
-                    # FORCE RGB888 format - same as diagnostic (100% detection rate)
+                    # FORCE exact diagnostic configuration (100% detection rate)
+                    # NOTE: Do NOT set AeEnable - diagnostic doesn't set it and it works
                     config = self.picam2.create_video_configuration(
                         main={"size": (640, 480), "format": "RGB888"},
                         controls={
                             "FrameRate": frame_rate,
                             "ExposureTime": shutter_speed,
-                            "AnalogueGain": gain,
-                            "AeEnable": False  # Disable auto-exposure (use manual settings)
+                            "AnalogueGain": gain
                         }
                     )
                     self.picam2.configure(config)
