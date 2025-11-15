@@ -1275,14 +1275,18 @@ class CaptureManager(QObject):
             base_duration = int(1000 / fps)  # ms per frame at original speed
             frame_duration = int(base_duration / speed_multiplier)  # Adjust for speed
 
-            print(f"   Frame duration: {frame_duration}ms (original: {base_duration}ms)")
+            # Create list of durations - one for each frame (ensures consistent timing)
+            durations = [frame_duration] * len(pil_frames)
 
-            # Save as animated GIF
+            print(f"   Frame duration: {frame_duration}ms per frame (original: {base_duration}ms)")
+            print(f"   Total frames: {len(pil_frames)} frames, each at {frame_duration}ms")
+
+            # Save as animated GIF with explicit duration for each frame
             pil_frames[0].save(
                 output_path,
                 save_all=True,
                 append_images=pil_frames[1:],
-                duration=frame_duration,
+                duration=durations,  # List of durations, one per frame
                 loop=0,  # Loop forever
                 optimize=False  # Don't optimize for faster creation
             )
