@@ -112,6 +112,7 @@ Item {
                     property int frameCounter: 0
                     Connections {
                         target: cameraManager
+                        enabled: cameraActive  // Only refresh when camera is active
                         function onFrameReady() {
                             // Force image reload by changing source slightly
                             cameraImage.frameCounter++
