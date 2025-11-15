@@ -1558,8 +1558,8 @@ class CaptureManager(QObject):
                         # Backswing/clubhead movement is slow (~20-30 px/frame = 4000-6000 px/sec @ 200fps)
                         # Ball hit is FAST (should be 60+ px/frame = 12000+ px/sec @ 200fps)
                         # Picking up/dropping ball is moderate (~40 px/frame = 8000 px/sec @ 200fps)
-                        # Set threshold at 20000 px/sec (~100 px/frame @ 200fps) to ignore hand movements
-                        velocity_threshold = 20000  # px/sec (approximately 100+ mph ball speed)
+                        # Set threshold at 15000 px/sec (~75 px/frame @ 200fps) to ignore hand movements
+                        velocity_threshold = 15000  # px/sec (approximately 75+ mph ball speed)
 
                         if velocity_px_per_sec > velocity_threshold:  # FAST movement = HIT!
                             # Ball is moving fast - this is a shot!
@@ -1624,7 +1624,7 @@ class CaptureManager(QObject):
                         # Even if radius doesn't match, check for rapid movement (velocity-based)
                         # Ball being hit can cause radius variation due to motion blur
                         # Use VERY high threshold since radius changed (more uncertainty)
-                        if velocity_px_per_sec > 25000:  # Very high threshold for mismatched radius (125 px/frame @ 200fps)
+                        if velocity_px_per_sec > 20000:  # Very high threshold for mismatched radius (100 px/frame @ 200fps)
                             print(f"🏌️ BALL HIT DETECTED (radius mismatch - motion blur)!")
                             print(f"   Velocity: {velocity_px_per_sec:.0f} px/sec ({displacement:.1f} px/frame)")
                             print(f"   Radius changed: {original_ball[2]}px → {current_ball[2]}px")
