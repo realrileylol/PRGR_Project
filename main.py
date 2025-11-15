@@ -64,36 +64,44 @@ class FrameProvider(QQuickImageProvider):
     def updateFrame(self, frame):
         """Update the frame from numpy array (called from capture thread)"""
         try:
+            # Make a copy of the frame to ensure data stays valid
+            frame_copy = frame.copy()
+
             # Convert numpy array to QImage
-            if len(frame.shape) == 2:
+            if len(frame_copy.shape) == 2:
                 # Grayscale (H, W)
-                height, width = frame.shape
+                height, width = frame_copy.shape
                 bytes_per_line = width
-                qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
-            elif len(frame.shape) == 3:
-                height, width, channels = frame.shape
+                # Use tobytes() to ensure data is copied
+                data = frame_copy.tobytes()
+                qimage = QImage(data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8).copy()
+            elif len(frame_copy.shape) == 3:
+                height, width, channels = frame_copy.shape
                 if channels == 1:
                     # Grayscale (H, W, 1) - squeeze to 2D
                     bytes_per_line = width
-                    qimage = QImage(frame[:, :, 0].data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
+                    data = frame_copy[:, :, 0].tobytes()
+                    qimage = QImage(data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8).copy()
                 elif channels == 3:
                     # RGB (H, W, 3)
                     bytes_per_line = width * 3
-                    qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+                    data = frame_copy.tobytes()
+                    qimage = QImage(data, width, height, bytes_per_line, QImage.Format.Format_RGB888).copy()
                 elif channels == 4:
                     # RGBA/XBGR (H, W, 4)
                     bytes_per_line = width * 4
-                    qimage = QImage(frame.data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
+                    data = frame_copy.tobytes()
+                    qimage = QImage(data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888).copy()
                 else:
                     print(f"❌ Unsupported channel count: {channels}")
                     return
             else:
-                print(f"❌ Unsupported frame shape: {frame.shape}")
+                print(f"❌ Unsupported frame shape: {frame_copy.shape}")
                 return
 
             # Convert to pixmap and store (thread-safe)
             with QMutexLocker(self.mutex):
-                self.pixmap = QPixmap.fromImage(qimage.copy())
+                self.pixmap = QPixmap.fromImage(qimage)
         except Exception as e:
             print(f"❌ Frame update error: {e}")
 
