@@ -1225,14 +1225,21 @@ class CaptureManager(QObject):
 
         return distance > hitbox_radius_px
 
-    def _create_replay_gif(self, frames, output_path, fps=60):
-        """Create animated GIF from captured frames (Snapchat-style replay)"""
+    def _create_replay_gif(self, frames, output_path, fps=60, speed_multiplier=0.5):
+        """Create animated GIF from captured frames (Snapchat-style replay)
+
+        Args:
+            frames: List of frames to convert to GIF
+            output_path: Path to save the GIF
+            fps: Original capture frame rate
+            speed_multiplier: Playback speed (0.5 = half speed, 1.0 = normal, 2.0 = double speed)
+        """
         if not GIF_AVAILABLE:
             print("⚠️ PIL not available - cannot create GIF")
             return None
 
         try:
-            print(f"🎬 Creating replay GIF with {len(frames)} frames...")
+            print(f"🎬 Creating replay GIF with {len(frames)} frames at {speed_multiplier}x speed...")
 
             # Convert frames to PIL Images
             pil_frames = []
@@ -1264,7 +1271,11 @@ class CaptureManager(QObject):
                 return None
 
             # Calculate frame duration in milliseconds
-            frame_duration = int(1000 / fps)  # ms per frame
+            # Slower speed = longer duration between frames
+            base_duration = int(1000 / fps)  # ms per frame at original speed
+            frame_duration = int(base_duration / speed_multiplier)  # Adjust for speed
+
+            print(f"   Frame duration: {frame_duration}ms (original: {base_duration}ms)")
 
             # Save as animated GIF
             pil_frames[0].save(
@@ -1409,7 +1420,7 @@ class CaptureManager(QObject):
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
-            frame_buffer = deque(maxlen=10)  # Circular buffer for 10 pre-impact frames
+            frame_buffer = deque(maxlen=15)  # Circular buffer for 15 pre-impact frames
 
             # Calculate target frame time for adaptive sleep
             target_frame_time = 1.0 / frame_rate
@@ -1553,18 +1564,18 @@ class CaptureManager(QObject):
                             print(f"   Threshold: {velocity_threshold} px/sec (backswing ignored)")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                            # Capture frames: 15 BEFORE impact (from buffer) + 15 AFTER impact
                             frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
                             print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
                             # Capture post-impact frames
                             frame_delay = 1.0 / frame_rate
-                            for i in range(10):
+                            for i in range(15):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (10 before + 10 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
                             # Save frames
                             for i, save_frame in enumerate(frames):
@@ -1575,12 +1586,12 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 5 before + 5 after)
-                            # Use middle 10 frames (skip first/last 5 of the 20 captured)
-                            replay_frames = frames[5:15]  # 5 frames before + 5 frames after impact
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                            # Use all 30 frames for smooth slow-motion replay
+                            replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1615,18 +1626,18 @@ class CaptureManager(QObject):
                             print(f"   Radius changed: {original_ball[2]}px → {current_ball[2]}px")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                            # Capture frames: 15 BEFORE impact (from buffer) + 15 AFTER impact
                             frames = list(frame_buffer)
                             print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
                             # Capture post-impact frames
                             frame_delay = 1.0 / frame_rate
-                            for i in range(10):
+                            for i in range(15):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (10 before + 10 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
                             # Save frames
                             for i, save_frame in enumerate(frames):
@@ -1637,11 +1648,11 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 5 before + 5 after)
-                            replay_frames = frames[5:15]  # 5 frames before + 5 frames after impact
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                            replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1730,18 +1741,18 @@ class CaptureManager(QObject):
                                     print(f"   Scene brightness: {int(mean_scene_brightness)} - camera not covered, valid shot")
                                     self.statusChanged.emit("Capturing...", "red")
 
-                                    # Capture frames: 5 BEFORE impact (from buffer) + 5 AFTER impact
+                                    # Capture frames: 15 BEFORE impact (from buffer) + 15 AFTER impact
                                     frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
                                     print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
                                     # Capture post-impact frames
                                     frame_delay = 1.0 / frame_rate
-                                    for i in range(5):
+                                    for i in range(15):
                                         capture_frame = self.picam2.capture_array()
                                         frames.append(capture_frame)
                                         time.sleep(frame_delay)
 
-                                    print(f"   📸 Total: {len(frames)} frames captured (5 before + 5 after impact)")
+                                    print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
                                     # Save frames
                                     for i, save_frame in enumerate(frames):
@@ -1752,17 +1763,12 @@ class CaptureManager(QObject):
                                     print(f"✅ Shot #{next_shot} saved!")
                                     self.shotCaptured.emit(next_shot)
 
-                                    # Create replay GIF (Snapchat-style: 5 before + 5 after)
-                                    # This path captures fewer frames (10 from buffer + 5 new = 15 total)
-                                    # Take middle 10 for consistent replay length
-                                    if len(frames) >= 10:
-                                        replay_frames = frames[-10:]  # Last 10 frames (closest to impact)
-                                    else:
-                                        replay_frames = frames  # Use all if fewer than 10
-
+                                    # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                                    # Use all 30 frames for smooth slow-motion replay
+                                    replay_frames = frames  # All frames (15 before + 15 after impact)
                                     gif_filename = f"shot_{next_shot:03d}_replay.gif"
                                     gif_path = os.path.join(captures_folder, gif_filename)
-                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate)
+                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                                     if gif_result:
                                         print(f"🎬 Replay GIF created: {gif_filename}")
