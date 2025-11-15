@@ -1541,10 +1541,10 @@ class CaptureManager(QObject):
                         velocity_px_per_sec = displacement * frame_rate
 
                         # VELOCITY-BASED HIT DETECTION
-                        # Backswing is slow (~10-15 px/frame = 2000-3000 px/sec @ 200fps)
-                        # Ball hit is FAST (should be 40+ px/frame = 8000+ px/sec @ 200fps)
-                        # Set threshold at 4000 px/sec (~20 px/frame @ 200fps) to ignore backswing
-                        velocity_threshold = 4000  # px/sec (approximately 20+ mph ball speed)
+                        # Backswing/clubhead movement is slow (~20-30 px/frame = 4000-6000 px/sec @ 200fps)
+                        # Ball hit is FAST (should be 60+ px/frame = 12000+ px/sec @ 200fps)
+                        # Set threshold at 10000 px/sec (~50 px/frame @ 200fps) to ignore backswing/clubhead
+                        velocity_threshold = 10000  # px/sec (approximately 50+ mph ball speed)
 
                         if velocity_px_per_sec > velocity_threshold:  # FAST movement = HIT!
                             # Ball is moving fast - this is a shot!
@@ -1605,8 +1605,8 @@ class CaptureManager(QObject):
 
                         # Even if radius doesn't match, check for rapid movement (velocity-based)
                         # Ball being hit can cause radius variation due to motion blur
-                        # Use higher threshold since radius changed (more uncertainty)
-                        if velocity_px_per_sec > 5000:  # Higher velocity threshold for mismatched radius
+                        # Use VERY high threshold since radius changed (more uncertainty)
+                        if velocity_px_per_sec > 12000:  # Very high threshold for mismatched radius (60 px/frame @ 200fps)
                             print(f"🏌️ BALL HIT DETECTED (radius mismatch - motion blur)!")
                             print(f"   Velocity: {velocity_px_per_sec:.0f} px/sec ({displacement:.1f} px/frame)")
                             print(f"   Radius changed: {original_ball[2]}px → {current_ball[2]}px")
