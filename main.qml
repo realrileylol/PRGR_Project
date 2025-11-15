@@ -346,7 +346,7 @@ ApplicationWindow {
                         anchors.margins: 2
                         fillMode: Image.PreserveAspectFit
                         playing: replayOverlay.visible
-                        speed: 1.0  // Normal speed
+                        // speed property removed - let GIF control its own timing
                         cache: false
 
                         // Fallback message if GIF fails to load
