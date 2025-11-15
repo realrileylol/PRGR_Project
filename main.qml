@@ -269,15 +269,6 @@ ApplicationWindow {
         visible: false
         z: 9999  // On top of everything
 
-        // Click to dismiss
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                replayOverlay.visible = false
-                soundManager.playClick()
-            }
-        }
-
         // Smooth fade-in animation
         Behavior on opacity {
             NumberAnimation { duration: 300 }

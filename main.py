@@ -1584,7 +1584,10 @@ class CaptureManager(QObject):
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
-                                self.replayReady.emit(gif_result)  # Signal QML to show popup
+                                # Convert to absolute path for QML
+                                abs_gif_path = os.path.abspath(gif_result)
+                                print(f"📂 Absolute path: {abs_gif_path}")
+                                self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
 
                             # Stop after capture
                             self.picam2.stop()
@@ -1642,7 +1645,10 @@ class CaptureManager(QObject):
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
-                                self.replayReady.emit(gif_result)  # Signal QML to show popup
+                                # Convert to absolute path for QML
+                                abs_gif_path = os.path.abspath(gif_result)
+                                print(f"📂 Absolute path: {abs_gif_path}")
+                                self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
 
                             # Stop after capture
                             self.picam2.stop()
@@ -1760,7 +1766,10 @@ class CaptureManager(QObject):
 
                                     if gif_result:
                                         print(f"🎬 Replay GIF created: {gif_filename}")
-                                        self.replayReady.emit(gif_result)  # Signal QML to show popup
+                                        # Convert to absolute path for QML
+                                        abs_gif_path = os.path.abspath(gif_result)
+                                        print(f"📂 Absolute path: {abs_gif_path}")
+                                        self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
 
                                     # Stop after capture
                                     self.picam2.stop()
