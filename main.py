@@ -56,7 +56,7 @@ class FrameProvider(QQuickImageProvider):
         self.pixmap.fill(0x000000)  # Black initial frame
         self.mutex = QMutex()
 
-    def requestPixmap(self, id, size):
+    def requestPixmap(self, id, size, requestedSize):
         """Called by QML Image to get the latest frame"""
         with QMutexLocker(self.mutex):
             return self.pixmap, self.pixmap.size()
