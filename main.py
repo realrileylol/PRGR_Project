@@ -59,7 +59,7 @@ class FrameProvider(QQuickImageProvider):
     def requestPixmap(self, id, size, requestedSize):
         """Called by QML Image to get the latest frame"""
         with QMutexLocker(self.mutex):
-            return self.pixmap, self.pixmap.size()
+            return self.pixmap
 
     def updateFrame(self, frame):
         """Update the frame from numpy array (called from capture thread)"""
