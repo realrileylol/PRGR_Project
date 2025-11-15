@@ -1362,10 +1362,10 @@ class CaptureManager(QObject):
             # Load camera settings
             # Capture mode: Direct sensor access (no ISP display conversion)
             # Camera sensor can do 100 FPS - ISP limit only affects preview/recording
-            # ULTRA-HIGH-SPEED MODE: 300+ FPS for impact capture
-            shutter_speed = 500    # 0.5ms ultra-fast shutter for crisp motion freeze
-            gain = 12.0            # Max gain to compensate for fast shutter
-            frame_rate = 300       # 300 FPS for super high-speed capture (3.3ms between frames)
+            # ULTRA-HIGH-SPEED MODE: 200 FPS for impact capture (300 FPS causes timeouts)
+            shutter_speed = 800    # 0.8ms ultra-fast shutter for crisp motion freeze
+            gain = 10.0            # Max gain to compensate for fast shutter
+            frame_rate = 200       # 200 FPS for super high-speed capture (5ms between frames)
 
             print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
