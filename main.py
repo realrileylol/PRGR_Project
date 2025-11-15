@@ -917,7 +917,8 @@ class CaptureManager(QObject):
         edge_density = edge_pixels / (region.shape[0] * region.shape[1])
 
         # If edge density is high enough, club is likely present
-        return edge_density > 0.05  # 5% of region has edges
+        # Increased threshold from 0.05 to 0.15 (15% of region) to reduce false positives
+        return edge_density > 0.15  # 15% of region has edges
 
     def _detect_ball(self, frame):
         """Detect golf ball in frame using color-filtered circle detection
