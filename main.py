@@ -1558,8 +1558,9 @@ class CaptureManager(QObject):
                         # VELOCITY-BASED HIT DETECTION
                         # Backswing/clubhead movement is slow (~20-30 px/frame = 4000-6000 px/sec @ 200fps)
                         # Ball hit is FAST (should be 60+ px/frame = 12000+ px/sec @ 200fps)
-                        # Set threshold at 10000 px/sec (~50 px/frame @ 200fps) to ignore backswing/clubhead
-                        velocity_threshold = 10000  # px/sec (approximately 50+ mph ball speed)
+                        # Picking up/dropping ball is moderate (~40 px/frame = 8000 px/sec @ 200fps)
+                        # Set threshold at 20000 px/sec (~100 px/frame @ 200fps) to ignore hand movements
+                        velocity_threshold = 20000  # px/sec (approximately 100+ mph ball speed)
 
                         if velocity_px_per_sec > velocity_threshold:  # FAST movement = HIT!
                             # Ball is moving fast - this is a shot!
@@ -1590,12 +1591,12 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
                             # Use all 30 frames for smooth slow-motion replay
                             replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1624,7 +1625,7 @@ class CaptureManager(QObject):
                         # Even if radius doesn't match, check for rapid movement (velocity-based)
                         # Ball being hit can cause radius variation due to motion blur
                         # Use VERY high threshold since radius changed (more uncertainty)
-                        if velocity_px_per_sec > 12000:  # Very high threshold for mismatched radius (60 px/frame @ 200fps)
+                        if velocity_px_per_sec > 25000:  # Very high threshold for mismatched radius (125 px/frame @ 200fps)
                             print(f"🏌️ BALL HIT DETECTED (radius mismatch - motion blur)!")
                             print(f"   Velocity: {velocity_px_per_sec:.0f} px/sec ({displacement:.1f} px/frame)")
                             print(f"   Radius changed: {original_ball[2]}px → {current_ball[2]}px")
@@ -1652,11 +1653,11 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
                             replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1767,12 +1768,12 @@ class CaptureManager(QObject):
                                     print(f"✅ Shot #{next_shot} saved!")
                                     self.shotCaptured.emit(next_shot)
 
-                                    # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
+                                    # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
                                     # Use all 30 frames for smooth slow-motion replay
                                     replay_frames = frames  # All frames (15 before + 15 after impact)
                                     gif_filename = f"shot_{next_shot:03d}_replay.gif"
                                     gif_path = os.path.join(captures_folder, gif_filename)
-                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
+                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
 
                                     if gif_result:
                                         print(f"🎬 Replay GIF created: {gif_filename}")
