@@ -1301,11 +1301,12 @@ class CaptureManager(QObject):
             # Load camera settings
             # Capture mode: Direct sensor access (no ISP display conversion)
             # Camera sensor can do 100 FPS - ISP limit only affects preview/recording
-            shutter_speed = 1500   # 1.5ms for fast capture
-            gain = 8.0             # High gain for brightness at fast shutter
-            frame_rate = 100       # Full sensor speed for ball tracking
+            # ULTRA-HIGH-SPEED MODE: 200+ FPS for impact capture
+            shutter_speed = 800    # 0.8ms ultra-fast shutter for crisp motion freeze
+            gain = 10.0            # Max gain to compensate for fast shutter
+            frame_rate = 200       # 200 FPS for super high-speed capture (5ms between frames)
 
-            print(f"📷 Using high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
 
             # Force cleanup of any lingering camera instances
             try:
@@ -1540,9 +1541,9 @@ class CaptureManager(QObject):
                         velocity_px_per_sec = displacement * frame_rate
 
                         # VELOCITY-BASED HIT DETECTION
-                        # Backswing is slow (~30-40 px/frame = 1800-2400 px/sec @ 60fps)
-                        # Ball hit is FAST (should be 80+ px/frame = 4800+ px/sec @ 60fps)
-                        # Set threshold at 4000 px/sec (~67 px/frame) to ignore backswing
+                        # Backswing is slow (~10-15 px/frame = 2000-3000 px/sec @ 200fps)
+                        # Ball hit is FAST (should be 40+ px/frame = 8000+ px/sec @ 200fps)
+                        # Set threshold at 4000 px/sec (~20 px/frame @ 200fps) to ignore backswing
                         velocity_threshold = 4000  # px/sec (approximately 20+ mph ball speed)
 
                         if velocity_px_per_sec > velocity_threshold:  # FAST movement = HIT!
