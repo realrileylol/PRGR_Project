@@ -1278,16 +1278,19 @@ class CaptureManager(QObject):
             print(f"   Frame duration: {frame_duration}ms per frame (original: {base_duration}ms)")
             print(f"   Total frames: {len(pil_frames)} frames")
 
-            # Save as animated GIF with single duration value for all frames
-            # Using a single integer is more reliable than a list across PIL versions
+            # Create explicit duration list for EACH frame (absolute consistency)
+            # This ensures Qt AnimatedImage doesn't optimize or vary timing
+            durations = [frame_duration] * len(pil_frames)
+
+            # Save as animated GIF with explicit per-frame durations
             pil_frames[0].save(
                 output_path,
                 save_all=True,
                 append_images=pil_frames[1:],
-                duration=frame_duration,  # Single value applies to all frames
+                duration=durations,  # Explicit duration for each frame
                 loop=0,  # Loop forever
-                optimize=False,  # Don't optimize for faster creation
-                disposal=2  # Clear frame before rendering next (ensures consistent timing)
+                optimize=False,  # Don't optimize - preserve exact timing
+                disposal=1  # Do not dispose (keep each frame)
             )
 
             print(f"✅ Replay GIF saved: {output_path}")
