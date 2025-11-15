@@ -1586,12 +1586,12 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
                             # Use all 30 frames for smooth slow-motion replay
                             replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1648,11 +1648,11 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                            # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
                             replay_frames = frames  # All frames (15 before + 15 after impact)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
 
                             if gif_result:
                                 print(f"🎬 Replay GIF created: {gif_filename}")
@@ -1763,12 +1763,12 @@ class CaptureManager(QObject):
                                     print(f"✅ Shot #{next_shot} saved!")
                                     self.shotCaptured.emit(next_shot)
 
-                                    # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                                    # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.3x speed)
                                     # Use all 30 frames for smooth slow-motion replay
                                     replay_frames = frames  # All frames (15 before + 15 after impact)
                                     gif_filename = f"shot_{next_shot:03d}_replay.gif"
                                     gif_path = os.path.join(captures_folder, gif_filename)
-                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+                                    gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.3)
 
                                     if gif_result:
                                         print(f"🎬 Replay GIF created: {gif_filename}")
