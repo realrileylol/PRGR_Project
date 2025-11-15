@@ -1577,11 +1577,11 @@ class CaptureManager(QObject):
 
                             print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
-                            # Save frames
-                            for i, save_frame in enumerate(frames):
-                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                filepath = os.path.join(captures_folder, filename)
-                                self._save_frame(filepath, save_frame)
+                            # Save frames (COMMENTED OUT - testing GIF settings)
+                            # for i, save_frame in enumerate(frames):
+                            #     filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                            #     filepath = os.path.join(captures_folder, filename)
+                            #     self._save_frame(filepath, save_frame)
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
@@ -1639,11 +1639,11 @@ class CaptureManager(QObject):
 
                             print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
-                            # Save frames
-                            for i, save_frame in enumerate(frames):
-                                filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                filepath = os.path.join(captures_folder, filename)
-                                self._save_frame(filepath, save_frame)
+                            # Save frames (COMMENTED OUT - testing GIF settings)
+                            # for i, save_frame in enumerate(frames):
+                            #     filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                            #     filepath = os.path.join(captures_folder, filename)
+                            #     self._save_frame(filepath, save_frame)
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
@@ -1754,11 +1754,11 @@ class CaptureManager(QObject):
 
                                     print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
 
-                                    # Save frames
-                                    for i, save_frame in enumerate(frames):
-                                        filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                        filepath = os.path.join(captures_folder, filename)
-                                        cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
+                                    # Save frames (COMMENTED OUT - testing GIF settings)
+                                    # for i, save_frame in enumerate(frames):
+                                    #     filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                    #     filepath = os.path.join(captures_folder, filename)
+                                    #     cv2.imwrite(filepath, cv2.cvtColor(save_frame, cv2.COLOR_RGB2BGR))
 
                                     print(f"✅ Shot #{next_shot} saved!")
                                     self.shotCaptured.emit(next_shot)
