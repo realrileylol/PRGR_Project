@@ -920,6 +920,70 @@ class CaptureManager(QObject):
         # Increased threshold from 0.05 to 0.15 (15% of region) to reduce false positives
         return edge_density > 0.15  # 15% of region has edges
 
+    def _detect_club_near_ball(self, frame, ball_position):
+        """Detect club movement NEAR the ball from ANY direction (for downswing detection)
+
+        This is more permissive than _detect_club_behind_ball because during the downswing,
+        the club is moving fast and may approach from various angles.
+
+        Uses real-world measurements: 12-inch box around the ball (6 inches left/right).
+        Uses LOWER threshold to catch fast-moving clubs.
+        """
+        if ball_position is None:
+            return False
+
+        # Convert to grayscale
+        if len(frame.shape) == 3:
+            if frame.shape[2] == 1:
+                gray = frame[:, :, 0]
+            elif frame.shape[2] == 4:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+            elif frame.shape[2] == 3:
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = frame
+
+        ball_x, ball_y, ball_r = int(ball_position[0]), int(ball_position[1]), int(ball_position[2])
+
+        # Calculate pixels per inch from ball radius
+        # Golf ball radius = 0.84 inches (diameter 1.68")
+        pixels_per_inch = ball_r / 0.84
+
+        # 12-inch detection box: 6 inches left and right of ball
+        horizontal_range = int(6.0 * pixels_per_inch)
+        # Vertical: 6 inches up and down (club approaches from various angles)
+        vertical_range = int(6.0 * pixels_per_inch)
+
+        # Define detection region
+        x1 = max(0, ball_x - horizontal_range)
+        x2 = min(gray.shape[1], ball_x + horizontal_range)
+        y1 = max(0, ball_y - vertical_range)
+        y2 = min(gray.shape[0], ball_y + vertical_range)
+
+        if x2 <= x1 or y2 <= y1:
+            return False
+
+        region = gray[y1:y2, x1:x2]
+
+        # Look for edges (club head has distinct edges)
+        edges = cv2.Canny(region, 50, 150)
+
+        # Count edge pixels - club head should have significant edges
+        edge_pixels = np.count_nonzero(edges)
+        edge_density = edge_pixels / (region.shape[0] * region.shape[1])
+
+        # LOWER threshold (8% instead of 15%) to catch fast-moving clubs during downswing
+        # Fast motion may blur edges, so we need to be more sensitive
+        threshold = 0.08
+        club_detected = edge_density > threshold
+
+        # Debug logging to help diagnose detection issues
+        if club_detected:
+            print(f"   🏌️ Club motion detected near ball: edge_density={edge_density:.3f} (threshold={threshold})")
+            print(f"      Detection box: {horizontal_range*2}px wide x {vertical_range*2}px tall (~12\" x 12\")")
+
+        return club_detected
+
     def _detect_ball(self, frame):
         """Detect golf ball in frame using color-filtered circle detection
 
@@ -1496,6 +1560,7 @@ class CaptureManager(QObject):
             # Stage 4: Club re-entered frame → CAPTURE!
             detection_stage = 0  # 0=waiting, 1=ball locked, 2=club behind ball, 3=club exited (ready to trigger)
             club_exit_confirmed_frames = 0  # Count frames club has been gone
+            stage3_check_counter = 0  # Counter for debug logging in Stage 3
 
             while self.is_running:
                 loop_start_time = time.time()
@@ -1618,18 +1683,31 @@ class CaptureManager(QObject):
                             if not club_behind:
                                 # Club is no longer behind ball - might be swinging back
                                 club_exit_confirmed_frames += 1
+                                if club_exit_confirmed_frames == 1:
+                                    print(f"   🏌️ Club starting to exit... ({club_exit_confirmed_frames}/3 frames)")
+                                elif club_exit_confirmed_frames == 2:
+                                    print(f"   🏌️ Club exiting... ({club_exit_confirmed_frames}/3 frames)")
                                 if club_exit_confirmed_frames >= 3:  # Confirm club exited for 3 frames
                                     detection_stage = 3
                                     self.statusChanged.emit("Ready to Fire!", "green")
-                                    print(f"🏌️ Stage 3: Club exited frame (backswing)")
-                                    print(f"   Ready to capture when club re-enters...")
+                                    print(f"🏌️ Stage 3: Club exited frame (backswing complete)")
+                                    print(f"   ✅ READY - Waiting for club to re-enter and trigger capture...")
                             else:
+                                if club_exit_confirmed_frames > 0:
+                                    print(f"   ⚠️ Club still detected, resetting exit counter (was {club_exit_confirmed_frames})")
                                 club_exit_confirmed_frames = 0  # Reset if club reappears
 
                         # STAGE 4: Trigger when club re-enters frame
                         elif detection_stage == 3:
-                            club_behind = self._detect_club_behind_ball(frame, original_ball)
-                            if club_behind:  # Club re-entered frame = DOWNSWING!
+                            # Use broader detection for downswing - club may approach from any angle
+                            club_detected = self._detect_club_near_ball(frame, original_ball)
+
+                            # Periodic status update (every 50 frames, ~0.25s at 200fps)
+                            stage3_check_counter += 1
+                            if stage3_check_counter % 50 == 0:
+                                print(f"   ⏳ Still waiting for club to re-enter... (checked {stage3_check_counter} frames)")
+
+                            if club_detected:  # Club re-entered frame = DOWNSWING!
                                 # Club re-entered = Impact is happening NOW!
                                 print(f"🏌️ IMPACT DETECTED - Club re-entered frame!")
                                 print(f"   Capturing downswing impact sequence...")
