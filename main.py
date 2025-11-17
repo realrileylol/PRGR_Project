@@ -1675,73 +1675,134 @@ class CaptureManager(QObject):
                                 print(f"⛳ Stage 2: Club detected behind ball")
                                 print(f"   Waiting for backswing (club to exit frame)...")
 
-                        # STAGE 3: Wait for club to exit frame (backswing)
+                        # STAGE 3: Detect backswing using MOTION instead of edge absence
+                        # When club swings away, there will be significant motion near the ball
                         elif detection_stage == 2:
-                            club_behind = self._detect_club_behind_ball(frame, original_ball)
-                            if not club_behind:
-                                # Club exited - INSTANT detection (no checkpoint delay)
-                                detection_stage = 3
-                                self.statusChanged.emit("Ready to Fire!", "green")
-                                print(f"🏌️ Stage 3: Club exited - ARMED AND READY!")
-                                print(f"   ✅ Waiting for club to re-enter (instant trigger)...")
+                            # Look for motion in the region around the ball
+                            if prev_frame_for_motion is not None:
+                                # Calculate motion magnitude near ball
+                                ball_x, ball_y, ball_r = int(original_ball[0]), int(original_ball[1]), int(original_ball[2])
 
-                        # STAGE 4: Trigger when club re-enters frame
+                                # Region around ball for motion detection (12-inch box)
+                                pixels_per_inch = ball_r / 0.84
+                                motion_region_size = int(6.0 * pixels_per_inch)
+
+                                x1 = max(0, ball_x - motion_region_size)
+                                x2 = min(frame.shape[1] if len(frame.shape) == 2 else frame.shape[1], ball_x + motion_region_size)
+                                y1 = max(0, ball_y - motion_region_size)
+                                y2 = min(frame.shape[0], ball_y + motion_region_size)
+
+                                # Get current and previous frame in grayscale
+                                if len(frame.shape) == 3:
+                                    curr_gray = frame[:, :, 0] if frame.shape[2] == 1 else cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                                else:
+                                    curr_gray = frame
+
+                                if len(prev_frame_for_motion.shape) == 3:
+                                    prev_gray = prev_frame_for_motion[:, :, 0] if prev_frame_for_motion.shape[2] == 1 else cv2.cvtColor(prev_frame_for_motion, cv2.COLOR_RGB2GRAY)
+                                else:
+                                    prev_gray = prev_frame_for_motion
+
+                                # Calculate frame difference in the region around ball
+                                curr_region = curr_gray[y1:y2, x1:x2]
+                                prev_region = prev_gray[y1:y2, x1:x2]
+
+                                if curr_region.size > 0 and prev_region.size > 0:
+                                    # Frame difference (absolute change)
+                                    diff = cv2.absdiff(curr_region, prev_region)
+                                    motion_amount = diff.mean()
+
+                                    # If significant motion detected near ball = backswing started!
+                                    # Threshold: ~15 means significant motion (club swinging away)
+                                    if motion_amount > 15:
+                                        detection_stage = 3
+                                        self.statusChanged.emit("Ready to Fire!", "green")
+                                        print(f"🏌️ Stage 3: Backswing motion detected! (motion={motion_amount:.1f})")
+                                        print(f"   ✅ Waiting for downswing motion (instant trigger)...")
+
+                        # STAGE 4: Trigger on downswing motion (club coming back toward ball)
                         elif detection_stage == 3:
-                            # Use broader detection for downswing - club may approach from any angle
-                            club_detected = self._detect_club_near_ball(frame, original_ball)
+                            # Detect downswing using MOTION
+                            if prev_frame_for_motion is not None:
+                                ball_x, ball_y, ball_r = int(original_ball[0]), int(original_ball[1]), int(original_ball[2])
 
-                            # Periodic status update (every 50 frames, ~0.25s at 200fps)
-                            stage3_check_counter += 1
-                            if stage3_check_counter % 50 == 0:
-                                print(f"   ⏳ Still waiting for club to re-enter... (checked {stage3_check_counter} frames)")
+                                # Same region as Stage 3 (12-inch box around ball)
+                                pixels_per_inch = ball_r / 0.84
+                                motion_region_size = int(6.0 * pixels_per_inch)
 
-                            if club_detected:  # Club re-entered frame = DOWNSWING!
-                                # Club re-entered = Impact is happening NOW!
-                                print(f"🏌️ IMPACT DETECTED - Club re-entered frame!")
-                                print(f"   Capturing downswing impact sequence...")
-                                self.statusChanged.emit("Capturing...", "red")
+                                x1 = max(0, ball_x - motion_region_size)
+                                x2 = min(frame.shape[1] if len(frame.shape) == 2 else frame.shape[1], ball_x + motion_region_size)
+                                y1 = max(0, ball_y - motion_region_size)
+                                y2 = min(frame.shape[0], ball_y + motion_region_size)
 
-                                # Capture frames: 15 BEFORE impact (from buffer) + 15 AFTER impact
-                                frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
-                                print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
+                                # Get current and previous frame
+                                if len(frame.shape) == 3:
+                                    curr_gray = frame[:, :, 0] if frame.shape[2] == 1 else cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                                else:
+                                    curr_gray = frame
 
-                                # Capture post-impact frames
-                                frame_delay = 1.0 / frame_rate
-                                for i in range(15):
-                                    capture_frame = self.picam2.capture_array()
-                                    frames.append(capture_frame)
-                                    time.sleep(frame_delay)
+                                if len(prev_frame_for_motion.shape) == 3:
+                                    prev_gray = prev_frame_for_motion[:, :, 0] if prev_frame_for_motion.shape[2] == 1 else cv2.cvtColor(prev_frame_for_motion, cv2.COLOR_RGB2GRAY)
+                                else:
+                                    prev_gray = prev_frame_for_motion
 
-                                print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
+                                # Calculate motion
+                                curr_region = curr_gray[y1:y2, x1:x2]
+                                prev_region = prev_gray[y1:y2, x1:x2]
 
-                                # Save frames (COMMENTED OUT - testing GIF settings)
-                                # for i, save_frame in enumerate(frames):
-                                #     filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
-                                #     filepath = os.path.join(captures_folder, filename)
-                                #     self._save_frame(filepath, save_frame)
+                                if curr_region.size > 0 and prev_region.size > 0:
+                                    diff = cv2.absdiff(curr_region, prev_region)
+                                    motion_amount = diff.mean()
 
-                                print(f"✅ Shot #{next_shot} saved!")
-                                self.shotCaptured.emit(next_shot)
+                                    # Downswing motion detected = FIRE!
+                                    # Same threshold as backswing (motion > 15)
+                                    if motion_amount > 15:
+                                        # Downswing motion = Impact is happening NOW!
+                                        print(f"🏌️ IMPACT DETECTED - Downswing motion! (motion={motion_amount:.1f})")
+                                        print(f"   Capturing impact sequence...")
+                                        self.statusChanged.emit("Capturing...", "red")
 
-                                # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
-                                # Use all 30 frames for smooth slow-motion replay
-                                replay_frames = frames  # All frames (15 before + 15 after impact)
-                                gif_filename = f"shot_{next_shot:03d}_replay.gif"
-                                gif_path = os.path.join(captures_folder, gif_filename)
-                                gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+                                        # Capture frames: 15 BEFORE impact (from buffer) + 15 AFTER impact
+                                        frames = list(frame_buffer)  # Get pre-impact frames from circular buffer
+                                        print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
-                                if gif_result:
-                                    print(f"🎬 Replay GIF created: {gif_filename}")
-                                    # Convert to absolute path for QML
-                                    abs_gif_path = os.path.abspath(gif_result)
-                                    print(f"📂 Absolute path: {abs_gif_path}")
-                                    self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
+                                        # Capture post-impact frames
+                                        frame_delay = 1.0 / frame_rate
+                                        for i in range(15):
+                                            capture_frame = self.picam2.capture_array()
+                                            frames.append(capture_frame)
+                                            time.sleep(frame_delay)
 
-                                # Stop after capture
-                                self.picam2.stop()
-                                self.picam2 = None
-                                self.is_running = False
-                                return
+                                        print(f"   📸 Total: {len(frames)} frames captured (15 before + 15 after impact)")
+
+                                        # Save frames (COMMENTED OUT - testing GIF settings)
+                                        # for i, save_frame in enumerate(frames):
+                                        #     filename = f"shot_{next_shot:03d}_frame_{i:03d}.jpg"
+                                        #     filepath = os.path.join(captures_folder, filename)
+                                        #     self._save_frame(filepath, save_frame)
+
+                                        print(f"✅ Shot #{next_shot} saved!")
+                                        self.shotCaptured.emit(next_shot)
+
+                                        # Create replay GIF (Snapchat-style: 15 before + 15 after at 0.5x speed)
+                                        # Use all 30 frames for smooth slow-motion replay
+                                        replay_frames = frames  # All frames (15 before + 15 after impact)
+                                        gif_filename = f"shot_{next_shot:03d}_replay.gif"
+                                        gif_path = os.path.join(captures_folder, gif_filename)
+                                        gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+
+                                        if gif_result:
+                                            print(f"🎬 Replay GIF created: {gif_filename}")
+                                            # Convert to absolute path for QML
+                                            abs_gif_path = os.path.abspath(gif_result)
+                                            print(f"📂 Absolute path: {abs_gif_path}")
+                                            self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
+
+                                        # Stop after capture
+                                        self.picam2.stop()
+                                        self.picam2 = None
+                                        self.is_running = False
+                                        return
 
                         frames_since_lock += 1
 
