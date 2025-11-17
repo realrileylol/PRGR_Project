@@ -917,8 +917,8 @@ class CaptureManager(QObject):
         edge_density = edge_pixels / (region.shape[0] * region.shape[1])
 
         # If edge density is high enough, club is likely present
-        # Increased threshold from 0.05 to 0.15 (15% of region) to reduce false positives
-        return edge_density > 0.15  # 15% of region has edges
+        # Lowered to 10% for faster detection - we want to catch the club quickly
+        return edge_density > 0.10  # 10% of region has edges
 
     def _detect_club_near_ball(self, frame, ball_position):
         """Detect club movement NEAR the ball from ANY direction (for downswing detection)
@@ -1559,7 +1559,6 @@ class CaptureManager(QObject):
             # Stage 3: Club exited frame (backswing)
             # Stage 4: Club re-entered frame → CAPTURE!
             detection_stage = 0  # 0=waiting, 1=ball locked, 2=club behind ball, 3=club exited (ready to trigger)
-            club_exit_confirmed_frames = 0  # Count frames club has been gone
             stage3_check_counter = 0  # Counter for debug logging in Stage 3
 
             while self.is_running:
@@ -1672,7 +1671,6 @@ class CaptureManager(QObject):
                             club_behind = self._detect_club_behind_ball(frame, original_ball)
                             if club_behind:
                                 detection_stage = 2
-                                club_exit_confirmed_frames = 0
                                 self.statusChanged.emit("Club Ready - Swing Away!", "green")
                                 print(f"⛳ Stage 2: Club detected behind ball")
                                 print(f"   Waiting for backswing (club to exit frame)...")
@@ -1681,21 +1679,11 @@ class CaptureManager(QObject):
                         elif detection_stage == 2:
                             club_behind = self._detect_club_behind_ball(frame, original_ball)
                             if not club_behind:
-                                # Club is no longer behind ball - might be swinging back
-                                club_exit_confirmed_frames += 1
-                                if club_exit_confirmed_frames == 1:
-                                    print(f"   🏌️ Club starting to exit... ({club_exit_confirmed_frames}/3 frames)")
-                                elif club_exit_confirmed_frames == 2:
-                                    print(f"   🏌️ Club exiting... ({club_exit_confirmed_frames}/3 frames)")
-                                if club_exit_confirmed_frames >= 3:  # Confirm club exited for 3 frames
-                                    detection_stage = 3
-                                    self.statusChanged.emit("Ready to Fire!", "green")
-                                    print(f"🏌️ Stage 3: Club exited frame (backswing complete)")
-                                    print(f"   ✅ READY - Waiting for club to re-enter and trigger capture...")
-                            else:
-                                if club_exit_confirmed_frames > 0:
-                                    print(f"   ⚠️ Club still detected, resetting exit counter (was {club_exit_confirmed_frames})")
-                                club_exit_confirmed_frames = 0  # Reset if club reappears
+                                # Club exited - INSTANT detection (no checkpoint delay)
+                                detection_stage = 3
+                                self.statusChanged.emit("Ready to Fire!", "green")
+                                print(f"🏌️ Stage 3: Club exited - ARMED AND READY!")
+                                print(f"   ✅ Waiting for club to re-enter (instant trigger)...")
 
                         # STAGE 4: Trigger when club re-enters frame
                         elif detection_stage == 3:
