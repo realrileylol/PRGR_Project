@@ -27,14 +27,6 @@ except ImportError:
     CAMERA_AVAILABLE = False
     print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
 
-# Try to import PIL for GIF creation
-try:
-    from PIL import Image as PILImage
-    GIF_AVAILABLE = True
-except ImportError:
-    GIF_AVAILABLE = False
-    print("⚠️ PIL/Pillow not available - install with: pip install Pillow")
-
 # Try to import fast C++ detection module (3-5x speedup)
 try:
     import fast_detection
@@ -783,7 +775,7 @@ class CaptureManager(QObject):
     statusChanged = Signal(str, str)  # (status, color) - e.g. ("Ball Locked", "green")
     shotCaptured = Signal(int)  # shot_number
     errorOccurred = Signal(str)  # error_message
-    replayReady = Signal(str)  # gif_filepath - emitted when replay GIF is ready to display
+    replayReady = Signal(str)  # video_filepath - emitted when replay video is ready to display
 
     def __init__(self, settings_manager=None, camera_manager=None):
         super().__init__()
@@ -1334,79 +1326,76 @@ class CaptureManager(QObject):
 
         return distance > hitbox_radius_px
 
-    def _create_replay_gif(self, frames, output_path, fps=60, speed_multiplier=0.5):
-        """Create animated GIF from captured frames (Snapchat-style replay)
+    def _create_replay_video(self, frames, output_path, fps=60, speed_multiplier=0.5):
+        """Create slow-motion MP4 video from captured frames (like Rapsodo)
 
         Args:
-            frames: List of frames to convert to GIF
-            output_path: Path to save the GIF
+            frames: List of frames to convert to video
+            output_path: Path to save the MP4 video
             fps: Original capture frame rate
             speed_multiplier: Playback speed (0.5 = half speed, 1.0 = normal, 2.0 = double speed)
         """
-        if not GIF_AVAILABLE:
-            print("⚠️ PIL not available - cannot create GIF")
+        if not CAMERA_AVAILABLE:
+            print("⚠️ OpenCV not available - cannot create video")
             return None
 
         try:
-            print(f"🎬 Creating replay GIF with {len(frames)} frames at {speed_multiplier}x speed...")
+            print(f"🎬 Creating replay video with {len(frames)} frames at {speed_multiplier}x speed...")
 
-            # Convert frames to PIL Images
-            pil_frames = []
-            for frame in frames:
-                # Convert frame to RGB for GIF (handle all formats)
-                if len(frame.shape) == 2:
-                    # Grayscale (H, W) - convert to RGB
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-                elif len(frame.shape) == 3:
-                    if frame.shape[2] == 1:
-                        # Grayscale (H, W, 1) - squeeze and convert to RGB
-                        rgb_frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2RGB)
-                    elif frame.shape[2] == 3:
-                        # RGB - keep as-is
-                        rgb_frame = frame
-                    elif frame.shape[2] == 4:
-                        # RGBA/XBGR - convert to RGB
-                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
-                else:
-                    print(f"❌ Unsupported frame shape for GIF: {frame.shape}")
-                    continue
-
-                # Convert numpy array to PIL Image
-                pil_frame = PILImage.fromarray(rgb_frame)
-                pil_frames.append(pil_frame)
-
-            if len(pil_frames) == 0:
-                print("❌ No valid frames to create GIF")
+            if len(frames) == 0:
+                print("❌ No frames to create video")
                 return None
 
-            # Calculate frame duration in milliseconds
-            # Slower speed = longer duration between frames
-            base_duration = int(1000 / fps)  # ms per frame at original speed
-            frame_duration = int(base_duration / speed_multiplier)  # Adjust for speed
+            # Calculate playback FPS (slow-motion effect)
+            # Original: 200 FPS, Speed 0.5x → Playback at 100 FPS for half-speed
+            playback_fps = fps * speed_multiplier
 
-            print(f"   Frame duration: {frame_duration}ms per frame (original: {base_duration}ms)")
-            print(f"   Total frames: {len(pil_frames)} frames")
+            # Get frame dimensions from first frame
+            first_frame = frames[0]
+            height, width = first_frame.shape[:2]
 
-            # Create explicit duration list for EACH frame (absolute consistency)
-            # This ensures Qt AnimatedImage doesn't optimize or vary timing
-            durations = [frame_duration] * len(pil_frames)
+            print(f"   Video: {width}x{height} at {playback_fps:.1f} FPS")
+            print(f"   Total frames: {len(frames)} ({len(frames)/playback_fps:.2f}s duration)")
 
-            # Save as animated GIF with explicit per-frame durations
-            pil_frames[0].save(
-                output_path,
-                save_all=True,
-                append_images=pil_frames[1:],
-                duration=durations,  # Explicit duration for each frame
-                loop=0,  # Loop forever
-                optimize=False,  # Don't optimize - preserve exact timing
-                disposal=1  # Do not dispose (keep each frame)
-            )
+            # Create video writer with H.264 codec (MP4)
+            # fourcc: 'mp4v' = MPEG-4, 'avc1' = H.264, 'X264' = x264
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            video_writer = cv2.VideoWriter(output_path, fourcc, playback_fps, (width, height), isColor=True)
 
-            print(f"✅ Replay GIF saved: {output_path}")
+            if not video_writer.isOpened():
+                print("❌ Failed to open video writer")
+                return None
+
+            # Write all frames to video
+            for i, frame in enumerate(frames):
+                # Convert frame to BGR for video (OpenCV format)
+                if len(frame.shape) == 2:
+                    # Grayscale (H, W) - convert to BGR
+                    bgr_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+                elif len(frame.shape) == 3:
+                    if frame.shape[2] == 1:
+                        # Grayscale (H, W, 1) - squeeze and convert to BGR
+                        bgr_frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2BGR)
+                    elif frame.shape[2] == 3:
+                        # Assume RGB - convert to BGR
+                        bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    elif frame.shape[2] == 4:
+                        # RGBA - convert to BGR
+                        bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+                else:
+                    print(f"❌ Unsupported frame shape: {frame.shape}")
+                    continue
+
+                video_writer.write(bgr_frame)
+
+            # Release video writer
+            video_writer.release()
+
+            print(f"✅ Replay video saved: {output_path}")
             return output_path
 
         except Exception as e:
-            print(f"❌ Failed to create GIF: {e}")
+            print(f"❌ Failed to create video: {e}")
             return None
 
     def _capture_loop(self):
@@ -1693,18 +1682,18 @@ class CaptureManager(QObject):
                         print(f"✅ Shot #{next_shot} saved!")
                         self.shotCaptured.emit(next_shot)
 
-                        # Create replay GIF (30 before + 10 after at 0.5x speed)
+                        # Create replay video (30 before + 10 after at 0.5x speed)
                         replay_frames = frames  # All frames
-                        gif_filename = f"shot_{next_shot:03d}_replay.gif"
-                        gif_path = os.path.join(captures_folder, gif_filename)
-                        gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.5)
+                        video_filename = f"shot_{next_shot:03d}_replay.mp4"
+                        video_path = os.path.join(captures_folder, video_filename)
+                        video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.5)
 
-                        if gif_result:
-                            print(f"🎬 Replay GIF created: {gif_filename}")
+                        if video_result:
+                            print(f"🎬 Replay video created: {video_filename}")
                             # Convert to absolute path for QML
-                            abs_gif_path = os.path.abspath(gif_result)
-                            print(f"📂 Absolute path: {abs_gif_path}")
-                            self.replayReady.emit(abs_gif_path)  # Signal QML to show popup
+                            abs_video_path = os.path.abspath(video_result)
+                            print(f"📂 Absolute path: {abs_video_path}")
+                            self.replayReady.emit(abs_video_path)  # Signal QML to show popup
 
                         # Stop after capture
                         self.picam2.stop()

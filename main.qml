@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
+import QtMultimedia 5.15
 
 ApplicationWindow {
     id: win
@@ -260,7 +261,7 @@ ApplicationWindow {
     }
 
     /* ==========================================================
-       REPLAY GIF OVERLAY (Snapchat-style popup)
+       REPLAY VIDEO OVERLAY (Snapchat-style popup)
     ========================================================== */
     Rectangle {
         id: replayOverlay
@@ -274,7 +275,7 @@ ApplicationWindow {
             NumberAnimation { duration: 300 }
         }
 
-        // Replay GIF container
+        // Replay video container
         Rectangle {
             id: replayContainer
             anchors.centerIn: parent
@@ -331,7 +332,7 @@ ApplicationWindow {
                     }
                 }
 
-                // GIF replay area
+                // Video replay area
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -340,21 +341,27 @@ ApplicationWindow {
                     border.color: "#5F6B7A"
                     border.width: 2
 
-                    AnimatedImage {
-                        id: replayGif
+                    Video {
+                        id: replayVideo
                         anchors.fill: parent
                         anchors.margins: 2
-                        fillMode: Image.PreserveAspectFit
-                        playing: replayOverlay.visible
-                        // speed property removed - let GIF control its own timing
-                        cache: false
+                        fillMode: VideoOutput.PreserveAspectFit
+                        autoPlay: true
+                        loops: MediaPlayer.Infinite
+                        muted: true
 
-                        // Fallback message if GIF fails to load
+                        // Status monitoring
                         onStatusChanged: {
-                            if (status === Image.Error) {
-                                console.log("❌ Failed to load replay GIF")
-                            } else if (status === Image.Ready) {
-                                console.log("✅ Replay GIF loaded successfully")
+                            if (status === MediaPlayer.InvalidMedia) {
+                                console.log("❌ Failed to load replay video")
+                            } else if (status === MediaPlayer.Loaded) {
+                                console.log("✅ Replay video loaded successfully")
+                            }
+                        }
+
+                        onErrorChanged: {
+                            if (error !== MediaPlayer.NoError) {
+                                console.log("❌ Video error:", errorString)
                             }
                         }
                     }
@@ -366,14 +373,14 @@ ApplicationWindow {
                         color: "#5F6B7A"
                         font.pixelSize: 18
                         font.italic: true
-                        visible: replayGif.status === Image.Loading
+                        visible: replayVideo.status === MediaPlayer.Loading
                     }
                 }
 
                 // Info text
                 Text {
                     Layout.fillWidth: true
-                    text: "15 frames before + 15 frames after impact • 0.5x speed (slow-mo)"
+                    text: "30 frames before + 10 frames after impact • 0.5x speed (slow-mo)"
                     color: "#5F6B7A"
                     font.pixelSize: 14
                     font.italic: true
@@ -410,10 +417,10 @@ ApplicationWindow {
     Connections {
         target: captureManager
 
-        function onReplayReady(gifPath) {
-            console.log("🎬 Replay ready:", gifPath)
+        function onReplayReady(videoPath) {
+            console.log("🎬 Replay ready:", videoPath)
             // Convert file path to URL
-            replayGif.source = "file://" + gifPath
+            replayVideo.source = "file://" + videoPath
             replayOverlay.visible = true
             replayOverlay.opacity = 1.0
             replayEnterAnimation.restart()
