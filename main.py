@@ -1648,10 +1648,9 @@ class CaptureManager(QObject):
 
                         if stable_frames >= 3:  # Only 3 stable frames needed for ULTRA-FAST locking
                             original_ball = smoothed_ball
-                            detection_stage = 1  # Stage 1: Ball locked
-                            self.statusChanged.emit("Ball Locked - Position Club", "yellow")
-                            print(f"🎯 Stage 1: Ball locked at ({x}, {y}) with radius {r}px")
-                            print(f"   Waiting for club to be positioned behind ball...")
+                            self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
+                            print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
+                            print(f"   Waiting for shot...")
                             stable_frames = 0
                             prev_ball = None
                             frames_since_lock = 0
