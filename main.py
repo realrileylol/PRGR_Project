@@ -1712,9 +1712,12 @@ class CaptureManager(QObject):
                                     diff = cv2.absdiff(curr_region, prev_region)
                                     motion_amount = diff.mean()
 
+                                    # DEBUG: Show motion values to calibrate threshold
+                                    print(f"   🔍 Motion check: {motion_amount:.2f} (threshold=3.0)", flush=True)
+
                                     # If significant motion detected near ball = backswing started!
-                                    # Threshold: ~15 means significant motion (club swinging away)
-                                    if motion_amount > 15:
+                                    # LOWERED threshold from 15 to 3 for better sensitivity
+                                    if motion_amount > 3.0:
                                         detection_stage = 3
                                         self.statusChanged.emit("Ready to Fire!", "green")
                                         print(f"🏌️ Stage 3: Backswing motion detected! (motion={motion_amount:.1f})")
@@ -1754,9 +1757,14 @@ class CaptureManager(QObject):
                                     diff = cv2.absdiff(curr_region, prev_region)
                                     motion_amount = diff.mean()
 
+                                    # DEBUG: Show motion values every 10 frames
+                                    if stage3_check_counter % 10 == 0:
+                                        print(f"   🔍 Downswing check: motion={motion_amount:.2f} (threshold=3.0)", flush=True)
+                                    stage3_check_counter += 1
+
                                     # Downswing motion detected = FIRE!
-                                    # Same threshold as backswing (motion > 15)
-                                    if motion_amount > 15:
+                                    # LOWERED threshold from 15 to 3 for better sensitivity
+                                    if motion_amount > 3.0:
                                         # Downswing motion = Impact is happening NOW!
                                         print(f"🏌️ IMPACT DETECTED - Downswing motion! (motion={motion_amount:.1f})")
                                         print(f"   Capturing impact sequence...")
