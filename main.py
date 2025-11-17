@@ -1646,7 +1646,7 @@ class CaptureManager(QObject):
 
                         prev_ball = smoothed_ball  # Use smoothed radius for consistency
 
-                        if stable_frames >= 3:  # Only 3 stable frames needed for ULTRA-FAST locking
+                        if stable_frames >= 2:  # Only 2 stable frames needed for ULTRA-FAST locking (30% faster)
                             original_ball = smoothed_ball
                             self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
@@ -1671,8 +1671,8 @@ class CaptureManager(QObject):
                     detection_history.append(False)  # deque auto-truncates at maxlen
 
                     # === BALL DISAPPEARANCE DETECTION ===
-                    # If ball was locked and disappeared for 3 frames = IT WAS HIT!
-                    if original_ball is not None and frames_since_seen == 3:
+                    # If ball was locked and disappeared for 2 frames = IT WAS HIT! (30% faster detection)
+                    if original_ball is not None and frames_since_seen == 2:
                         print(f"🏌️ IMPACT DETECTED - Ball disappeared!")
                         print(f"   Capturing impact sequence...")
                         self.statusChanged.emit("Capturing...", "red")
