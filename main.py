@@ -27,6 +27,14 @@ except ImportError:
     CAMERA_AVAILABLE = False
     print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
 
+# Try to import PIL for GIF creation (for popup replay)
+try:
+    from PIL import Image as PILImage
+    GIF_AVAILABLE = True
+except ImportError:
+    GIF_AVAILABLE = False
+    print("⚠️ PIL/Pillow not available - popup replay disabled")
+
 # Try to import fast C++ detection module (3-5x speedup)
 try:
     import fast_detection
@@ -775,7 +783,7 @@ class CaptureManager(QObject):
     statusChanged = Signal(str, str)  # (status, color) - e.g. ("Ball Locked", "green")
     shotCaptured = Signal(int)  # shot_number
     errorOccurred = Signal(str)  # error_message
-    replayReady = Signal(str)  # video_filepath - emitted when replay video is ready to display
+    replayReady = Signal(str)  # gif_filepath - emitted when replay GIF is ready to display in popup
 
     def __init__(self, settings_manager=None, camera_manager=None):
         super().__init__()
@@ -1398,6 +1406,80 @@ class CaptureManager(QObject):
             print(f"❌ Failed to create video: {e}")
             return None
 
+    def _create_replay_gif(self, frames, output_path, fps=60, speed_multiplier=0.1):
+        """Create animated GIF from captured frames (for popup playback)
+
+        Args:
+            frames: List of frames to convert to GIF
+            output_path: Path to save the GIF
+            fps: Original capture frame rate
+            speed_multiplier: Playback speed (0.1 = 10x slower for frame-by-frame visibility)
+        """
+        if not GIF_AVAILABLE:
+            print("⚠️ PIL not available - cannot create GIF for popup")
+            return None
+
+        try:
+            print(f"🎬 Creating popup GIF with {len(frames)} frames at {speed_multiplier}x speed...")
+
+            # Convert frames to PIL Images
+            pil_frames = []
+            for frame in frames:
+                # Convert frame to RGB for GIF (handle all formats)
+                if len(frame.shape) == 2:
+                    # Grayscale (H, W) - convert to RGB
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                elif len(frame.shape) == 3:
+                    if frame.shape[2] == 1:
+                        # Grayscale (H, W, 1) - squeeze and convert to RGB
+                        rgb_frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2RGB)
+                    elif frame.shape[2] == 3:
+                        # RGB - keep as-is
+                        rgb_frame = frame
+                    elif frame.shape[2] == 4:
+                        # RGBA/XBGR - convert to RGB
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
+                else:
+                    print(f"❌ Unsupported frame shape for GIF: {frame.shape}")
+                    continue
+
+                # Convert numpy array to PIL Image
+                pil_frame = PILImage.fromarray(rgb_frame)
+                pil_frames.append(pil_frame)
+
+            if len(pil_frames) == 0:
+                print("❌ No valid frames to create GIF")
+                return None
+
+            # Calculate frame duration in milliseconds
+            # Slower speed = longer duration between frames
+            base_duration = int(1000 / fps)  # ms per frame at original speed
+            frame_duration = int(base_duration / speed_multiplier)  # Adjust for speed
+
+            print(f"   Frame duration: {frame_duration}ms per frame (original: {base_duration}ms)")
+            print(f"   Total frames: {len(pil_frames)} frames")
+
+            # Create explicit duration list for EACH frame (absolute consistency)
+            durations = [frame_duration] * len(pil_frames)
+
+            # Save as animated GIF with explicit per-frame durations
+            pil_frames[0].save(
+                output_path,
+                save_all=True,
+                append_images=pil_frames[1:],
+                duration=durations,  # Explicit duration for each frame
+                loop=0,  # Loop forever
+                optimize=False,  # Don't optimize - preserve exact timing
+                disposal=1  # Do not dispose (keep each frame)
+            )
+
+            print(f"✅ Popup GIF saved: {output_path}")
+            return output_path
+
+        except Exception as e:
+            print(f"❌ Failed to create GIF: {e}")
+            return None
+
     def _capture_loop(self):
         """Main capture loop running in background thread"""
         try:
@@ -1531,7 +1613,7 @@ class CaptureManager(QObject):
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
-            frame_buffer = deque(maxlen=30)  # Circular buffer for 30 pre-impact frames (150ms at 200 FPS)
+            frame_buffer = deque(maxlen=20)  # Circular buffer for 20 pre-impact frames (100ms at 200 FPS)
 
             # Calculate target frame time for adaptive sleep
             target_frame_time = 1.0 / frame_rate
@@ -1688,34 +1770,44 @@ class CaptureManager(QObject):
                             print(f"   Capturing impact sequence...")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames: 30 BEFORE impact (from buffer) + 10 AFTER impact
-                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (30 frames)
+                            # Capture frames: 20 BEFORE impact (from buffer) + 20 AFTER impact
+                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (20 frames)
                             print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
-                            # Capture post-impact frames (10 frames = 50ms at 200 FPS)
+                            # Capture post-impact frames (20 frames = 100ms at 200 FPS)
                             frame_delay = 1.0 / frame_rate
-                            for i in range(10):
+                            for i in range(20):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (30 before + 10 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured (20 before + 20 after impact)")
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay video (30 before + 10 after at 0.5x speed)
+                            # Create replay files (20 before + 20 after at 0.1x speed for frame-by-frame visibility)
                             replay_frames = frames  # All frames
+
+                            # Create MP4 video for storage/transfer
                             video_filename = f"shot_{next_shot:03d}_replay.mp4"
                             video_path = os.path.join(captures_folder, video_filename)
-                            video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.5)
+                            video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.1)
 
                             if video_result:
-                                print(f"🎬 Replay video created: {video_filename}")
+                                print(f"🎬 Replay video saved: {video_filename}")
+
+                            # Create GIF for popup playback (loops automatically)
+                            gif_filename = f"shot_{next_shot:03d}_replay.gif"
+                            gif_path = os.path.join(captures_folder, gif_filename)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.1)
+
+                            if gif_result:
+                                print(f"🎬 Popup GIF created: {gif_filename}")
                                 # Convert to absolute path for QML
-                                abs_video_path = os.path.abspath(video_result)
-                                print(f"📂 Absolute path: {abs_video_path}")
-                                self.replayReady.emit(abs_video_path)  # Signal QML to show popup
+                                abs_gif_path = os.path.abspath(gif_result)
+                                print(f"📂 Absolute path: {abs_gif_path}")
+                                self.replayReady.emit(abs_gif_path)  # Signal QML to show popup with GIF
 
                             # Stop after capture
                             self.picam2.stop()

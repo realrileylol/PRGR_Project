@@ -260,7 +260,7 @@ ApplicationWindow {
     }
 
     /* ==========================================================
-       REPLAY VIDEO OVERLAY (Snapchat-style popup)
+       REPLAY GIF OVERLAY (Frame-by-frame playback)
     ========================================================== */
     Rectangle {
         id: replayOverlay
@@ -274,7 +274,7 @@ ApplicationWindow {
             NumberAnimation { duration: 300 }
         }
 
-        // Replay video container
+        // Replay GIF container
         Rectangle {
             id: replayContainer
             anchors.centerIn: parent
@@ -331,7 +331,7 @@ ApplicationWindow {
                     }
                 }
 
-                // Video saved confirmation area
+                // GIF replay area (looping playback)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -340,53 +340,39 @@ ApplicationWindow {
                     border.color: "#5F6B7A"
                     border.width: 2
 
-                    ColumnLayout {
+                    AnimatedImage {
+                        id: replayGif
+                        anchors.fill: parent
+                        anchors.margins: 2
+                        fillMode: Image.PreserveAspectFit
+                        playing: replayOverlay.visible
+                        cache: false
+
+                        // Status monitoring
+                        onStatusChanged: {
+                            if (status === Image.Error) {
+                                console.log("❌ Failed to load replay GIF")
+                            } else if (status === Image.Ready) {
+                                console.log("✅ Replay GIF loaded - playing frame-by-frame")
+                            }
+                        }
+                    }
+
+                    // Loading indicator
+                    Text {
                         anchors.centerIn: parent
-                        spacing: 20
-
-                        // Success icon
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "🎬"
-                            font.pixelSize: 72
-                        }
-
-                        // Success message
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "Replay Video Saved!"
-                            color: "#3A86FF"
-                            font.pixelSize: 28
-                            font.bold: true
-                        }
-
-                        // Video path
-                        Text {
-                            id: videoPathText
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: 600
-                            text: ""
-                            color: "#5F6B7A"
-                            font.pixelSize: 14
-                            wrapMode: Text.WrapAnywhere
-                            horizontalAlignment: Text.AlignHCenter
-                        }
-
-                        // Info text
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: "Check ball_captures/ folder"
-                            color: "#8B95A5"
-                            font.pixelSize: 16
-                            font.italic: true
-                        }
+                        text: "Loading replay..."
+                        color: "#5F6B7A"
+                        font.pixelSize: 18
+                        font.italic: true
+                        visible: replayGif.status === Image.Loading
                     }
                 }
 
                 // Info text
                 Text {
                     Layout.fillWidth: true
-                    text: "30 frames before + 10 frames after impact • 0.5x speed (slow-mo)"
+                    text: "20 frames before + 20 frames after impact • 0.1x speed (frame-by-frame)"
                     color: "#5F6B7A"
                     font.pixelSize: 14
                     font.italic: true
@@ -423,10 +409,10 @@ ApplicationWindow {
     Connections {
         target: captureManager
 
-        function onReplayReady(videoPath) {
-            console.log("🎬 Replay ready:", videoPath)
-            // Display the video path
-            videoPathText.text = videoPath
+        function onReplayReady(gifPath) {
+            console.log("🎬 Replay GIF ready:", gifPath)
+            // Load GIF into AnimatedImage (will loop automatically)
+            replayGif.source = "file://" + gifPath
             replayOverlay.visible = true
             replayOverlay.opacity = 1.0
             replayEnterAnimation.restart()
