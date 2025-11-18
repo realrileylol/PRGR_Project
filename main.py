@@ -1506,7 +1506,7 @@ class CaptureManager(QObject):
             # DIRECTIONAL IMPACT DETECTION SETTINGS
             # Configure which axis/direction the ball moves when hit
             impact_axis = 1        # 0=X axis (camera on side), 1=Y axis (camera behind/front)
-            impact_direction = 1   # 1=positive (down/right), -1=negative (up/left)
+            impact_direction = -1  # 1=positive (down/right), -1=negative (up/left) - BALL MOVES UP!
             impact_threshold = 30  # Pixels ball must move down range to trigger
 
             print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
