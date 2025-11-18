@@ -22,6 +22,7 @@ from SettingsManager import SettingsManager
 try:
     from picamera2 import Picamera2
     import cv2
+    from ball_tracker import BallTracker
     CAMERA_AVAILABLE = True
 except ImportError:
     CAMERA_AVAILABLE = False
@@ -1507,7 +1508,7 @@ class CaptureManager(QObject):
             # Configure which axis/direction the ball moves when hit
             impact_axis = 1        # 0=X axis (camera on side), 1=Y axis (camera behind/front)
             impact_direction = -1  # 1=positive (down/right), -1=negative (up/left) - BALL MOVES UP!
-            impact_threshold = 15  # Pixels ball must move down range to trigger (lowered for testing)
+            impact_threshold = 10  # Pixels ball must move down range to trigger (ultra-sensitive)
 
             print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
             print(f"🎯 Impact detection: Axis={'Y' if impact_axis==1 else 'X'}, Direction={'positive' if impact_direction==1 else 'negative'}, Threshold={impact_threshold}px", flush=True)
@@ -1615,6 +1616,10 @@ class CaptureManager(QObject):
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
             frame_buffer = deque(maxlen=40)  # Circular buffer for 40 pre-impact frames (200ms at 200 FPS)
 
+            # Initialize hybrid ball tracker (template matching + Kalman filter)
+            ball_tracker = BallTracker()
+            use_tracker = False  # Flag to switch between HoughCircles and tracker
+
             # Calculate target frame time for adaptive sleep
             target_frame_time = 1.0 / frame_rate
             print(f"🎯 Target frame time: {target_frame_time*1000:.1f}ms ({frame_rate} FPS)")
@@ -1658,10 +1663,39 @@ class CaptureManager(QObject):
                     # Already BGR or other format
                     vis_frame = frame.copy()
 
-                # === EDGE VELOCITY TRACKING ===
-                # Detect ball with motion analysis
-                ball_result, velocity, motion_state = self._detect_ball_with_motion(frame, prev_frame_for_motion)
-                current_ball = ball_result
+                # === HYBRID BALL DETECTION ===
+                # Use template matching tracker if ball is locked, otherwise use HoughCircles
+                if use_tracker and ball_tracker.is_locked:
+                    # Convert to grayscale for tracker
+                    if len(frame.shape) == 3:
+                        if frame.shape[2] == 1:
+                            gray_frame = frame[:, :, 0]
+                        elif frame.shape[2] == 4:
+                            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+                        else:
+                            gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                    else:
+                        gray_frame = frame
+
+                    # Track ball using template matching + Kalman filter
+                    track_result = ball_tracker.track(gray_frame)
+
+                    if track_result is not None:
+                        tx, ty, tr, confidence = track_result
+                        current_ball = np.array([tx, ty, tr], dtype=np.float32)
+                        #if frames_since_lock % 30 == 0:  # Print every 30 frames
+                        #    print(f"   Tracking confidence: {confidence:.2f}")
+                    else:
+                        # Tracking lost - fall back to HoughCircles
+                        print("⚠️ Tracking lost - falling back to HoughCircles")
+                        use_tracker = False
+                        ball_tracker.reset()
+                        ball_result, velocity, motion_state = self._detect_ball_with_motion(frame, prev_frame_for_motion)
+                        current_ball = ball_result
+                else:
+                    # Use HoughCircles detection (initial detection or after tracking lost)
+                    ball_result, velocity, motion_state = self._detect_ball_with_motion(frame, prev_frame_for_motion)
+                    current_ball = ball_result
 
                 # Store frame for next iteration
                 prev_frame_for_motion = frame.copy()
@@ -1726,8 +1760,26 @@ class CaptureManager(QObject):
 
                         if stable_frames >= 2:  # Only 2 stable frames needed for ULTRA-FAST locking (30% faster)
                             original_ball = smoothed_ball
+
+                            # === ACTIVATE HYBRID BALL TRACKER FOR ROCK-SOLID TRACKING ===
+                            # Convert to grayscale for tracker
+                            if len(frame.shape) == 3:
+                                if frame.shape[2] == 1:
+                                    gray_frame = frame[:, :, 0]
+                                elif frame.shape[2] == 4:
+                                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+                                else:
+                                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                            else:
+                                gray_frame = frame
+
+                            # Lock ball with template matching + Kalman filter
+                            ball_tracker.lock_ball(gray_frame, x, y, r)
+                            use_tracker = True
+
                             self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
                             print(f"🎯 Ball locked at ({x}, {y}) with radius {r}px")
+                            print(f"   🔒 Hybrid tracker activated - template matching + Kalman filter")
                             print(f"   Waiting for shot...")
                             stable_frames = 0
                             prev_ball = None
@@ -1829,6 +1881,10 @@ class CaptureManager(QObject):
                             radius_history.clear()
                             detection_history.clear()
                             frame_buffer.clear()
+
+                            # Reset hybrid ball tracker
+                            ball_tracker.reset()
+                            use_tracker = False
 
                             print(f"\n🔄 Ready for next shot (#{next_shot})...")
                             self.statusChanged.emit("No Ball Detected", "red")
