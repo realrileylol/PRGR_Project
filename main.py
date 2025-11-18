@@ -1613,7 +1613,7 @@ class CaptureManager(QObject):
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
-            frame_buffer = deque(maxlen=20)  # Circular buffer for 20 pre-impact frames (100ms at 200 FPS)
+            frame_buffer = deque(maxlen=40)  # Circular buffer for 40 pre-impact frames (200ms at 200 FPS)
 
             # Calculate target frame time for adaptive sleep
             target_frame_time = 1.0 / frame_rate
@@ -1777,8 +1777,8 @@ class CaptureManager(QObject):
                             print(f"   Capturing impact sequence...")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames: 20 BEFORE impact (from buffer) + 20 AFTER impact
-                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (20 frames)
+                            # Capture frames: 40 BEFORE impact (from buffer) + 20 AFTER impact
+                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (40 frames)
                             print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
                             # Capture post-impact frames (20 frames = 100ms at 200 FPS)
@@ -1788,13 +1788,13 @@ class CaptureManager(QObject):
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured (20 before + 20 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured ({len(frames)-20} before + 20 after impact)")
 
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay files (20 before + 20 after at 0.025x speed = 5 FPS playback)
-                            # Each frame visible for 200ms for clear frame-by-frame analysis
+                            # Create replay files (40 before + 20 after at 0.025x speed = 5 FPS playback)
+                            # Each frame visible for 200ms - LONGER pre-impact window to capture swing
                             replay_frames = frames  # All frames
 
                             # Create MP4 video for storage/transfer
