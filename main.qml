@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
-import QtMultimedia 5.15
 
 ApplicationWindow {
     id: win
@@ -332,7 +331,7 @@ ApplicationWindow {
                     }
                 }
 
-                // Video replay area
+                // Video saved confirmation area
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -341,39 +340,46 @@ ApplicationWindow {
                     border.color: "#5F6B7A"
                     border.width: 2
 
-                    Video {
-                        id: replayVideo
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        fillMode: VideoOutput.PreserveAspectFit
-                        autoPlay: true
-                        loops: MediaPlayer.Infinite
-                        muted: true
-
-                        // Status monitoring
-                        onStatusChanged: {
-                            if (status === MediaPlayer.InvalidMedia) {
-                                console.log("❌ Failed to load replay video")
-                            } else if (status === MediaPlayer.Loaded) {
-                                console.log("✅ Replay video loaded successfully")
-                            }
-                        }
-
-                        onErrorChanged: {
-                            if (error !== MediaPlayer.NoError) {
-                                console.log("❌ Video error:", errorString)
-                            }
-                        }
-                    }
-
-                    // Loading indicator
-                    Text {
+                    ColumnLayout {
                         anchors.centerIn: parent
-                        text: "Loading replay..."
-                        color: "#5F6B7A"
-                        font.pixelSize: 18
-                        font.italic: true
-                        visible: replayVideo.status === MediaPlayer.Loading
+                        spacing: 20
+
+                        // Success icon
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "🎬"
+                            font.pixelSize: 72
+                        }
+
+                        // Success message
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Replay Video Saved!"
+                            color: "#3A86FF"
+                            font.pixelSize: 28
+                            font.bold: true
+                        }
+
+                        // Video path
+                        Text {
+                            id: videoPathText
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.preferredWidth: 600
+                            text: ""
+                            color: "#5F6B7A"
+                            font.pixelSize: 14
+                            wrapMode: Text.WrapAnywhere
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        // Info text
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Check ball_captures/ folder"
+                            color: "#8B95A5"
+                            font.pixelSize: 16
+                            font.italic: true
+                        }
                     }
                 }
 
@@ -419,8 +425,8 @@ ApplicationWindow {
 
         function onReplayReady(videoPath) {
             console.log("🎬 Replay ready:", videoPath)
-            // Convert file path to URL
-            replayVideo.source = "file://" + videoPath
+            // Display the video path
+            videoPathText.text = videoPath
             replayOverlay.visible = true
             replayOverlay.opacity = 1.0
             replayEnterAnimation.restart()
