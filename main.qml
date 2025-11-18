@@ -372,7 +372,7 @@ ApplicationWindow {
                 // Info text
                 Text {
                     Layout.fillWidth: true
-                    text: "20 frames before + 20 frames after impact • 0.1x speed (frame-by-frame)"
+                    text: "20 frames before + 20 frames after impact • 0.025x speed (200ms/frame)"
                     color: "#5F6B7A"
                     font.pixelSize: 14
                     font.italic: true

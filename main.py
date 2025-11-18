@@ -1793,13 +1793,14 @@ class CaptureManager(QObject):
                             print(f"✅ Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay files (20 before + 20 after at 0.1x speed for frame-by-frame visibility)
+                            # Create replay files (20 before + 20 after at 0.025x speed = 5 FPS playback)
+                            # Each frame visible for 200ms for clear frame-by-frame analysis
                             replay_frames = frames  # All frames
 
                             # Create MP4 video for storage/transfer
                             video_filename = f"shot_{next_shot:03d}_replay.mp4"
                             video_path = os.path.join(captures_folder, video_filename)
-                            video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.1)
+                            video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.025)
 
                             if video_result:
                                 print(f"🎬 Replay video saved: {video_filename}")
@@ -1807,7 +1808,7 @@ class CaptureManager(QObject):
                             # Create GIF for popup playback (loops automatically)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
                             gif_path = os.path.join(captures_folder, gif_filename)
-                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.1)
+                            gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.025)
 
                             if gif_result:
                                 print(f"🎬 Popup GIF created: {gif_filename}")
