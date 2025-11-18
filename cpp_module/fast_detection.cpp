@@ -271,6 +271,42 @@ double get_scene_brightness(py::array_t<uint8_t> frame_array) {
     return cv::mean(gray)[0];
 }
 
+/**
+ * Ultra-fast impact detection via ball motion
+ * Detects when ball suddenly moves (impact!)
+ *
+ * Args:
+ *   prev_x, prev_y: Previous ball position
+ *   curr_x, curr_y: Current ball position
+ *   threshold: Distance threshold in pixels (default 30)
+ *
+ * Returns: true if ball moved more than threshold (IMPACT!)
+ *
+ * Performance: ~0.001ms (1 microsecond) - integer math only, no sqrt!
+ */
+bool detect_impact(int prev_x, int prev_y, int curr_x, int curr_y, int threshold = 30) {
+    // Calculate squared distance (faster than sqrt)
+    int dx = curr_x - prev_x;
+    int dy = curr_y - prev_y;
+    int distance_squared = dx * dx + dy * dy;
+    int threshold_squared = threshold * threshold;
+
+    // Ball moved more than threshold → IMPACT!
+    return distance_squared > threshold_squared;
+}
+
+/**
+ * Calculate actual distance between two ball positions
+ * Used for debugging/logging only (slower due to sqrt)
+ *
+ * Returns: distance in pixels
+ */
+double calculate_ball_distance(int prev_x, int prev_y, int curr_x, int curr_y) {
+    int dx = curr_x - prev_x;
+    int dy = curr_y - prev_y;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
 // ============================================
 // Python Module Definition
 // ============================================
@@ -288,4 +324,15 @@ PYBIND11_MODULE(fast_detection, m) {
     m.def("get_scene_brightness", &get_scene_brightness,
           "Get mean scene brightness (0-255)",
           py::arg("frame"));
+
+    m.def("detect_impact", &detect_impact,
+          "Ultra-fast impact detection. Returns True if ball moved > threshold pixels",
+          py::arg("prev_x"), py::arg("prev_y"),
+          py::arg("curr_x"), py::arg("curr_y"),
+          py::arg("threshold") = 30);
+
+    m.def("calculate_ball_distance", &calculate_ball_distance,
+          "Calculate distance between two ball positions (for debugging)",
+          py::arg("prev_x"), py::arg("prev_y"),
+          py::arg("curr_x"), py::arg("curr_y"));
 }

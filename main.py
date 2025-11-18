@@ -1537,7 +1537,7 @@ class CaptureManager(QObject):
 
             # Debug frame saving (saves periodically for diagnostics)
             debug_frame_counter = 0
-            print("📺 Ball Disappearance Detection - Simple and reliable!", flush=True)
+            print("📺 C++ Motion Detection - Ultra-fast impact detection!", flush=True)
 
             # Edge velocity tracking state
             prev_frame_for_motion = None
@@ -1644,62 +1644,86 @@ class CaptureManager(QObject):
                             prev_ball = None
                             frames_since_lock = 0
 
-                    # Ball is locked - just keep tracking it
+                    # Ball is locked - check for IMPACT via motion detection!
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
-                        # Ball is still visible and locked
-                        # Just waiting for it to disappear (get hit)
-                        self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
-                        frames_since_lock += 1
+                        # Ball is still visible and locked - check if it MOVED (impact!)
+
+                        # === C++ ULTRA-FAST IMPACT DETECTION ===
+                        # Check if ball suddenly moved > 30 pixels (it was hit!)
+                        if FAST_DETECTION_AVAILABLE:
+                            impact_detected = fast_detection.detect_impact(
+                                int(original_ball[0]), int(original_ball[1]),  # Previous position
+                                int(x), int(y),  # Current position
+                                30  # Threshold: 30 pixels = definite impact
+                            )
+                        else:
+                            # Fallback Python motion detection
+                            dx = x - original_ball[0]
+                            dy = y - original_ball[1]
+                            distance = (dx*dx + dy*dy) ** 0.5
+                            impact_detected = distance > 30
+
+                        if impact_detected:
+                            # IMPACT! Ball moved suddenly - it was HIT!
+                            if FAST_DETECTION_AVAILABLE:
+                                actual_distance = fast_detection.calculate_ball_distance(
+                                    int(original_ball[0]), int(original_ball[1]),
+                                    int(x), int(y)
+                                )
+                            else:
+                                actual_distance = distance
+
+                            print(f"🏌️ IMPACT DETECTED - Ball moved {actual_distance:.1f} pixels!")
+                            print(f"   From ({int(original_ball[0])}, {int(original_ball[1])}) → ({x}, {y})")
+                            print(f"   Capturing impact sequence...")
+                            self.statusChanged.emit("Capturing...", "red")
+
+                            # Capture frames: 30 BEFORE impact (from buffer) + 10 AFTER impact
+                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (30 frames)
+                            print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
+
+                            # Capture post-impact frames (10 frames = 50ms at 200 FPS)
+                            frame_delay = 1.0 / frame_rate
+                            for i in range(10):
+                                capture_frame = self.picam2.capture_array()
+                                frames.append(capture_frame)
+                                time.sleep(frame_delay)
+
+                            print(f"   📸 Total: {len(frames)} frames captured (30 before + 10 after impact)")
+
+                            print(f"✅ Shot #{next_shot} saved!")
+                            self.shotCaptured.emit(next_shot)
+
+                            # Create replay video (30 before + 10 after at 0.5x speed)
+                            replay_frames = frames  # All frames
+                            video_filename = f"shot_{next_shot:03d}_replay.mp4"
+                            video_path = os.path.join(captures_folder, video_filename)
+                            video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.5)
+
+                            if video_result:
+                                print(f"🎬 Replay video created: {video_filename}")
+                                # Convert to absolute path for QML
+                                abs_video_path = os.path.abspath(video_result)
+                                print(f"📂 Absolute path: {abs_video_path}")
+                                self.replayReady.emit(abs_video_path)  # Signal QML to show popup
+
+                            # Stop after capture
+                            self.picam2.stop()
+                            self.picam2 = None
+                            self.is_running = False
+                            return
+                        else:
+                            # Ball hasn't moved yet - still waiting for shot
+                            self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
+                            frames_since_lock += 1
 
                 else:
-                    # Ball not detected - it disappeared!
+                    # Ball not detected this frame
                     frames_since_seen += 1
                     consecutive_frames_seen = 0  # Reset consecutive seen counter
 
                     # Track detection in history
                     detection_history.append(False)  # deque auto-truncates at maxlen
-
-                    # === BALL DISAPPEARANCE DETECTION ===
-                    # If ball was locked and disappeared for 2 frames = IT WAS HIT! (30% faster detection)
-                    if original_ball is not None and frames_since_seen == 2:
-                        print(f"🏌️ IMPACT DETECTED - Ball disappeared!")
-                        print(f"   Capturing impact sequence...")
-                        self.statusChanged.emit("Capturing...", "red")
-
-                        # Capture frames: 30 BEFORE impact (from buffer) + 10 AFTER impact
-                        frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (30 frames)
-                        print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
-
-                        # Capture post-impact frames (10 frames = 50ms at 200 FPS)
-                        frame_delay = 1.0 / frame_rate
-                        for i in range(10):
-                            capture_frame = self.picam2.capture_array()
-                            frames.append(capture_frame)
-                            time.sleep(frame_delay)
-
-                        print(f"   📸 Total: {len(frames)} frames captured (30 before + 10 after impact)")
-
-                        print(f"✅ Shot #{next_shot} saved!")
-                        self.shotCaptured.emit(next_shot)
-
-                        # Create replay video (30 before + 10 after at 0.5x speed)
-                        replay_frames = frames  # All frames
-                        video_filename = f"shot_{next_shot:03d}_replay.mp4"
-                        video_path = os.path.join(captures_folder, video_filename)
-                        video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.5)
-
-                        if video_result:
-                            print(f"🎬 Replay video created: {video_filename}")
-                            # Convert to absolute path for QML
-                            abs_video_path = os.path.abspath(video_result)
-                            print(f"📂 Absolute path: {abs_video_path}")
-                            self.replayReady.emit(abs_video_path)  # Signal QML to show popup
-
-                        # Stop after capture
-                        self.picam2.stop()
-                        self.picam2 = None
-                        self.is_running = False
-                        return
 
                     # Ball has been gone too long - reset lock
                     if original_ball is not None and frames_since_seen > 60:
