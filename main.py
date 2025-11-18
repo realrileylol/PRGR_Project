@@ -1817,11 +1817,22 @@ class CaptureManager(QObject):
                                 print(f"📂 Absolute path: {abs_gif_path}")
                                 self.replayReady.emit(abs_gif_path)  # Signal QML to show popup with GIF
 
-                            # Stop after capture
-                            self.picam2.stop()
-                            self.picam2 = None
-                            self.is_running = False
-                            return
+                            # Reset for next capture (don't exit!)
+                            next_shot += 1
+                            original_ball = None
+                            stable_frames = 0
+                            last_seen_ball = None
+                            frames_since_seen = 0
+                            consecutive_frames_seen = 0
+                            prev_ball = None
+                            frames_since_lock = 0
+                            radius_history.clear()
+                            detection_history.clear()
+                            frame_buffer.clear()
+
+                            print(f"\n🔄 Ready for next shot (#{next_shot})...")
+                            self.statusChanged.emit("No Ball Detected", "red")
+                            continue  # Continue loop for next capture
                         else:
                             # Ball hasn't moved yet - still waiting for shot
                             self.statusChanged.emit("Ball Locked - Waiting for shot...", "green")
