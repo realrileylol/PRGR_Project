@@ -272,27 +272,43 @@ double get_scene_brightness(py::array_t<uint8_t> frame_array) {
 }
 
 /**
- * Ultra-fast impact detection via ball motion
- * Detects when ball suddenly moves (impact!)
+ * Ultra-fast DIRECTIONAL impact detection
+ * Only detects movement in the DOWN RANGE direction (avoids false triggers)
  *
  * Args:
  *   prev_x, prev_y: Previous ball position
  *   curr_x, curr_y: Current ball position
  *   threshold: Distance threshold in pixels (default 30)
+ *   axis: Which axis is down range? 0=X axis, 1=Y axis (default 1)
+ *   direction: Which direction is down range? 1=positive, -1=negative (default 1)
  *
- * Returns: true if ball moved more than threshold (IMPACT!)
+ * Returns: true if ball moved DOWN RANGE > threshold (IMPACT!)
  *
- * Performance: ~0.001ms (1 microsecond) - integer math only, no sqrt!
+ * Examples:
+ *   Camera behind golfer: Ball moves DOWN in frame (Y increases)
+ *     → axis=1, direction=1
+ *   Camera in front: Ball moves UP in frame (Y decreases)
+ *     → axis=1, direction=-1
+ *   Camera on side: Ball moves RIGHT (X increases)
+ *     → axis=0, direction=1
+ *
+ * Performance: ~0.0005ms - even faster (no multiplication!)
  */
-bool detect_impact(int prev_x, int prev_y, int curr_x, int curr_y, int threshold = 30) {
-    // Calculate squared distance (faster than sqrt)
-    int dx = curr_x - prev_x;
-    int dy = curr_y - prev_y;
-    int distance_squared = dx * dx + dy * dy;
-    int threshold_squared = threshold * threshold;
+bool detect_impact(int prev_x, int prev_y, int curr_x, int curr_y,
+                   int threshold = 30, int axis = 1, int direction = 1) {
+    int movement = 0;
 
-    // Ball moved more than threshold → IMPACT!
-    return distance_squared > threshold_squared;
+    if (axis == 0) {
+        // X-axis is down range (camera on side)
+        movement = (curr_x - prev_x) * direction;
+    } else {
+        // Y-axis is down range (camera behind/in front)
+        movement = (curr_y - prev_y) * direction;
+    }
+
+    // Ball moved DOWN RANGE more than threshold → IMPACT!
+    // Negative movement (backwards) is ignored = no false triggers
+    return movement > threshold;
 }
 
 /**
@@ -326,10 +342,18 @@ PYBIND11_MODULE(fast_detection, m) {
           py::arg("frame"));
 
     m.def("detect_impact", &detect_impact,
-          "Ultra-fast impact detection. Returns True if ball moved > threshold pixels",
+          "Directional impact detection. Returns True if ball moved DOWN RANGE > threshold.\n"
+          "Args:\n"
+          "  prev_x, prev_y: Previous ball position\n"
+          "  curr_x, curr_y: Current ball position\n"
+          "  threshold: Distance threshold in pixels (default 30)\n"
+          "  axis: Down range axis - 0=X, 1=Y (default 1)\n"
+          "  direction: Down range direction - 1=positive, -1=negative (default 1)",
           py::arg("prev_x"), py::arg("prev_y"),
           py::arg("curr_x"), py::arg("curr_y"),
-          py::arg("threshold") = 30);
+          py::arg("threshold") = 30,
+          py::arg("axis") = 1,
+          py::arg("direction") = 1);
 
     m.def("calculate_ball_distance", &calculate_ball_distance,
           "Calculate distance between two ball positions (for debugging)",

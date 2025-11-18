@@ -1421,7 +1421,14 @@ class CaptureManager(QObject):
             gain = 10.0            # Max gain to compensate for fast shutter
             frame_rate = 200       # 200 FPS for super high-speed capture (5ms between frames)
 
+            # DIRECTIONAL IMPACT DETECTION SETTINGS
+            # Configure which axis/direction the ball moves when hit
+            impact_axis = 1        # 0=X axis (camera on side), 1=Y axis (camera behind/front)
+            impact_direction = 1   # 1=positive (down/right), -1=negative (up/left)
+            impact_threshold = 30  # Pixels ball must move down range to trigger
+
             print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"🎯 Impact detection: Axis={'Y' if impact_axis==1 else 'X'}, Direction={'positive' if impact_direction==1 else 'negative'}, Threshold={impact_threshold}px", flush=True)
 
             # Force cleanup of any lingering camera instances
             try:
@@ -1648,20 +1655,23 @@ class CaptureManager(QObject):
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
                         # Ball is still visible and locked - check if it MOVED (impact!)
 
-                        # === C++ ULTRA-FAST IMPACT DETECTION ===
-                        # Check if ball suddenly moved > 30 pixels (it was hit!)
+                        # === C++ ULTRA-FAST DIRECTIONAL IMPACT DETECTION ===
+                        # Only check movement in DOWN RANGE direction (avoids false triggers)
                         if FAST_DETECTION_AVAILABLE:
                             impact_detected = fast_detection.detect_impact(
                                 int(original_ball[0]), int(original_ball[1]),  # Previous position
                                 int(x), int(y),  # Current position
-                                30  # Threshold: 30 pixels = definite impact
+                                impact_threshold,  # Distance threshold
+                                impact_axis,       # Which axis is down range (0=X, 1=Y)
+                                impact_direction   # Which direction is down range (1=pos, -1=neg)
                             )
                         else:
-                            # Fallback Python motion detection
-                            dx = x - original_ball[0]
-                            dy = y - original_ball[1]
-                            distance = (dx*dx + dy*dy) ** 0.5
-                            impact_detected = distance > 30
+                            # Fallback Python directional motion detection
+                            if impact_axis == 0:
+                                movement = (x - original_ball[0]) * impact_direction
+                            else:
+                                movement = (y - original_ball[1]) * impact_direction
+                            impact_detected = movement > impact_threshold
 
                         if impact_detected:
                             # IMPACT! Ball moved suddenly - it was HIT!
