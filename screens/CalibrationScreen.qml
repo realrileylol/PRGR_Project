@@ -27,7 +27,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Button {
-                text: "← Back"
+                text: "Back"
                 background: Rectangle { color: success; radius: 6 }
                 contentItem: Text {
                     text: parent.text

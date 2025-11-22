@@ -37,7 +37,7 @@ Item {
         })
 
         captureManager.errorOccurred.connect(function(errorMsg) {
-            console.log("❌ Capture error:", errorMsg)
+            console.log("Capture error:", errorMsg)
         })
     }
 
@@ -64,7 +64,7 @@ Item {
             anchors.centerIn: parent
 
             Text {
-                text: "✅ Shot #" + shotSavedDialog.shotNumber + " Captured!"
+                text: "Shot #" + shotSavedDialog.shotNumber + " Captured"
                 font.pixelSize: 24
                 font.bold: true
                 color: success
@@ -270,7 +270,7 @@ Item {
                     }
                     
                     Label {
-                        text: "Swipe for metrics →"
+                        text: "Swipe for metrics"
                         color: hint
                         font.pixelSize: 14
                         font.italic: true
@@ -690,7 +690,7 @@ Item {
                             anchors.rightMargin: 16
                             
                             Label {
-                                text: "← Swipe back"
+                                text: "Swipe back"
                                 color: "white"
                                 font.pixelSize: 13
                                 opacity: 0.85

@@ -129,7 +129,7 @@ Item {
             spacing: 12
             
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 100
                 implicitHeight: 48
                 scale: pressed ? 0.95 : 1.0
@@ -528,14 +528,14 @@ Item {
                         text: {
                             var n = nameInput.text.trim()
                             if (n.length === 0) return ""
-                            if (n.length < 2) return "⚠ Too short (min 2 characters)"
+                            if (n.length < 2) return "Too short (min 2 characters)"
 
                             for (var i = 0; i < profiles.length; i++) {
                                 if (profiles[i].toLowerCase() === n.toLowerCase()) {
-                                    return "⚠ Profile already exists"
+                                    return "Profile already exists"
                                 }
                             }
-                            return "✓ Valid name"
+                            return "Valid name"
                         }
                         color: nameInput.isValid ? "#2D9A4F" : danger
                         font.pixelSize: 12
@@ -647,8 +647,9 @@ Item {
             spacing: 20
             
             Label {
-                text: "⚠️"
+                text: "!"
                 font.pixelSize: 48
+                font.bold: true
                 Layout.alignment: Qt.AlignHCenter
             }
             

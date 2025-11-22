@@ -38,7 +38,7 @@ Item {
             spacing: 12
 
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }

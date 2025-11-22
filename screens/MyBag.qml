@@ -140,7 +140,7 @@ Item {
                     spacing: 15
                     
                     Button {
-                        text: "← Back"
+                        text: "Back"
                         implicitHeight: 45
                         implicitWidth: 100
                         scale: pressed ? 0.95 : 1.0

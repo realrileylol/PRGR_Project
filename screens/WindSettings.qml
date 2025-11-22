@@ -38,7 +38,7 @@ Item {
             spacing: 12
             
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }
@@ -220,7 +220,7 @@ Item {
                 }
 
                 Text {
-                    text: "← Headwind (adds distance) | Tailwind (reduces distance) →"
+                    text: "Headwind (adds distance) | Tailwind (reduces distance)"
                     color: hint
                     font.pixelSize: 12
                     Layout.alignment: Qt.AlignHCenter

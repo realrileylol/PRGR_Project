@@ -36,7 +36,7 @@ Item {
             spacing: 10
 
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 80
                 implicitHeight: 40
                 onClicked: {

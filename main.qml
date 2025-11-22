@@ -21,7 +21,25 @@ ApplicationWindow {
     
     Material.theme: Material.Dark
 
-    property alias stack: stack 
+    property alias stack: stack
+
+    /* ==========================================================
+       TYPOGRAPHY SYSTEM
+    ========================================================== */
+    readonly property string fontFamily: "Roboto"
+    readonly property string fontFamilyFallback: "Helvetica"
+
+    // Font sizes - consistent scale
+    readonly property int fontCaption: 12    // Small labels, hints
+    readonly property int fontBody: 14       // Normal text
+    readonly property int fontSubtitle: 16   // Secondary headings, buttons
+    readonly property int fontHeading: 20    // Section titles
+    readonly property int fontTitle: 24      // Main headings
+    readonly property int fontDisplay: 28    // Large emphasis
+
+    // Set app-wide default font
+    font.family: fontFamily
+    font.pixelSize: fontBody
 
     /* ==========================================================
        GLOBAL STATE
@@ -134,13 +152,13 @@ ApplicationWindow {
         var savedCompression = settingsManager.getString("ballCompression")
         if (savedCompression) ballCompression = savedCompression
 
-        console.log("✅ Settings loaded")
+        console.log("Settings loaded")
     }
 
     function resetAllSettings() {
         settingsManager.resetToDefaults()
         loadSettings()
-        console.log("🔄 All settings reset to default")
+        console.log("All settings reset to default")
     }
 
 /* ==========================================================
@@ -296,7 +314,7 @@ ApplicationWindow {
                     spacing: 10
 
                     Text {
-                        text: "🏌️ Impact Replay"
+                        text: "Impact Replay"
                         color: "white"
                         font.pixelSize: 24
                         font.bold: true
@@ -351,9 +369,9 @@ ApplicationWindow {
                         // Status monitoring
                         onStatusChanged: {
                             if (status === Image.Error) {
-                                console.log("❌ Failed to load replay GIF")
+                                console.log("Failed to load replay GIF")
                             } else if (status === Image.Ready) {
-                                console.log("✅ Replay GIF loaded - playing frame-by-frame")
+                                console.log("Replay GIF loaded - playing frame-by-frame")
                             }
                         }
                     }
@@ -410,7 +428,7 @@ ApplicationWindow {
         target: captureManager
 
         function onReplayReady(gifPath) {
-            console.log("🎬 Replay GIF ready:", gifPath)
+            console.log("Replay GIF ready:", gifPath)
             // Load GIF into AnimatedImage (will loop automatically)
             replayGif.source = "file://" + gifPath
             replayOverlay.visible = true

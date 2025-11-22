@@ -47,7 +47,7 @@ Item {
         frameRate = loadedFPS || 30
         timeOfDay = loadedTOD || "Cloudy/Shade"
 
-        console.log("📷 Loaded camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
+        console.log("Loaded camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
 
         // Update combo box to match loaded timeOfDay
         for (var i = 0; i < timeOfDaySelect.model.length; i++) {
@@ -68,7 +68,7 @@ Item {
         settingsManager.setNumber("cameraFrameRate", frameRate)
         settingsManager.setString("cameraTimeOfDay", timeOfDay)
 
-        console.log("💾 Saved camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
+        console.log("Saved camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
     }
 
     function applyPreset(preset) {
@@ -123,7 +123,7 @@ Item {
             spacing: 12
 
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 scale: pressed ? 0.95 : 1.0
