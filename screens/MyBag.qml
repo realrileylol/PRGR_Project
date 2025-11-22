@@ -1,11 +1,12 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import Qt.labs.settings 1.1
+import QtCore
 
 Item {
     id: myBag
-    anchors.fill: parent
+    width: 800
+    height: 480
 
     property var win
 
