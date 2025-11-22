@@ -84,11 +84,11 @@ Item {
             anchors.margins: 15
             spacing: 15
 
-            Text {
-                text: "✓"
+            Rectangle {
+                width: 4
+                height: 28
                 color: "white"
-                font.pixelSize: 28
-                font.bold: true
+                radius: 2
             }
 
             ColumnLayout {

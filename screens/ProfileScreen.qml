@@ -102,7 +102,7 @@ Item {
             spacing: 12
             
             Label {
-                text: "✓"
+                text: ""
                 color: "white"
                 font.pixelSize: 24
                 font.bold: true

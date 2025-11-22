@@ -397,7 +397,7 @@ Item {
             spacing: 10
 
             Text {
-                text: "✓"
+                text: ""
                 color: "white"
                 font.pixelSize: 24
                 font.bold: true
@@ -438,7 +438,7 @@ Item {
             spacing: 10
 
             Text {
-                text: "✓"
+                text: ""
                 color: "white"
                 font.pixelSize: 24
                 font.bold: true

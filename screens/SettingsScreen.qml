@@ -159,7 +159,7 @@ Item {
                                 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "✓"
+                                    text: ""
                                     color: "white"
                                     font.pixelSize: 16
                                     font.bold: true
@@ -242,7 +242,7 @@ Item {
                                 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "✓"
+                                    text: ""
                                     color: "white"
                                     font.pixelSize: 16
                                     font.bold: true
@@ -325,7 +325,7 @@ Item {
                                 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "✓"
+                                    text: ""
                                     color: "white"
                                     font.pixelSize: 16
                                     font.bold: true
@@ -408,7 +408,7 @@ Item {
                                 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "✓"
+                                    text: ""
                                     color: "white"
                                     font.pixelSize: 16
                                     font.bold: true
@@ -491,7 +491,7 @@ Item {
                                 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "✓"
+                                    text: ""
                                     color: "white"
                                     font.pixelSize: 16
                                     font.bold: true
