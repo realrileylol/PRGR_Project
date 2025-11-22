@@ -26,8 +26,6 @@ ApplicationWindow {
     /* ==========================================================
        TYPOGRAPHY SYSTEM
     ========================================================== */
-    readonly property string fontFamily: "DejaVu Sans"  // Available on Raspberry Pi
-
     // Font sizes - consistent scale
     readonly property int fontCaption: 12    // Small labels, hints
     readonly property int fontBody: 14       // Normal text
@@ -36,8 +34,7 @@ ApplicationWindow {
     readonly property int fontTitle: 24      // Main headings
     readonly property int fontDisplay: 28    // Large emphasis
 
-    // Set app-wide default font
-    font.family: fontFamily
+    // Set app-wide default font size (using system font)
     font.pixelSize: fontBody
 
     /* ==========================================================
