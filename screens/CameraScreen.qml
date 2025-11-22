@@ -9,6 +9,7 @@ Item {
 
     property var win
     property bool cameraActive: false
+    property bool recordingActive: false
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -40,10 +41,13 @@ Item {
                 text: "← Back"
                 implicitWidth: 100
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
 
                 background: Rectangle {
                     color: parent.pressed ? "#2D9A4F" : success
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
                 contentItem: Text {
@@ -58,7 +62,7 @@ Item {
                 onClicked: {
                     soundManager.playClick()
                     if (cameraActive) {
-                        cameraManager.stopCamera()
+                        cameraManager.stopPreview()
                         cameraActive = false
                     }
                     stack.goBack()
@@ -88,11 +92,34 @@ Item {
             border.color: edge
             border.width: 2
 
-            // Camera preview placeholder
+            // High-FPS camera preview (direct Qt rendering)
             Item {
                 id: cameraContainer
                 anchors.fill: parent
                 anchors.margins: 2
+
+                // Live camera feed from frame provider
+                Image {
+                    id: cameraImage
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    source: "image://frame/live"
+                    cache: false  // Disable caching for real-time video
+                    asynchronous: false  // Synchronous for lower latency
+                    visible: cameraActive
+
+                    // Auto-refresh when new frame is ready
+                    property int frameCounter: 0
+                    Connections {
+                        target: cameraManager
+                        enabled: cameraActive  // Only refresh when camera is active
+                        function onFrameReady() {
+                            // Force image reload by changing source slightly
+                            cameraImage.frameCounter++
+                            cameraImage.source = "image://frame/live?" + cameraImage.frameCounter
+                        }
+                    }
+                }
 
                 // Message when camera is not active
                 Rectangle {
@@ -107,7 +134,7 @@ Item {
                     Label {
                         id: messageText
                         anchors.centerIn: parent
-                        text: "Camera preview will appear here\n\nClick 'Start Camera' below"
+                        text: "High-FPS Preview (60-100 FPS)\n\nClick 'Start Camera' below"
                         color: "white"
                         font.pixelSize: 16
                         font.bold: true
@@ -124,13 +151,39 @@ Item {
                     color: success
                     font.pixelSize: 16
                     font.bold: true
-                    visible: cameraActive
+                    visible: cameraActive && !recordingActive
                     background: Rectangle {
                         color: "#000000"
                         opacity: 0.7
                         radius: 6
                     }
                     padding: 10
+                }
+
+                // Recording indicator
+                Label {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 15
+                    text: "● REC"
+                    color: danger
+                    font.pixelSize: 16
+                    font.bold: true
+                    visible: recordingActive
+                    background: Rectangle {
+                        color: "#000000"
+                        opacity: 0.7
+                        radius: 6
+                    }
+                    padding: 10
+
+                    // Blinking animation
+                    SequentialAnimation on opacity {
+                        running: recordingActive
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 800 }
+                        NumberAnimation { to: 1.0; duration: 800 }
+                    }
                 }
             }
         }
@@ -184,17 +237,20 @@ Item {
                 Button {
                     text: cameraActive ? "Stop Camera" : "Start Camera"
                     implicitHeight: 50
-                    implicitWidth: 150
+                    implicitWidth: 120
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#2563EB" : accent
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     contentItem: Text {
                         text: parent.text
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -203,12 +259,109 @@ Item {
                     onClicked: {
                         soundManager.playClick()
                         if (cameraActive) {
-                            cameraManager.stopCamera()
+                            cameraManager.stopPreview()
                             cameraActive = false
                         } else {
-                            cameraManager.startCamera()
+                            cameraManager.startPreview()
                             cameraActive = true
                         }
+                    }
+                }
+
+                // Record button
+                Button {
+                    text: recordingActive ? "⏹ Stop" : "⏺ Record"
+                    implicitHeight: 50
+                    implicitWidth: 110
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? (recordingActive ? "#B32824" : "#DA3633") : (recordingActive ? danger : "#DA3633")
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        if (recordingActive) {
+                            cameraManager.stopRecording()
+                            recordingActive = false
+                        } else {
+                            cameraManager.startRecording()
+                            recordingActive = true
+                        }
+                    }
+                }
+
+                // Snapshot button
+                Button {
+                    text: "📸 Snapshot"
+                    implicitHeight: 50
+                    implicitWidth: 120
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#2D9A4F" : success
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        cameraManager.takeSnapshot()
+                        snapshotMessage.visible = true
+                        snapshotTimer.start()
+                    }
+                }
+
+                // Training Mode button
+                Button {
+                    text: "🎓 Train"
+                    implicitHeight: 50
+                    implicitWidth: 100
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#7B3FF2" : "#9B5FF2"
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        cameraManager.startTrainingMode(100)
+                        trainingMessage.visible = true
+                        trainingProgressBar.value = 0
                     }
                 }
             }
@@ -225,9 +378,190 @@ Item {
         }
     }
 
+    // Snapshot confirmation message
+    Rectangle {
+        id: snapshotMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 300
+        height: 60
+        radius: 10
+        color: success
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 10
+
+            Text {
+                text: "✓"
+                color: "white"
+                font.pixelSize: 24
+                font.bold: true
+            }
+
+            Text {
+                text: "Snapshot saved to\nBallSnapshotTest folder"
+                color: "white"
+                font.pixelSize: 14
+                font.bold: true
+                horizontalAlignment: Text.AlignLeft
+            }
+        }
+    }
+
+    Timer {
+        id: snapshotTimer
+        interval: 2000
+        onTriggered: snapshotMessage.visible = false
+    }
+
+    // Recording confirmation message
+    Rectangle {
+        id: recordingMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 300
+        height: 60
+        radius: 10
+        color: danger
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 10
+
+            Text {
+                text: "✓"
+                color: "white"
+                font.pixelSize: 24
+                font.bold: true
+            }
+
+            Text {
+                id: recordingMessageText
+                text: "Recording saved to\nVideos folder"
+                color: "white"
+                font.pixelSize: 14
+                font.bold: true
+                horizontalAlignment: Text.AlignLeft
+            }
+        }
+    }
+
+    Timer {
+        id: recordingTimer
+        interval: 3000
+        onTriggered: recordingMessage.visible = false
+    }
+
+    // Training mode progress message
+    Rectangle {
+        id: trainingMessage
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 100
+        width: 350
+        height: 100
+        radius: 10
+        color: "#9B5FF2"
+        visible: false
+        opacity: visible ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 10
+            width: parent.width - 40
+
+            Text {
+                text: "🎓 Collecting Training Data..."
+                color: "white"
+                font.pixelSize: 16
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            // Progress bar
+            Rectangle {
+                id: trainingProgressBar
+                Layout.fillWidth: true
+                height: 20
+                radius: 10
+                color: "#7B3FF2"
+                border.color: "white"
+                border.width: 2
+
+                property real value: 0
+
+                Rectangle {
+                    width: parent.width * (parent.value / 100)
+                    height: parent.height
+                    radius: parent.radius
+                    color: "white"
+
+                    Behavior on width { NumberAnimation { duration: 200 } }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Math.round(trainingProgressBar.value) + "%"
+                    color: trainingProgressBar.value > 50 ? "#9B5FF2" : "white"
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+            }
+
+            Text {
+                id: trainingProgressText
+                text: "0/100 frames captured"
+                color: "white"
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+        }
+    }
+
+    // Handle training progress updates
+    Connections {
+        target: cameraManager
+        function onTrainingModeProgress(current, total) {
+            trainingProgressBar.value = (current / total) * 100
+            trainingProgressText.text = current + "/" + total + " frames captured"
+
+            // Hide message when complete
+            if (current >= total) {
+                trainingCompleteTimer.start()
+            }
+        }
+
+        function onRecordingSaved(filename) {
+            recordingMessageText.text = "Recording saved:\n" + filename
+            recordingMessage.visible = true
+            recordingTimer.start()
+        }
+    }
+
+    Timer {
+        id: trainingCompleteTimer
+        interval: 3000
+        onTriggered: trainingMessage.visible = false
+    }
+
     Component.onDestruction: {
         if (cameraActive) {
-            cameraManager.stopCamera()
+            cameraManager.stopPreview()
+        }
+        if (recordingActive) {
+            cameraManager.stopRecording()
         }
     }
 }
