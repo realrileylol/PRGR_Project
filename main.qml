@@ -26,8 +26,7 @@ ApplicationWindow {
     /* ==========================================================
        TYPOGRAPHY SYSTEM
     ========================================================== */
-    readonly property string fontFamily: "Roboto"
-    readonly property string fontFamilyFallback: "Helvetica"
+    readonly property string fontFamily: "DejaVu Sans"  // Available on Raspberry Pi
 
     // Font sizes - consistent scale
     readonly property int fontCaption: 12    // Small labels, hints
