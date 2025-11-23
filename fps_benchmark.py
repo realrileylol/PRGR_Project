@@ -45,7 +45,7 @@ def benchmark_fps(resolution, target_fps, duration=5):
 
         # Get actual configured values
         metadata = picam2.camera_configuration()
-        print(f"\n📷 Camera Configuration:")
+        print(f"\nCamera Configuration:")
         print(f"   Resolution: {resolution[0]}x{resolution[1]}")
         print(f"   Target FPS: {target_fps}")
         print(f"   Shutter Speed: {shutter_speed}µs ({shutter_speed/1000:.2f}ms)")
@@ -56,13 +56,13 @@ def benchmark_fps(resolution, target_fps, duration=5):
         picam2.start()
 
         # Warmup
-        print(f"\n🔥 Warming up (1 second)...")
+        print(f"\nWarming up (1 second)...")
         time.sleep(1)
         for _ in range(10):
             picam2.capture_array()
 
         # Actual benchmark
-        print(f"⏱️  Benchmarking for {duration} seconds...")
+        print(f" Benchmarking for {duration} seconds...")
         frame_count = 0
         start_time = time.time()
 
@@ -77,7 +77,7 @@ def benchmark_fps(resolution, target_fps, duration=5):
         picam2.stop()
         picam2.close()
 
-        print(f"\n✅ Results:")
+        print(f"\nResults:")
         print(f"   Frames Captured: {frame_count}")
         print(f"   Duration: {elapsed:.2f}s")
         print(f"   Actual FPS: {actual_fps:.2f}")
@@ -85,14 +85,14 @@ def benchmark_fps(resolution, target_fps, duration=5):
         print(f"   Efficiency: {(actual_fps/target_fps)*100:.1f}%")
 
         if actual_fps < target_fps * 0.95:
-            print(f"   ⚠️  WARNING: Not achieving target FPS!")
+            print(f"    WARNING: Not achieving target FPS!")
         else:
-            print(f"   🎯 Target FPS achieved!")
+            print(f"   Target FPS achieved!")
 
         return actual_fps, frame_count
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         return 0, 0
 
 def main():
@@ -145,13 +145,13 @@ def main():
 
     # Find best config
     best_fps = max(results, key=lambda x: x[3])
-    print(f"✅ Highest FPS achieved: {best_fps[3]:.1f} FPS")
+    print(f"Highest FPS achieved: {best_fps[3]:.1f} FPS")
     print(f"   Config: {best_fps[1][0]}x{best_fps[1][1]} @ {best_fps[2]} target")
 
     # Find config that meets target best
     meeting_target = [r for r in results if r[3] >= r[2] * 0.95]
     if meeting_target:
-        print(f"\n✅ Configs meeting target FPS (>95%):")
+        print(f"\nConfigs meeting target FPS (>95%):")
         for r in meeting_target:
             print(f"   - {r[1][0]}x{r[1][1]} @ {r[2]} FPS (actual: {r[3]:.1f})")
 
@@ -161,5 +161,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Benchmark interrupted by user")
+        print("\n\n Benchmark interrupted by user")
         sys.exit(0)

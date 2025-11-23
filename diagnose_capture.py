@@ -32,7 +32,7 @@ picam2.configure(config)
 picam2.start()
 time.sleep(2)
 
-print(f"✅ Camera started: {frame_rate} FPS, {shutter_speed}µs shutter, {gain}x gain\n")
+print(f"Camera started: {frame_rate} FPS, {shutter_speed}µs shutter, {gain}x gain\n")
 
 # Run detection for 10 seconds
 start_time = time.time()
@@ -146,7 +146,7 @@ while time.time() - start_time < 10:
             # Ball found!
             ball_detected = True
             detection_count += 1
-            print(f"✅ Frame {frame_count}: Ball detected at ({x}, {y}) r={r}, brightness={region_brightness:.1f}, contrast={brightness_contrast:.1f}")
+            print(f"Frame {frame_count}: Ball detected at ({x}, {y}) r={r}, brightness={region_brightness:.1f}, contrast={brightness_contrast:.1f}")
 
             # Save debug frame
             debug_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -160,7 +160,7 @@ while time.time() - start_time < 10:
     # Save debug info every 30 frames
     if frame_count % 30 == 0:
         if not ball_detected:
-            print(f"❌ Frame {frame_count}: No ball detected")
+            print(f"Frame {frame_count}: No ball detected")
             print(f"   Frame shape: {frame.shape}")
             print(f"   Gray stats: min={gray.min()}, max={gray.max()}, mean={gray.mean():.1f}")
             print(f"   Circles found: {len(circles[0]) if circles is not None else 0}")
@@ -178,17 +178,17 @@ while time.time() - start_time < 10:
 picam2.stop()
 picam2.close()
 
-print(f"\n📊 Diagnostic Summary:")
+print(f"\nDiagnostic Summary:")
 print(f"   Total frames: {frame_count}")
 print(f"   Detections: {detection_count}")
 print(f"   Detection rate: {(detection_count/frame_count)*100:.1f}%")
 print(f"\n💡 Debug images saved to diagnose_*.jpg")
 
 if detection_count == 0:
-    print(f"\n❌ NO BALL DETECTED - Check the debug images to see what's wrong")
+    print(f"\nNO BALL DETECTED - Check the debug images to see what's wrong")
     print(f"   Most likely issues:")
     print(f"   1. Ball too dark (brightness < 40)")
     print(f"   2. Ball too uniform (contrast < 30)")
     print(f"   3. Wrong camera format (monochrome sensor as RGB)")
 else:
-    print(f"\n✅ Ball detection is working! Issue might be elsewhere in capture loop")
+    print(f"\nBall detection is working! Issue might be elsewhere in capture loop")

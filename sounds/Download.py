@@ -25,7 +25,7 @@ def generate_beep(filename, frequency=800, duration=0.1, sample_rate=44100):
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio.tobytes())
     
-    print(f"✅ Created: {filepath}")
+    print(f"Created: {filepath}")
 
 if __name__ == "__main__":
     # Install numpy if needed: pip install numpy
