@@ -1640,6 +1640,13 @@ class CaptureManager(QObject):
                 loop_start_time = time.time()
 
                 frame = self.picam2.capture_array()
+
+                # Apply sharpening for better ball edge detection
+                sharpen_kernel = np.array([[-1,-1,-1],
+                                           [-1, 9,-1],
+                                           [-1,-1,-1]])
+                frame = cv2.filter2D(frame, -1, sharpen_kernel)
+
                 frame_buffer.append(frame.copy())  # Store frame in circular buffer
 
                 # Update FPS counter
