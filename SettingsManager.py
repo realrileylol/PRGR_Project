@@ -19,7 +19,7 @@ class SettingsManager(QObject):
                 with open(self._settings_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"⚠️ Error loading settings: {e}")
+                print(f"Error loading settings: {e}")
                 return self._get_default_settings()
         return self._get_default_settings()
 
@@ -52,9 +52,9 @@ class SettingsManager(QObject):
         try:
             with open(self._settings_file, 'w') as f:
                 json.dump(self._settings, f, indent=2)
-            print(f"✅ Settings saved to {self._settings_file}")
+            print(f"Settings saved to {self._settings_file}")
         except Exception as e:
-            print(f"⚠️ Error saving settings: {e}")
+            print(f"Error saving settings: {e}")
 
     @Slot(str, result=str)
     def getString(self, key):
@@ -98,7 +98,7 @@ class SettingsManager(QObject):
         self._settings = self._get_default_settings()
         self._save_settings()
         self.settingsChanged.emit()
-        print("🔄 Settings reset to defaults")
+        print("Settings reset to defaults")
 
     @Slot(result=str)
     def getAllSettingsJson(self):

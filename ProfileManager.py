@@ -21,7 +21,7 @@ class ProfileManager(QObject):
                 with open(self._profiles_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"⚠️ Error loading profiles: {e}")
+                print(f"Error loading profiles: {e}")
                 return self._get_default_data()
         return self._get_default_data()
     
@@ -39,9 +39,9 @@ class ProfileManager(QObject):
         try:
             with open(self._profiles_file, 'w') as f:
                 json.dump(self._profiles_data, f, indent=2)
-            print(f"✅ Profiles saved to {self._profiles_file}")
+            print(f"Profiles saved to {self._profiles_file}")
         except Exception as e:
-            print(f"⚠️ Error saving profiles: {e}")
+            print(f"Error saving profiles: {e}")
     
     @Slot(str, result=str)
     def getProfilesJson(self, key):
@@ -63,7 +63,7 @@ class ProfileManager(QObject):
             self._save_profiles()
             self.profilesChanged.emit()
         except Exception as e:
-            print(f"⚠️ Error saving {key}: {e}")
+            print(f"Error saving {key}: {e}")
     
     @Slot(str)
     def setActiveProfile(self, profile_name):
@@ -149,7 +149,7 @@ class ProfileManager(QObject):
             self._save_profiles()
             self.profilesChanged.emit()
         except Exception as e:
-            print(f"⚠️ Error saving bag preset: {e}")
+            print(f"Error saving bag preset: {e}")
     
     @Slot(str, str, result=str)
     def getBagPreset(self, profile_name, preset_name):
@@ -159,7 +159,7 @@ class ProfileManager(QObject):
                 if preset_name in self._profiles_data["bags"][profile_name]:
                     return json.dumps(self._profiles_data["bags"][profile_name][preset_name])
         except Exception as e:
-            print(f"⚠️ Error getting bag preset: {e}")
+            print(f"Error getting bag preset: {e}")
 
         # Return default
         return json.dumps(self._get_default_bag())

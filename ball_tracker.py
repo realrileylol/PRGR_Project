@@ -141,7 +141,7 @@ class BallTracker:
             return None
 
         except Exception as e:
-            print(f"⚠️ Template matching error: {e}")
+            print(f"Template matching error: {e}")
             self.is_locked = False
             return None
 

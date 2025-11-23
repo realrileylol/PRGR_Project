@@ -26,7 +26,7 @@ try:
     CAMERA_AVAILABLE = True
 except ImportError:
     CAMERA_AVAILABLE = False
-    print("⚠️ Picamera2 or OpenCV not available - capture features disabled")
+    print("Picamera2 or OpenCV not available - capture features disabled")
 
 # Try to import PIL for GIF creation (for popup replay)
 try:
@@ -34,16 +34,16 @@ try:
     GIF_AVAILABLE = True
 except ImportError:
     GIF_AVAILABLE = False
-    print("⚠️ PIL/Pillow not available - popup replay disabled")
+    print("PIL/Pillow not available - popup replay disabled")
 
 # Try to import fast C++ detection module (3-5x speedup)
 try:
     import fast_detection
     FAST_DETECTION_AVAILABLE = True
-    print("✅ Fast C++ detection loaded - using optimized ball detection")
+    print("Fast C++ detection loaded - using optimized ball detection")
 except ImportError:
     FAST_DETECTION_AVAILABLE = False
-    print("⚠️ Fast C++ detection not available - using Python fallback (build with: ./build_fast_detection.sh)")
+    print("Fast C++ detection not available - using Python fallback (build with: ./build_fast_detection.sh)")
 
 # ============================================
 # Frame Provider Class (for high-FPS Qt preview)
@@ -94,17 +94,17 @@ class FrameProvider(QQuickImageProvider):
                     data = frame_copy.tobytes()
                     qimage = QImage(data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888).copy()
                 else:
-                    print(f"❌ Unsupported channel count: {channels}")
+                    print(f"Unsupported channel count: {channels}")
                     return
             else:
-                print(f"❌ Unsupported frame shape: {frame_copy.shape}")
+                print(f"Unsupported frame shape: {frame_copy.shape}")
                 return
 
             # Convert to pixmap and store (thread-safe)
             with QMutexLocker(self.mutex):
                 self.pixmap = QPixmap.fromImage(qimage)
         except Exception as e:
-            print(f"❌ Frame update error: {e}")
+            print(f"Frame update error: {e}")
 
 # ============================================
 # Camera Manager Class
@@ -139,15 +139,15 @@ class CameraManager(QObject):
     def startPreview(self):
         """Start high-FPS camera preview with direct Qt rendering (no rpicam-vid lag)"""
         if not CAMERA_AVAILABLE:
-            print("❌ Camera not available")
+            print("Camera not available")
             return
 
         if self.preview_active:
-            print("⚠️ Preview already running")
+            print("Preview already running")
             return
 
         if self._preview_stopping:
-            print("⚠️ Previous preview still stopping - wait a moment")
+            print("Previous preview still stopping - wait a moment")
             return
 
         self.preview_active = True
@@ -159,10 +159,10 @@ class CameraManager(QObject):
     def stopPreview(self):
         """Stop the high-FPS preview"""
         if not self.preview_active:
-            print("⚠️ Preview not running")
+            print("Preview not running")
             return
 
-        print("🛑 Stopping preview...")
+        print("Stopping preview...")
         self._preview_stopping = True
         self.preview_active = False
 
@@ -181,13 +181,13 @@ class CameraManager(QObject):
             print("   Waiting for preview thread...")
             self.preview_thread.join(timeout=2.0)
             if self.preview_thread.is_alive():
-                print("   ⚠️ Thread still running (will exit naturally)")
+                print("   Thread still running (will exit naturally)")
             else:
-                print("   ✅ Thread finished")
+                print("   Thread finished")
             self.preview_thread = None
 
         self._preview_stopping = False
-        print("✅ Preview stopped")
+        print("Preview stopped")
 
     def _preview_loop(self):
         """Background thread for high-FPS preview rendering"""
@@ -206,7 +206,7 @@ class CameraManager(QObject):
                 # Ball capture still uses 100 FPS for detection
                 frame_rate = 60
 
-            print(f"📷 Preview settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+            print(f"Preview settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
 
             # Initialize camera
             self.preview_picam2 = Picamera2()
@@ -227,7 +227,7 @@ class CameraManager(QObject):
             for i in range(5):
                 _ = self.preview_picam2.capture_array()
                 time.sleep(0.02)
-            print("   ✅ Camera ready")
+            print("   Camera ready")
 
             # Calculate target frame time
             target_frame_time = 1.0 / frame_rate
@@ -253,7 +253,7 @@ class CameraManager(QObject):
                 fps_counter += 1
                 if time.time() - fps_start >= 1.0:
                     current_fps = fps_counter
-                    print(f"📊 Preview FPS: {current_fps}")
+                    print(f"Preview FPS: {current_fps}")
                     fps_counter = 0
                     fps_start = time.time()
 
@@ -266,7 +266,7 @@ class CameraManager(QObject):
             print("🔓 Preview loop finished")
 
         except Exception as e:
-            print(f"❌ Preview error: {e}")
+            print(f"Preview error: {e}")
         finally:
             if self.preview_picam2 is not None:
                 try:
@@ -278,13 +278,13 @@ class CameraManager(QObject):
 
             self.preview_active = False
             self._preview_stopping = False
-            print("✅ Preview cleanup complete")
+            print("Preview cleanup complete")
 
     @Slot()
     def startCamera(self):
         """Start the Raspberry Pi camera preview embedded in the UI (OLD - uses rpicam-vid)"""
         if self.camera_process is not None:
-            print("⚠️ Camera is already running")
+            print("Camera is already running")
             return
 
         # Load camera settings from SettingsManager
@@ -300,7 +300,7 @@ class CameraManager(QObject):
             ev_compensation = float(self.settings_manager.getNumber("cameraEV") or 0.0)
             frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
             time_of_day = self.settings_manager.getString("cameraTimeOfDay") or "Cloudy/Shade"
-            print(f"📷 Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f} | FPS: {frame_rate}")
+            print(f"Camera settings: {time_of_day} | Shutter: {shutter_speed}µs | Gain: {gain}x | EV: {ev_compensation:+.1f} | FPS: {frame_rate}")
 
         try:
             # Camera preview embedded in the black rectangle area
@@ -323,7 +323,7 @@ class CameraManager(QObject):
             ]
 
             self.camera_process = subprocess.Popen(cmd)
-            print("✅ Camera started successfully")
+            print("Camera started successfully")
         except FileNotFoundError:
             try:
                 # Fallback to rpicam-hello with same embedded settings
@@ -340,28 +340,28 @@ class CameraManager(QObject):
                     '--ev', str(ev_compensation)
                 ]
                 self.camera_process = subprocess.Popen(cmd)
-                print("✅ Camera started successfully")
+                print("Camera started successfully")
             except FileNotFoundError:
-                print("❌ Camera tools not found. Install with: sudo apt install rpicam-apps")
+                print("Camera tools not found. Install with: sudo apt install rpicam-apps")
                 self.camera_process = None
         except Exception as e:
-            print(f"❌ Failed to start camera: {e}")
+            print(f"Failed to start camera: {e}")
             self.camera_process = None
 
     @Slot()
     def stopCamera(self):
         """Stop the camera preview"""
         if self.camera_process is not None:
-            print("🛑 Stopping camera...")
+            print("Stopping camera...")
             self.camera_process.terminate()
             try:
                 self.camera_process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 self.camera_process.kill()
             self.camera_process = None
-            print("✅ Camera stopped")
+            print("Camera stopped")
         else:
-            print("⚠️ Camera is not running")
+            print("Camera is not running")
 
     @Slot()
     def takeSnapshot(self):
@@ -386,7 +386,7 @@ class CameraManager(QObject):
 
         try:
             if not CAMERA_AVAILABLE:
-                print("❌ Camera not available - cannot take snapshot")
+                print("Camera not available - cannot take snapshot")
                 return
 
             # Load camera settings - optimized for Pi ISP limit + indoor
@@ -426,11 +426,11 @@ class CameraManager(QObject):
             picam2.stop()
             picam2.close()
 
-            print(f"✅ Snapshot saved: {filepath}")
+            print(f"Snapshot saved: {filepath}")
             self.snapshotSaved.emit(filename)
 
         except Exception as e:
-            print(f"❌ Failed to take snapshot: {e}")
+            print(f"Failed to take snapshot: {e}")
 
         finally:
             # Restart preview if it was running before
@@ -446,11 +446,11 @@ class CameraManager(QObject):
         Captures num_frames images at max speed (1-2 per second)
         """
         if self.training_active:
-            print("⚠️ Training mode already running")
+            print("Training mode already running")
             return
 
         if not CAMERA_AVAILABLE:
-            print("❌ Camera not available")
+            print("Camera not available")
             return
 
         self.training_active = True
@@ -526,7 +526,7 @@ class CameraManager(QObject):
             # Capture frames
             for i in range(num_frames):
                 if not self.training_active:
-                    print("⚠️ Training mode cancelled")
+                    print("Training mode cancelled")
                     break
 
                 filename = f"frame_{i:04d}.jpg"
@@ -547,14 +547,14 @@ class CameraManager(QObject):
             picam2.stop()
             picam2.close()
 
-            print(f"✅ Training data captured: {training_folder}")
+            print(f"Training data captured: {training_folder}")
             print(f"   Next steps:")
             print(f"   1. Label images in Roboflow (https://roboflow.com)")
             print(f"   2. Export in YOLO format")
             print(f"   3. Train YOLOv8 model on Google Colab")
 
         except Exception as e:
-            print(f"❌ Training capture error: {e}")
+            print(f"Training capture error: {e}")
 
         finally:
             # Restart preview if it was running
@@ -570,14 +570,14 @@ class CameraManager(QObject):
     def stopTrainingMode(self):
         """Stop training mode capture"""
         if self.training_active:
-            print("🛑 Stopping training mode...")
+            print("Stopping training mode...")
             self.training_active = False
 
     @Slot()
     def startRecording(self):
         """Start recording video to file"""
         if self.is_recording:
-            print("⚠️ Already recording")
+            print("Already recording")
             return
 
         # Create Videos folder if it doesn't exist
@@ -601,7 +601,7 @@ class CameraManager(QObject):
             frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
 
         try:
-            print(f"🎬 Starting video recording: {filename}")
+            print(f"Starting video recording: {filename}")
 
             # Stop camera preview if running
             if self.camera_process is not None:
@@ -624,10 +624,10 @@ class CameraManager(QObject):
 
             self.recording_process = subprocess.Popen(cmd)
             self.is_recording = True
-            print(f"✅ Recording started: {filepath}")
+            print(f"Recording started: {filepath}")
 
         except Exception as e:
-            print(f"❌ Failed to start recording: {e}")
+            print(f"Failed to start recording: {e}")
             self.is_recording = False
             self.current_recording_path = None
 
@@ -635,11 +635,11 @@ class CameraManager(QObject):
     def stopRecording(self):
         """Stop recording and save video"""
         if not self.is_recording or self.recording_process is None:
-            print("⚠️ Not currently recording")
+            print("Not currently recording")
             return
 
         try:
-            print("🛑 Stopping recording...")
+            print("Stopping recording...")
             self.recording_process.terminate()
             self.recording_process.wait(timeout=2)
             self.recording_process = None
@@ -648,13 +648,13 @@ class CameraManager(QObject):
             if self.current_recording_path and os.path.exists(self.current_recording_path):
                 # Get file size for confirmation
                 file_size = os.path.getsize(self.current_recording_path) / (1024 * 1024)  # MB
-                print(f"✅ Recording saved: {self.current_recording_path} ({file_size:.1f} MB)")
+                print(f"Recording saved: {self.current_recording_path} ({file_size:.1f} MB)")
                 self.recordingSaved.emit(os.path.basename(self.current_recording_path))
 
             self.current_recording_path = None
 
         except Exception as e:
-            print(f"❌ Error stopping recording: {e}")
+            print(f"Error stopping recording: {e}")
             self.is_recording = False
             self.recording_process = None
             self.current_recording_path = None
@@ -728,16 +728,16 @@ class CameraManager(QObject):
                     recommendation += "NOTE: ~45 FPS is the practical maximum\n"
                     recommendation += "with this resolution due to Pi ISP limits.\n"
                 else:
-                    recommendation += f"⚠️ Low FPS: {actual_fps:.0f} FPS\n"
+                    recommendation += f"Low FPS: {actual_fps:.0f} FPS\n"
                     recommendation += "• System struggling - reduce load\n"
 
                 # Brightness Analysis
                 if avg_brightness < 20:
-                    recommendation += "\n⚠️ Image too dark\n"
+                    recommendation += "\nImage too dark\n"
                     recommendation += "• Increase gain or shutter speed\n"
                     recommendation += "• Add more lighting\n"
                 elif avg_brightness > 80:
-                    recommendation += "\n⚠️ Image too bright\n"
+                    recommendation += "\nImage too bright\n"
                     recommendation += "• Decrease gain or shutter speed\n"
                 else:
                     recommendation += f"\n✓ Good brightness: {avg_brightness:.0f}%\n"
@@ -750,18 +750,18 @@ class CameraManager(QObject):
 
                 # Reality check
                 if actual_fps < 40:
-                    recommendation += "\n\n⚠️ PERFORMANCE ISSUE:"
+                    recommendation += "\n\nPERFORMANCE ISSUE:"
                     recommendation += "\n• Close other programs"
                     recommendation += "\n• Reduce system load"
                     recommendation += "\n• Check CPU temperature"
 
-                print(f"✅ Test complete: {actual_fps:.1f} FPS, {avg_brightness:.1f}% brightness")
+                print(f"Test complete: {actual_fps:.1f} FPS, {avg_brightness:.1f}% brightness")
                 print(f"   NOTE: RPi ISP limits 640x480 to ~45 FPS max")
                 self.testResults.emit(actual_fps, avg_brightness, recommendation)
 
             except Exception as e:
                 error_msg = f"Test failed: {str(e)}\n\nMake sure camera is not in use by another process."
-                print(f"❌ {error_msg}")
+                print(f"{error_msg}")
                 self.testResults.emit(0, 0, error_msg)
 
         # Run test in background thread
@@ -807,18 +807,18 @@ class CaptureManager(QObject):
             return
 
         if self.is_running:
-            print("⚠️ Capture already running")
+            print("Capture already running")
             return
 
         # Safety check - stopCapture should have cleared these
         if self._stopping or self.capture_thread is not None:
-            print("⚠️ Previous capture cleanup incomplete - forcing reset")
+            print("Previous capture cleanup incomplete - forcing reset")
             self._stopping = False
             self.capture_thread = None
 
         # Stop camera preview if it's running
         if self.camera_manager:
-            print("🛑 Stopping camera preview before capture...")
+            print("Stopping camera preview before capture...")
             self.camera_manager.stopCamera()
             time.sleep(1)  # Give camera time to release
 
@@ -830,7 +830,7 @@ class CaptureManager(QObject):
     @Slot()
     def stopCapture(self):
         """Stop the capture process and wait for cleanup"""
-        print("🛑 Stopping capture...")
+        print("Stopping capture...")
         self._stopping = True
         self.is_running = False
 
@@ -849,16 +849,16 @@ class CaptureManager(QObject):
             print("   Waiting for capture thread to finish...")
             self.capture_thread.join(timeout=2.0)  # Wait up to 2 seconds
             if self.capture_thread.is_alive():
-                print("   ⚠️ Thread still running after timeout (will exit naturally)")
+                print("   Thread still running after timeout (will exit naturally)")
             else:
-                print("   ✅ Thread finished")
+                print("   Thread finished")
             self.capture_thread = None
 
         # Clear stopping flag immediately after cleanup attempt
         self._stopping = False
 
         self.statusChanged.emit("Stopped", "gray")
-        print("✅ Capture stopped")
+        print("Capture stopped")
 
     def _save_frame(self, filename, frame):
         """Save frame to file, handling all image formats (grayscale, RGB, RGBA)"""
@@ -980,7 +980,7 @@ class CaptureManager(QObject):
 
         # Debug logging to help diagnose detection issues
         if club_detected:
-            print(f"   🏌️ Club motion detected near ball: edge_density={edge_density:.3f} (threshold={threshold})")
+            print(f"   Club motion detected near ball: edge_density={edge_density:.3f} (threshold={threshold})")
             print(f"      Detection box: {horizontal_range*2}px wide x {vertical_range*2}px tall (~12\" x 12\")")
 
         return club_detected
@@ -1345,14 +1345,14 @@ class CaptureManager(QObject):
             speed_multiplier: Playback speed (0.5 = half speed, 1.0 = normal, 2.0 = double speed)
         """
         if not CAMERA_AVAILABLE:
-            print("⚠️ OpenCV not available - cannot create video")
+            print("OpenCV not available - cannot create video")
             return None
 
         try:
-            print(f"🎬 Creating replay video with {len(frames)} frames at {speed_multiplier}x speed...")
+            print(f"Creating replay video with {len(frames)} frames at {speed_multiplier}x speed...")
 
             if len(frames) == 0:
-                print("❌ No frames to create video")
+                print("No frames to create video")
                 return None
 
             # Calculate playback FPS (slow-motion effect)
@@ -1372,7 +1372,7 @@ class CaptureManager(QObject):
             video_writer = cv2.VideoWriter(output_path, fourcc, playback_fps, (width, height), isColor=True)
 
             if not video_writer.isOpened():
-                print("❌ Failed to open video writer")
+                print("Failed to open video writer")
                 return None
 
             # Write all frames to video
@@ -1392,7 +1392,7 @@ class CaptureManager(QObject):
                         # RGBA - convert to BGR
                         bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
                 else:
-                    print(f"❌ Unsupported frame shape: {frame.shape}")
+                    print(f"Unsupported frame shape: {frame.shape}")
                     continue
 
                 video_writer.write(bgr_frame)
@@ -1400,11 +1400,11 @@ class CaptureManager(QObject):
             # Release video writer
             video_writer.release()
 
-            print(f"✅ Replay video saved: {output_path}")
+            print(f"Replay video saved: {output_path}")
             return output_path
 
         except Exception as e:
-            print(f"❌ Failed to create video: {e}")
+            print(f"Failed to create video: {e}")
             return None
 
     def _create_replay_gif(self, frames, output_path, fps=60, speed_multiplier=0.1):
@@ -1417,11 +1417,11 @@ class CaptureManager(QObject):
             speed_multiplier: Playback speed (0.1 = 10x slower for frame-by-frame visibility)
         """
         if not GIF_AVAILABLE:
-            print("⚠️ PIL not available - cannot create GIF for popup")
+            print("PIL not available - cannot create GIF for popup")
             return None
 
         try:
-            print(f"🎬 Creating popup GIF with {len(frames)} frames at {speed_multiplier}x speed...")
+            print(f"Creating popup GIF with {len(frames)} frames at {speed_multiplier}x speed...")
 
             # Convert frames to PIL Images
             pil_frames = []
@@ -1441,7 +1441,7 @@ class CaptureManager(QObject):
                         # RGBA/XBGR - convert to RGB
                         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
                 else:
-                    print(f"❌ Unsupported frame shape for GIF: {frame.shape}")
+                    print(f"Unsupported frame shape for GIF: {frame.shape}")
                     continue
 
                 # Convert numpy array to PIL Image
@@ -1449,7 +1449,7 @@ class CaptureManager(QObject):
                 pil_frames.append(pil_frame)
 
             if len(pil_frames) == 0:
-                print("❌ No valid frames to create GIF")
+                print("No valid frames to create GIF")
                 return None
 
             # Calculate frame duration in milliseconds
@@ -1474,11 +1474,11 @@ class CaptureManager(QObject):
                 disposal=1  # Do not dispose (keep each frame)
             )
 
-            print(f"✅ Popup GIF saved: {output_path}")
+            print(f"Popup GIF saved: {output_path}")
             return output_path
 
         except Exception as e:
-            print(f"❌ Failed to create GIF: {e}")
+            print(f"Failed to create GIF: {e}")
             return None
 
     def _capture_loop(self):
@@ -1510,7 +1510,7 @@ class CaptureManager(QObject):
             impact_direction = -1  # 1=positive (down/right), -1=negative (up/left) - BALL MOVES UP!
             impact_threshold = 10  # Pixels ball must move down range to trigger (ultra-sensitive)
 
-            print(f"📷 Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
+            print(f"Using ultra-high-speed capture: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}", flush=True)
             print(f"🎯 Impact detection: Axis={'Y' if impact_axis==1 else 'X'}, Direction={'positive' if impact_direction==1 else 'negative'}, Threshold={impact_threshold}px", flush=True)
 
             # Force cleanup of any lingering camera instances
@@ -1553,10 +1553,10 @@ class CaptureManager(QObject):
                         time.sleep(0.05)
                     print("   Camera warmed up", flush=True)
                     camera_initialized = True
-                    print("✅ Camera initialized successfully", flush=True)
+                    print("Camera initialized successfully", flush=True)
                     break
                 except Exception as e:
-                    print(f"⚠️ Camera init attempt {attempt + 1} failed: {e}")
+                    print(f"Camera init attempt {attempt + 1} failed: {e}")
                     if self.picam2 is not None:
                         try:
                             self.picam2.close()
@@ -1583,10 +1583,10 @@ class CaptureManager(QObject):
             # Test detection on first frame
             test_ball = self._detect_ball(first_frame)
             if test_ball is not None:
-                print(f"   ✅ Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
+                print(f"   Ball detected on first frame: ({test_ball[0]}, {test_ball[1]}) r={test_ball[2]}", flush=True)
                 self.statusChanged.emit("Ball found - Locking on...", "yellow")
             else:
-                print(f"   ❌ No ball detected on first frame", flush=True)
+                print(f"   No ball detected on first frame", flush=True)
                 self.statusChanged.emit("No Ball Detected", "red")
                 # Save debug images (handle all formats)
                 if len(first_frame.shape) == 3:
@@ -1687,7 +1687,7 @@ class CaptureManager(QObject):
                         #    print(f"   Tracking confidence: {confidence:.2f}")
                     else:
                         # Tracking lost - fall back to HoughCircles
-                        print("⚠️ Tracking lost - falling back to HoughCircles")
+                        print("Tracking lost - falling back to HoughCircles")
                         use_tracker = False
                         ball_tracker.reset()
                         ball_result, velocity, motion_state = self._detect_ball_with_motion(frame, prev_frame_for_motion)
@@ -1742,7 +1742,7 @@ class CaptureManager(QObject):
                         if prev_ball is not None:
                             if not self._is_same_ball(prev_ball, smoothed_ball):
                                 # Radius changed too much, probably different object
-                                print(f"⚠️ Radius changed: {prev_ball[2]}px → {smoothed_ball[2]}px - resetting ({stable_frames} frames)")
+                                print(f"Radius changed: {prev_ball[2]}px → {smoothed_ball[2]}px - resetting ({stable_frames} frames)")
                                 stable_frames = 0
                                 prev_ball = None
                                 radius_history.clear()  # Reset radius smoothing
@@ -1824,7 +1824,7 @@ class CaptureManager(QObject):
                             else:
                                 actual_distance = distance
 
-                            print(f"🏌️ IMPACT DETECTED - Ball moved {actual_distance:.1f} pixels!")
+                            print(f"IMPACT DETECTED - Ball moved {actual_distance:.1f} pixels!")
                             print(f"   From ({int(original_ball[0])}, {int(original_ball[1])}) → ({x}, {y})")
                             print(f"   Capturing impact sequence...")
                             self.statusChanged.emit("Capturing...", "red")
@@ -1842,7 +1842,7 @@ class CaptureManager(QObject):
 
                             print(f"   📸 Total: {len(frames)} frames captured ({len(frames)-20} before + 20 after impact)")
 
-                            print(f"✅ Shot #{next_shot} saved!")
+                            print(f"Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
                             # Create replay files (40 before + 20 after at 0.025x speed = 5 FPS playback)
@@ -1855,7 +1855,7 @@ class CaptureManager(QObject):
                             video_result = self._create_replay_video(replay_frames, video_path, fps=frame_rate, speed_multiplier=0.025)
 
                             if video_result:
-                                print(f"🎬 Replay video saved: {video_filename}")
+                                print(f"Replay video saved: {video_filename}")
 
                             # Create GIF for popup playback (loops automatically)
                             gif_filename = f"shot_{next_shot:03d}_replay.gif"
@@ -1863,7 +1863,7 @@ class CaptureManager(QObject):
                             gif_result = self._create_replay_gif(replay_frames, gif_path, fps=frame_rate, speed_multiplier=0.025)
 
                             if gif_result:
-                                print(f"🎬 Popup GIF created: {gif_filename}")
+                                print(f"Popup GIF created: {gif_filename}")
                                 # Convert to absolute path for QML
                                 abs_gif_path = os.path.abspath(gif_result)
                                 print(f"📂 Absolute path: {abs_gif_path}")
@@ -1886,7 +1886,7 @@ class CaptureManager(QObject):
                             ball_tracker.reset()
                             use_tracker = False
 
-                            print(f"\n🔄 Ready for next shot (#{next_shot})...")
+                            print(f"\nReady for next shot (#{next_shot})...")
                             self.statusChanged.emit("No Ball Detected", "red")
                             continue  # Continue loop for next capture
                         else:
@@ -1904,7 +1904,7 @@ class CaptureManager(QObject):
 
                     # Ball has been gone too long - reset lock
                     if original_ball is not None and frames_since_seen > 60:
-                        print(f"❌ Ball lost for {frames_since_seen} frames - resetting lock")
+                        print(f"Ball lost for {frames_since_seen} frames - resetting lock")
                         self.statusChanged.emit("No Ball Detected", "red")
                         original_ball = None
                         stable_frames = 0
@@ -1989,11 +1989,11 @@ class CaptureManager(QObject):
                         if original_ball is not None:
                             # Show velocity if locked (for monitoring backswing vs hit)
                             vel_px_sec = velocity * frame_rate
-                            print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status} | Vel: {vel_px_sec:.0f}px/s (hit@4000+)", flush=True)
+                            print(f"FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status} | Vel: {vel_px_sec:.0f}px/s (hit@4000+)", flush=True)
                         else:
-                            print(f"📊 FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status}", flush=True)
+                            print(f"FPS: {current_fps} | Ball: ({x},{y}) r={r} | {lock_status}", flush=True)
                     else:
-                        print(f"📊 FPS: {current_fps} | No Ball", flush=True)
+                        print(f"FPS: {current_fps} | No Ball", flush=True)
 
                 # Adaptive sleep to maintain target frame rate
                 loop_elapsed_time = time.time() - loop_start_time
@@ -2010,7 +2010,7 @@ class CaptureManager(QObject):
                     pass
 
         except Exception as e:
-            print(f"❌ Capture error: {e}")
+            print(f"Capture error: {e}")
             self.errorOccurred.emit(str(e))
         finally:
             try:
@@ -2018,9 +2018,9 @@ class CaptureManager(QObject):
                     self.picam2.stop()
                     self.picam2.close()  # Properly close camera, not just stop
                     self.picam2 = None
-                    print("📷 Camera released and closed in cleanup")
+                    print("Camera released and closed in cleanup")
             except Exception as e:
-                print(f"⚠️ Error releasing camera: {e}")
+                print(f"Error releasing camera: {e}")
                 # Force set to None even if close fails
                 self.picam2 = None
 
@@ -2047,7 +2047,7 @@ class SoundManager(QObject):
             self.click_sound.setSource(QUrl.fromLocalFile(click_path))
             self.click_sound.setVolume(0.5)
         else:
-            print(f"⚠️ Click sound not found at: {click_path}")
+            print(f"Click sound not found at: {click_path}")
         
         # Set up success sound
         success_path = os.path.join(os.path.dirname(__file__), "sounds", "success.wav")
@@ -2055,7 +2055,7 @@ class SoundManager(QObject):
             self.success_sound.setSource(QUrl.fromLocalFile(success_path))
             self.success_sound.setVolume(0.7)
         else:
-            print(f"⚠️ Success sound not found at: {success_path}")
+            print(f"Success sound not found at: {success_path}")
     
     @Slot()
     def playClick(self):
@@ -2114,7 +2114,7 @@ if __name__ == "__main__":
     engine.load('main.qml')
     
     if not engine.rootObjects():
-        print("❌ QML failed to load. See messages above.")
+        print("QML failed to load. See messages above.")
         sys.exit(-1)
 
     sys.exit(app.exec())
