@@ -19,7 +19,7 @@ class KLD2Manager(QObject):
     detectionTriggered = Signal()  # Detection event (ball was hit)
     statusChanged = Signal(str, str)  # (status_message, color)
 
-    def __init__(self, port='/dev/serial0', baudrate=38400):
+    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -30,6 +30,10 @@ class KLD2Manager(QObject):
         # Detection state
         self.last_detection_state = False
         self.current_speed_mph = 0.0
+
+        # Minimum speed threshold to trigger detection (mph)
+        # Prevents false triggers from 0.0 mph detections or slow movements
+        self.min_trigger_speed = min_trigger_speed
 
     def _send_command(self, command):
         """Send ASCII command to K-LD2 and get response"""
@@ -221,9 +225,13 @@ class KLD2Manager(QObject):
                             print(f"K-LD2: {speed_mph:.1f} mph ({direction}, {speed_range})")
 
                     # Trigger detection event on RISING EDGE (wasn't detected, now is)
+                    # ONLY if speed exceeds minimum threshold (prevents 0.0 mph false triggers)
                     if not self.last_detection_state:
-                        print(f"DETECTION TRIGGER - Speed: {speed_mph:.1f} mph")
-                        self.detectionTriggered.emit()
+                        if speed_mph >= self.min_trigger_speed:
+                            print(f"✅ DETECTION TRIGGER - Speed: {speed_mph:.1f} mph (threshold: {self.min_trigger_speed:.1f})")
+                            self.detectionTriggered.emit()
+                        else:
+                            print(f"⚠️ Detection ignored - Speed {speed_mph:.1f} mph below threshold ({self.min_trigger_speed:.1f} mph)")
 
                     self.last_detection_state = True
                 else:
@@ -249,3 +257,21 @@ class KLD2Manager(QObject):
     def get_current_speed(self):
         """Get the most recent speed reading (for manual query)"""
         return self.current_speed_mph
+
+    def set_min_trigger_speed(self, speed_mph):
+        """Set the minimum speed threshold for trigger detection (mph)
+
+        Args:
+            speed_mph: Minimum club head speed to trigger capture (typically 15-30 mph)
+
+        Common values:
+            - 15 mph: Very sensitive, may catch slow practice swings
+            - 20 mph: Good balance for most users
+            - 30 mph: Only full-speed shots
+        """
+        self.min_trigger_speed = speed_mph
+        print(f"K-LD2 minimum trigger speed set to {speed_mph:.1f} mph")
+
+    def get_min_trigger_speed(self):
+        """Get the current minimum trigger speed threshold"""
+        return self.min_trigger_speed
