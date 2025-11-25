@@ -875,12 +875,13 @@ class CaptureManager(QObject):
         # Wait for background thread to finish (with timeout)
         if self.capture_thread is not None:
             print("   Waiting for capture thread to finish...")
-            self.capture_thread.join(timeout=2.0)  # Wait up to 2 seconds
-            if self.capture_thread.is_alive():
+            thread = self.capture_thread  # Store reference before clearing
+            self.capture_thread = None  # Clear immediately to prevent double-stop
+            thread.join(timeout=2.0)  # Wait up to 2 seconds
+            if thread.is_alive():
                 print("   Thread still running after timeout (will exit naturally)")
             else:
                 print("   Thread finished")
-            self.capture_thread = None
 
         # Clear stopping flag immediately after cleanup attempt
         self._stopping = False

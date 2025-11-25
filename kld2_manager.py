@@ -19,7 +19,7 @@ class KLD2Manager(QObject):
     detectionTriggered = Signal()  # Detection event (ball was hit)
     statusChanged = Signal(str, str)  # (status_message, color)
 
-    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0):
+    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, sampling_rate=2560):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -34,6 +34,10 @@ class KLD2Manager(QObject):
         # Minimum speed threshold to trigger detection (mph)
         # Prevents false triggers from 0.0 mph detections or slow movements
         self.min_trigger_speed = min_trigger_speed
+
+        # K-LD2 sampling rate (Hz) - default 2560 Hz (S04=02)
+        # Used for bin-to-speed conversion
+        self.sampling_rate = sampling_rate
 
     def _send_command(self, command):
         """Send ASCII command to K-LD2 and get response"""
@@ -90,47 +94,76 @@ class KLD2Manager(QObject):
     def _get_speed_from_detection_string(self, response):
         """Parse detection string response ($C00) to extract speed
 
-        Format: "XXX;XXX;XXX;" where values are velocity data
-        K-LD2 returns speed in internal units - needs conversion
+        $C00 Format: "DET;SPD;MAG;" (detection_register;speed_bin;magnitude_dB)
+        - DET: Detection register value (see R00)
+        - SPD: Speed in bin (FFT bin number, 0-127)
+        - MAG: Magnitude in dB
+
+        K-LD2 returns speed in "bin" units that must be converted to mph using:
+        speed_mph = bin × (sampling_rate / 256 / 44.7) × 0.621371
 
         Returns: speed in mph (0 if no detection)
         """
         try:
+            # DEBUG: Log raw response
+            print(f"🔍 K-LD2 Raw Response: '{response}'")
+
             if not response or not response.startswith('@C00'):
+                print(f"   ⚠️ Invalid response format (expected @C00...)")
                 return 0.0
 
             # Extract data portion after @C00
             data = response[4:].strip()
+            print(f"   📊 Data portion: '{data}'")
 
-            # Split by semicolon
+            # Split by semicolon - format is "detection_register;speed_bin;magnitude_dB;"
             values = data.split(';')
-            if len(values) < 3:
+            print(f"   📈 Parsed values: {values} (detection_reg;speed_bin;magnitude)")
+
+            if len(values) < 2:
+                print(f"   ⚠️ Not enough values (got {len(values)}, need at least 2)")
                 return 0.0
 
-            # Parse first value (main velocity reading)
+            # Parse second value (speed in bin - this is index 1)
             try:
-                raw_value = int(values[0])
+                speed_bin = int(values[1])
+                print(f"   🎯 Raw speed bin value: {speed_bin}")
 
-                # K-LD2 velocity conversion (datasheet specific)
-                # This is sensor-specific - may need calibration
-                # Assuming linear relationship: raw_value → mph
-                # You may need to adjust this based on your sensor's datasheet
-
-                if raw_value == 0:
+                if speed_bin == 0:
+                    print(f"   ⚠️ Speed bin is 0 - no motion detected by sensor")
                     return 0.0
 
-                # Example conversion (adjust based on actual calibration):
-                # K-LD2 typically outputs in m/s or km/h units internally
-                # This is a placeholder - CHECK YOUR DATASHEET!
-                speed_mph = raw_value * 0.1  # Placeholder conversion factor
+                # K-LD2 Speed Conversion (from datasheet page 11):
+                # speed_km/h = bin × (sampling_rate / 256) / 44.7
+                # speed_mph = speed_km/h × 0.621371
+                #
+                # Combined formula:
+                # speed_mph = bin × (sampling_rate / 256 / 44.7) × 0.621371
+                #
+                # With default sampling rate 2560 Hz (S04=02):
+                # speed_mph = bin × 0.139
+
+                doppler_hz = speed_bin * (self.sampling_rate / 256.0)
+                speed_kmh = doppler_hz / 44.7
+                speed_mph = speed_kmh * 0.621371
+
+                print(f"   📐 Doppler: {doppler_hz:.1f} Hz")
+                print(f"   📐 Speed: {speed_kmh:.1f} km/h = {speed_mph:.1f} mph")
+                print(f"   ✅ Converted speed: {speed_mph:.1f} mph (bin {speed_bin} @ {self.sampling_rate}Hz)")
 
                 return abs(speed_mph)  # Return absolute value
 
-            except ValueError:
+            except ValueError as e:
+                print(f"   ❌ Failed to parse speed bin value: {e}")
+                return 0.0
+            except IndexError as e:
+                print(f"   ❌ Speed bin not in response (index 1): {e}")
                 return 0.0
 
         except Exception as e:
-            print(f"Error parsing speed: {e}")
+            print(f"❌ Error parsing speed: {e}")
+            import traceback
+            traceback.print_exc()
             return 0.0
 
     def start(self):
