@@ -19,7 +19,7 @@ class KLD2Manager(QObject):
     detectionTriggered = Signal()  # Detection event (ball was hit)
     statusChanged = Signal(str, str)  # (status_message, color)
 
-    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, sampling_rate=2560, debug_mode=False):
+    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, min_magnitude_db=0, sampling_rate=2560, debug_mode=False):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -30,10 +30,17 @@ class KLD2Manager(QObject):
         # Detection state
         self.last_detection_state = False
         self.current_speed_mph = 0.0
+        self.current_magnitude_db = 0
 
         # Minimum speed threshold to trigger detection (mph)
         # Prevents false triggers from 0.0 mph detections or slow movements
         self.min_trigger_speed = min_trigger_speed
+
+        # Minimum magnitude threshold (dB)
+        # Signal strength indicator - higher values indicate stronger reflections
+        # Lower this value to detect at greater distances (weaker signals)
+        # Typical range: 0-100 dB
+        self.min_magnitude_db = min_magnitude_db
 
         # K-LD2 sampling rate (Hz) - default 2560 Hz (S04=02)
         # Used for bin-to-speed conversion
@@ -101,22 +108,23 @@ class KLD2Manager(QObject):
             return (False, None, None, False)
 
     def _get_speed_from_detection_string(self, response):
-        """Parse detection string response ($C00) to extract speed
+        """Parse detection string response ($C00) to extract speed and magnitude
 
         $C00 Response Format (may or may not have @C00 prefix):
         "@C00DET;SPD;MAG;" or "DET;SPD;MAG;"
         - DET: Detection register value (see R00)
         - SPD: Speed in bin (FFT bin number, 0-127)
-        - MAG: Magnitude in dB
+        - MAG: Magnitude in dB (signal strength)
 
         K-LD2 returns speed in "bin" units that must be converted to mph using:
         speed_mph = bin × (sampling_rate / 256 / 44.7) × 0.621371
 
-        Returns: speed in mph (0 if no detection)
+        Returns: tuple (speed_mph, magnitude_db)
+                 (0, 0) if no detection or parse error
         """
         try:
             if not response:
-                return 0.0
+                return (0.0, 0)
 
             # Handle both formats: "@C00001;076;067;" or "001;076;067;"
             data = response
@@ -126,17 +134,19 @@ class KLD2Manager(QObject):
             # Split by semicolon - format is "detection_register;speed_bin;magnitude_dB;"
             values = data.split(';')
 
-            if len(values) < 2:
+            if len(values) < 3:
                 if self.debug_mode:
-                    print(f"⚠️ K-LD2 parse error: Not enough values (got {len(values)}, need at least 2)")
-                return 0.0
+                    print(f"⚠️ K-LD2 parse error: Not enough values (got {len(values)}, need at least 3)")
+                return (0.0, 0)
 
             # Parse second value (speed in bin - this is index 1)
+            # Parse third value (magnitude in dB - this is index 2)
             try:
                 speed_bin = int(values[1])
+                magnitude_db = int(values[2])
 
                 if speed_bin == 0:
-                    return 0.0
+                    return (0.0, magnitude_db)
 
                 # K-LD2 Speed Conversion (from datasheet page 11):
                 # speed_km/h = bin × (sampling_rate / 256) / 44.7
@@ -158,25 +168,26 @@ class KLD2Manager(QObject):
                     print(f"   📊 Data: '{data}'")
                     print(f"   📈 Parsed: {values}")
                     print(f"   🎯 Speed bin: {speed_bin}")
+                    print(f"   💪 Magnitude: {magnitude_db} dB")
                     print(f"   📐 Doppler: {doppler_hz:.1f} Hz")
                     print(f"   📐 Speed: {speed_kmh:.1f} km/h = {speed_mph:.1f} mph")
 
-                return abs(speed_mph)  # Return absolute value
+                return (abs(speed_mph), magnitude_db)  # Return absolute speed and magnitude
 
             except ValueError as e:
                 if self.debug_mode:
-                    print(f"❌ Failed to parse speed bin value: {e}")
-                return 0.0
+                    print(f"❌ Failed to parse values: {e}")
+                return (0.0, 0)
             except IndexError as e:
                 if self.debug_mode:
-                    print(f"❌ Speed bin not in response (index 1): {e}")
-                return 0.0
+                    print(f"❌ Values not in response: {e}")
+                return (0.0, 0)
 
         except Exception as e:
             print(f"❌ Error parsing speed: {e}")
             import traceback
             traceback.print_exc()
-            return 0.0
+            return (0.0, 0)
 
     def start(self):
         """Start continuous K-LD2 polling"""
@@ -257,36 +268,46 @@ class KLD2Manager(QObject):
 
                 # If detection occurred, get speed data
                 if detected:
-                    # Get detection string for speed data
+                    # Get detection string for speed and magnitude data
                     speed_response = self._send_command("$C00")
-                    speed_mph = self._get_speed_from_detection_string(speed_response)
+                    speed_mph, magnitude_db = self._get_speed_from_detection_string(speed_response)
 
                     if speed_mph > 0:
                         self.current_speed_mph = speed_mph
+                        self.current_magnitude_db = magnitude_db
                         self.speedUpdated.emit(speed_mph)
 
                         # In debug mode, only show detections >= 5 mph to filter noise
                         if self.debug_mode and speed_mph >= 5.0:
-                            print(f"🎯 K-LD2 DETECTED: {speed_mph:.1f} mph ({direction}, {speed_range}, micro={micro})")
+                            print(f"🎯 K-LD2 DETECTED: {speed_mph:.1f} mph, {magnitude_db} dB ({direction}, {speed_range}, micro={micro})")
                         elif not self.debug_mode and poll_count % 10 == 0:  # Throttle logging in normal mode
-                            print(f"K-LD2: {speed_mph:.1f} mph ({direction}, {speed_range})")
+                            print(f"K-LD2: {speed_mph:.1f} mph, {magnitude_db} dB ({direction}, {speed_range})")
 
                     # Trigger detection event on RISING EDGE (wasn't detected, now is)
-                    # ONLY if speed exceeds minimum threshold (prevents false triggers)
+                    # ONLY if speed AND magnitude exceed minimum thresholds (prevents false triggers)
                     if not self.last_detection_state:
-                        if speed_mph >= self.min_trigger_speed:
-                            print(f"🚀 CAPTURE TRIGGERED! Speed: {speed_mph:.1f} mph (threshold: {self.min_trigger_speed:.1f})")
+                        # Check both speed and magnitude thresholds
+                        speed_ok = speed_mph >= self.min_trigger_speed
+                        magnitude_ok = magnitude_db >= self.min_magnitude_db
+
+                        if speed_ok and magnitude_ok:
+                            print(f"🚀 CAPTURE TRIGGERED! Speed: {speed_mph:.1f} mph, Magnitude: {magnitude_db} dB")
                             self.detectionTriggered.emit()
                         else:
                             # Only show ignored detections if >= 5 mph (reduces noise)
                             if speed_mph >= 5.0:
-                                print(f"⚠️ Detection ignored - Speed {speed_mph:.1f} mph below threshold ({self.min_trigger_speed:.1f} mph)")
+                                reasons = []
+                                if not speed_ok:
+                                    reasons.append(f"speed {speed_mph:.1f} < {self.min_trigger_speed:.1f} mph")
+                                if not magnitude_ok:
+                                    reasons.append(f"magnitude {magnitude_db} dB < {self.min_magnitude_db} dB")
+                                print(f"⚠️ Detection ignored - {', '.join(reasons)}")
 
                     self.last_detection_state = True
                 else:
                     # No detection - only show end message if we logged a detection
                     if self.debug_mode and self.last_detection_state and self.current_speed_mph >= 5.0:
-                        print(f"   (detection ended at {self.current_speed_mph:.1f} mph)")
+                        print(f"   (detection ended at {self.current_speed_mph:.1f} mph, {self.current_magnitude_db} dB)")
                     self.last_detection_state = False
 
                 poll_count += 1
@@ -309,6 +330,10 @@ class KLD2Manager(QObject):
         """Get the most recent speed reading (for manual query)"""
         return self.current_speed_mph
 
+    def get_current_magnitude(self):
+        """Get the most recent magnitude (signal strength) reading in dB"""
+        return self.current_magnitude_db
+
     def set_min_trigger_speed(self, speed_mph):
         """Set the minimum speed threshold for trigger detection (mph)
 
@@ -326,3 +351,27 @@ class KLD2Manager(QObject):
     def get_min_trigger_speed(self):
         """Get the current minimum trigger speed threshold"""
         return self.min_trigger_speed
+
+    def set_min_magnitude(self, magnitude_db):
+        """Set the minimum magnitude (signal strength) threshold (dB)
+
+        Args:
+            magnitude_db: Minimum signal strength to trigger capture
+
+        Higher values require stronger signals (closer range, better reflection)
+        Lower values allow weaker signals (farther range, but may increase false positives)
+
+        Set to 0 to disable magnitude filtering (not recommended)
+
+        Common values:
+            - 0: No filtering (use with caution)
+            - 20-30: Detect from farther distances
+            - 40-50: Medium sensitivity
+            - 60+: Close range, strong signals only
+        """
+        self.min_magnitude_db = magnitude_db
+        print(f"K-LD2 minimum magnitude threshold set to {magnitude_db} dB")
+
+    def get_min_magnitude(self):
+        """Get the current minimum magnitude threshold"""
+        return self.min_magnitude_db
