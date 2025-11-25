@@ -2144,7 +2144,9 @@ if __name__ == "__main__":
     # Create managers
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager, frame_provider)
-    kld2_manager = KLD2Manager()  # K-LD2 radar sensor for speed and detection
+    # K-LD2 radar sensor for speed and detection
+    # Debug mode enabled to see all detections, lower threshold for testing
+    kld2_manager = KLD2Manager(min_trigger_speed=10.0, debug_mode=True)
     capture_manager = CaptureManager(settings_manager, camera_manager, kld2_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()

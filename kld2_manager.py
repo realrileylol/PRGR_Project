@@ -19,7 +19,7 @@ class KLD2Manager(QObject):
     detectionTriggered = Signal()  # Detection event (ball was hit)
     statusChanged = Signal(str, str)  # (status_message, color)
 
-    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, sampling_rate=2560):
+    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, sampling_rate=2560, debug_mode=False):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -38,6 +38,9 @@ class KLD2Manager(QObject):
         # K-LD2 sampling rate (Hz) - default 2560 Hz (S04=02)
         # Used for bin-to-speed conversion
         self.sampling_rate = sampling_rate
+
+        # Debug mode - shows ALL detections even if below threshold
+        self.debug_mode = debug_mode
 
     def _send_command(self, command):
         """Send ASCII command to K-LD2 and get response
@@ -261,8 +264,10 @@ class KLD2Manager(QObject):
                         self.current_speed_mph = speed_mph
                         self.speedUpdated.emit(speed_mph)
 
-                        # Only print significant speed changes (every 5 mph)
-                        if poll_count % 10 == 0:  # Throttle logging
+                        # In debug mode, show ALL detections
+                        if self.debug_mode:
+                            print(f"🎯 K-LD2 DETECTED: {speed_mph:.1f} mph ({direction}, {speed_range}, micro={micro})")
+                        elif poll_count % 10 == 0:  # Throttle logging in normal mode
                             print(f"K-LD2: {speed_mph:.1f} mph ({direction}, {speed_range})")
 
                     # Trigger detection event on RISING EDGE (wasn't detected, now is)
@@ -272,11 +277,14 @@ class KLD2Manager(QObject):
                             print(f"✅ DETECTION TRIGGER - Speed: {speed_mph:.1f} mph (threshold: {self.min_trigger_speed:.1f})")
                             self.detectionTriggered.emit()
                         else:
-                            print(f"⚠️ Detection ignored - Speed {speed_mph:.1f} mph below threshold ({self.min_trigger_speed:.1f} mph)")
+                            if self.debug_mode or speed_mph > 5.0:  # Show all in debug, or any motion > 5 mph
+                                print(f"⚠️ Detection ignored - Speed {speed_mph:.1f} mph below threshold ({self.min_trigger_speed:.1f} mph)")
 
                     self.last_detection_state = True
                 else:
-                    # No detection
+                    # No detection - show in debug mode if we just lost detection
+                    if self.debug_mode and self.last_detection_state:
+                        print("   (detection ended)")
                     self.last_detection_state = False
 
                 poll_count += 1
