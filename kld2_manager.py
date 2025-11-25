@@ -123,25 +123,19 @@ class KLD2Manager(QObject):
             if response.startswith('@C00'):
                 data = response[4:].strip()
 
-            # DEBUG: Log what we're parsing
-            print(f"🔍 K-LD2 Raw Response: '{response}'")
-            print(f"   📊 Data to parse: '{data}'")
-
             # Split by semicolon - format is "detection_register;speed_bin;magnitude_dB;"
             values = data.split(';')
-            print(f"   📈 Parsed values: {values} (detection_reg;speed_bin;magnitude)")
 
             if len(values) < 2:
-                print(f"   ⚠️ Not enough values (got {len(values)}, need at least 2)")
+                if self.debug_mode:
+                    print(f"⚠️ K-LD2 parse error: Not enough values (got {len(values)}, need at least 2)")
                 return 0.0
 
             # Parse second value (speed in bin - this is index 1)
             try:
                 speed_bin = int(values[1])
-                print(f"   🎯 Raw speed bin value: {speed_bin}")
 
                 if speed_bin == 0:
-                    print(f"   ⚠️ Speed bin is 0 - no motion detected by sensor")
                     return 0.0
 
                 # K-LD2 Speed Conversion (from datasheet page 11):
@@ -158,17 +152,24 @@ class KLD2Manager(QObject):
                 speed_kmh = doppler_hz / 44.7
                 speed_mph = speed_kmh * 0.621371
 
-                print(f"   📐 Doppler: {doppler_hz:.1f} Hz")
-                print(f"   📐 Speed: {speed_kmh:.1f} km/h = {speed_mph:.1f} mph")
-                print(f"   ✅ Converted speed: {speed_mph:.1f} mph (bin {speed_bin} @ {self.sampling_rate}Hz)")
+                # Only log verbose details in debug mode for speeds >= 5 mph
+                if self.debug_mode and abs(speed_mph) >= 5.0:
+                    print(f"🔍 K-LD2 Raw Response: '{response}'")
+                    print(f"   📊 Data: '{data}'")
+                    print(f"   📈 Parsed: {values}")
+                    print(f"   🎯 Speed bin: {speed_bin}")
+                    print(f"   📐 Doppler: {doppler_hz:.1f} Hz")
+                    print(f"   📐 Speed: {speed_kmh:.1f} km/h = {speed_mph:.1f} mph")
 
                 return abs(speed_mph)  # Return absolute value
 
             except ValueError as e:
-                print(f"   ❌ Failed to parse speed bin value: {e}")
+                if self.debug_mode:
+                    print(f"❌ Failed to parse speed bin value: {e}")
                 return 0.0
             except IndexError as e:
-                print(f"   ❌ Speed bin not in response (index 1): {e}")
+                if self.debug_mode:
+                    print(f"❌ Speed bin not in response (index 1): {e}")
                 return 0.0
 
         except Exception as e:
@@ -264,27 +265,28 @@ class KLD2Manager(QObject):
                         self.current_speed_mph = speed_mph
                         self.speedUpdated.emit(speed_mph)
 
-                        # In debug mode, show ALL detections
-                        if self.debug_mode:
+                        # In debug mode, only show detections >= 5 mph to filter noise
+                        if self.debug_mode and speed_mph >= 5.0:
                             print(f"🎯 K-LD2 DETECTED: {speed_mph:.1f} mph ({direction}, {speed_range}, micro={micro})")
-                        elif poll_count % 10 == 0:  # Throttle logging in normal mode
+                        elif not self.debug_mode and poll_count % 10 == 0:  # Throttle logging in normal mode
                             print(f"K-LD2: {speed_mph:.1f} mph ({direction}, {speed_range})")
 
                     # Trigger detection event on RISING EDGE (wasn't detected, now is)
-                    # ONLY if speed exceeds minimum threshold (prevents 0.0 mph false triggers)
+                    # ONLY if speed exceeds minimum threshold (prevents false triggers)
                     if not self.last_detection_state:
                         if speed_mph >= self.min_trigger_speed:
-                            print(f"✅ DETECTION TRIGGER - Speed: {speed_mph:.1f} mph (threshold: {self.min_trigger_speed:.1f})")
+                            print(f"🚀 CAPTURE TRIGGERED! Speed: {speed_mph:.1f} mph (threshold: {self.min_trigger_speed:.1f})")
                             self.detectionTriggered.emit()
                         else:
-                            if self.debug_mode or speed_mph > 5.0:  # Show all in debug, or any motion > 5 mph
+                            # Only show ignored detections if >= 5 mph (reduces noise)
+                            if speed_mph >= 5.0:
                                 print(f"⚠️ Detection ignored - Speed {speed_mph:.1f} mph below threshold ({self.min_trigger_speed:.1f} mph)")
 
                     self.last_detection_state = True
                 else:
-                    # No detection - show in debug mode if we just lost detection
-                    if self.debug_mode and self.last_detection_state:
-                        print("   (detection ended)")
+                    # No detection - only show end message if we logged a detection
+                    if self.debug_mode and self.last_detection_state and self.current_speed_mph >= 5.0:
+                        print(f"   (detection ended at {self.current_speed_mph:.1f} mph)")
                     self.last_detection_state = False
 
                 poll_count += 1
