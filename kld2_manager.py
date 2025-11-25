@@ -40,7 +40,10 @@ class KLD2Manager(QObject):
         self.sampling_rate = sampling_rate
 
     def _send_command(self, command):
-        """Send ASCII command to K-LD2 and get response"""
+        """Send ASCII command to K-LD2 and get response
+
+        Returns raw response string (may or may not include @ prefix)
+        """
         try:
             if not command.endswith('\r'):
                 command += '\r'
@@ -52,7 +55,10 @@ class KLD2Manager(QObject):
             if self.ser.in_waiting > 0:
                 response = self.ser.read(self.ser.in_waiting)
                 try:
-                    return response.decode('ascii', errors='ignore').strip()
+                    decoded = response.decode('ascii', errors='ignore').strip()
+                    # Debug: show what we actually received
+                    # print(f"DEBUG _send_command: sent '{command.strip()}' → received '{decoded}'")
+                    return decoded
                 except:
                     return None
             return None
@@ -94,7 +100,8 @@ class KLD2Manager(QObject):
     def _get_speed_from_detection_string(self, response):
         """Parse detection string response ($C00) to extract speed
 
-        $C00 Format: "DET;SPD;MAG;" (detection_register;speed_bin;magnitude_dB)
+        $C00 Response Format (may or may not have @C00 prefix):
+        "@C00DET;SPD;MAG;" or "DET;SPD;MAG;"
         - DET: Detection register value (see R00)
         - SPD: Speed in bin (FFT bin number, 0-127)
         - MAG: Magnitude in dB
@@ -105,16 +112,17 @@ class KLD2Manager(QObject):
         Returns: speed in mph (0 if no detection)
         """
         try:
-            # DEBUG: Log raw response
-            print(f"🔍 K-LD2 Raw Response: '{response}'")
-
-            if not response or not response.startswith('@C00'):
-                print(f"   ⚠️ Invalid response format (expected @C00...)")
+            if not response:
                 return 0.0
 
-            # Extract data portion after @C00
-            data = response[4:].strip()
-            print(f"   📊 Data portion: '{data}'")
+            # Handle both formats: "@C00001;076;067;" or "001;076;067;"
+            data = response
+            if response.startswith('@C00'):
+                data = response[4:].strip()
+
+            # DEBUG: Log what we're parsing
+            print(f"🔍 K-LD2 Raw Response: '{response}'")
+            print(f"   📊 Data to parse: '{data}'")
 
             # Split by semicolon - format is "detection_register;speed_bin;magnitude_dB;"
             values = data.split(';')
