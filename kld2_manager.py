@@ -19,7 +19,9 @@ class KLD2Manager(QObject):
     detectionTriggered = Signal()  # Detection event (ball was hit)
     statusChanged = Signal(str, str)  # (status_message, color)
 
-    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0, min_magnitude_db=0, sampling_rate=2560, debug_mode=False):
+    def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0,
+                 min_magnitude_db=0, max_magnitude_db=999,
+                 sensitivity=None, sampling_rate=2560, debug_mode=False):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -36,11 +38,27 @@ class KLD2Manager(QObject):
         # Prevents false triggers from 0.0 mph detections or slow movements
         self.min_trigger_speed = min_trigger_speed
 
-        # Minimum magnitude threshold (dB)
-        # Signal strength indicator - higher values indicate stronger reflections
-        # Lower this value to detect at greater distances (weaker signals)
-        # Typical range: 0-100 dB
+        # Magnitude (signal strength) filtering range (dB)
+        # Allows filtering by BOTH weak (far) and strong (close) signals
+        #
+        # min_magnitude_db: Reject weak signals below this (noise filtering)
+        #   - Lower = detect farther away (weaker signals)
+        #   - Higher = only strong signals (closer range)
+        #
+        # max_magnitude_db: Reject strong signals above this (close-range filtering)
+        #   - Lower = ignore nearby movements
+        #   - Higher = accept all signal strengths
+        #
+        # Example for 4+ feet detection:
+        #   min_magnitude_db=20 (accept weak far-field signals)
+        #   max_magnitude_db=60 (reject strong close-range signals)
         self.min_magnitude_db = min_magnitude_db
+        self.max_magnitude_db = max_magnitude_db
+
+        # Sensor sensitivity (0-9, None = don't configure)
+        # Higher = more sensitive to weak signals (better far-field detection)
+        # Will be set via $D01 command during startup if not None
+        self.sensitivity = sensitivity
 
         # K-LD2 sampling rate (Hz) - default 2560 Hz (S04=02)
         # Used for bin-to-speed conversion
@@ -214,6 +232,22 @@ class KLD2Manager(QObject):
                 print("Warning: K-LD2 did not respond properly")
                 self.statusChanged.emit("K-LD2 No Response", "yellow")
 
+            # Configure sensitivity if specified
+            if self.sensitivity is not None:
+                # Get current sensitivity
+                current = self._send_command("$D01")
+                if current:
+                    print(f"K-LD2 current sensitivity: {current}")
+
+                # Set sensitivity (0-9, higher = more sensitive)
+                # Command format: $D01=X where X is 0-9
+                set_cmd = f"$D01={self.sensitivity:01d}"
+                response = self._send_command(set_cmd)
+                if response:
+                    print(f"K-LD2 sensitivity set to {self.sensitivity} (0=low, 9=high)")
+                else:
+                    print(f"Warning: Could not set sensitivity to {self.sensitivity}")
+
             # Start polling thread
             self.is_running = True
             self.poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
@@ -284,11 +318,13 @@ class KLD2Manager(QObject):
                             print(f"K-LD2: {speed_mph:.1f} mph, {magnitude_db} dB ({direction}, {speed_range})")
 
                     # Trigger detection event on RISING EDGE (wasn't detected, now is)
-                    # ONLY if speed AND magnitude exceed minimum thresholds (prevents false triggers)
+                    # Check speed and magnitude thresholds (both min and max)
                     if not self.last_detection_state:
-                        # Check both speed and magnitude thresholds
+                        # Check thresholds
                         speed_ok = speed_mph >= self.min_trigger_speed
-                        magnitude_ok = magnitude_db >= self.min_magnitude_db
+                        magnitude_min_ok = magnitude_db >= self.min_magnitude_db
+                        magnitude_max_ok = magnitude_db <= self.max_magnitude_db
+                        magnitude_ok = magnitude_min_ok and magnitude_max_ok
 
                         if speed_ok and magnitude_ok:
                             print(f"🚀 CAPTURE TRIGGERED! Speed: {speed_mph:.1f} mph, Magnitude: {magnitude_db} dB")
@@ -299,8 +335,10 @@ class KLD2Manager(QObject):
                                 reasons = []
                                 if not speed_ok:
                                     reasons.append(f"speed {speed_mph:.1f} < {self.min_trigger_speed:.1f} mph")
-                                if not magnitude_ok:
-                                    reasons.append(f"magnitude {magnitude_db} dB < {self.min_magnitude_db} dB")
+                                if not magnitude_min_ok:
+                                    reasons.append(f"magnitude {magnitude_db} dB < {self.min_magnitude_db} dB (too weak/far)")
+                                if not magnitude_max_ok:
+                                    reasons.append(f"magnitude {magnitude_db} dB > {self.max_magnitude_db} dB (too strong/close)")
                                 print(f"⚠️ Detection ignored - {', '.join(reasons)}")
 
                     self.last_detection_state = True
@@ -358,16 +396,13 @@ class KLD2Manager(QObject):
         Args:
             magnitude_db: Minimum signal strength to trigger capture
 
-        Higher values require stronger signals (closer range, better reflection)
-        Lower values allow weaker signals (farther range, but may increase false positives)
-
-        Set to 0 to disable magnitude filtering (not recommended)
+        Higher values require stronger signals (closer range)
+        Lower values allow weaker signals (farther range)
 
         Common values:
-            - 0: No filtering (use with caution)
-            - 20-30: Detect from farther distances
-            - 40-50: Medium sensitivity
-            - 60+: Close range, strong signals only
+            - 0: No filtering (accept all weak signals)
+            - 20-30: Accept far-field signals (4+ feet)
+            - 40-50: Medium range
         """
         self.min_magnitude_db = magnitude_db
         print(f"K-LD2 minimum magnitude threshold set to {magnitude_db} dB")
@@ -375,3 +410,65 @@ class KLD2Manager(QObject):
     def get_min_magnitude(self):
         """Get the current minimum magnitude threshold"""
         return self.min_magnitude_db
+
+    def set_max_magnitude(self, magnitude_db):
+        """Set the maximum magnitude (signal strength) threshold (dB)
+
+        Args:
+            magnitude_db: Maximum signal strength to trigger capture
+
+        Lower values reject strong close-range signals
+        Higher values accept all signal strengths
+
+        Common values for far-field (4+ feet) detection:
+            - 50-60: Reject close-range movements (< 2 feet)
+            - 70-80: Reject very close movements (< 1 foot)
+            - 999: No maximum filtering (accept all)
+        """
+        self.max_magnitude_db = magnitude_db
+        print(f"K-LD2 maximum magnitude threshold set to {magnitude_db} dB")
+
+    def get_max_magnitude(self):
+        """Get the current maximum magnitude threshold"""
+        return self.max_magnitude_db
+
+    def set_sensitivity(self, sensitivity):
+        """Set the sensor sensitivity (0-9)
+
+        Args:
+            sensitivity: Sensor sensitivity level (0=low, 9=high)
+
+        Higher sensitivity detects weaker signals (better far-field detection)
+        but may increase false positives.
+
+        Recommended for 4+ feet detection: 7-9
+        """
+        if sensitivity < 0 or sensitivity > 9:
+            print(f"Warning: Sensitivity must be 0-9, got {sensitivity}")
+            return
+
+        self.sensitivity = sensitivity
+        if self.ser:
+            # Apply immediately if sensor is connected
+            set_cmd = f"$D01={sensitivity:01d}"
+            response = self._send_command(set_cmd)
+            if response:
+                print(f"K-LD2 sensitivity set to {sensitivity} (0=low, 9=high)")
+            else:
+                print(f"Warning: Could not set sensitivity to {sensitivity}")
+        else:
+            print(f"K-LD2 sensitivity will be set to {sensitivity} on next connection")
+
+    def get_sensitivity(self):
+        """Get the current sensor sensitivity setting
+
+        Returns the configured sensitivity or queries the sensor if connected
+        """
+        if self.ser:
+            response = self._send_command("$D01")
+            if response and response.startswith('@D01'):
+                try:
+                    return int(response[4:].strip())
+                except:
+                    pass
+        return self.sensitivity
