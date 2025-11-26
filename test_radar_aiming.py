@@ -3,39 +3,46 @@
 Radar Aiming Diagnostic Tool
 Helps find the optimal angle/position for K-LD2 radar
 
-This tool makes a BEEP sound when it detects motion,
-helping you aim the radar without looking at the screen.
+This tool shows BIG VISUAL alerts when it detects motion,
+making it easy to see from across the room while adjusting the radar.
 """
 import sys
 import time
 from kld2_manager import KLD2Manager
-import subprocess
 
-def beep():
-    """Make a beep sound"""
-    try:
-        subprocess.run(['aplay', '-q', '/usr/share/sounds/alsa/Front_Center.wav'],
-                      timeout=0.5, stderr=subprocess.DEVNULL)
-    except:
-        # Fallback to console beep
-        print('\a', end='', flush=True)
+def clear_screen():
+    """Clear the terminal screen"""
+    print("\033[2J\033[H", end='', flush=True)
+
+def print_detection_banner(speed, magnitude, count):
+    """Print a big visual banner when motion detected"""
+    print("\n" + "="*70)
+    print("█" * 70)
+    print("█" + " " * 68 + "█")
+    print(f"█    *** DETECTED #{count} ***    Speed: {speed:.1f} mph    Magnitude: {magnitude} dB    █".center(70))
+    print("█" + " " * 68 + "█")
+    print("█" * 70)
+    print("="*70 + "\n")
 
 def main():
+    clear_screen()
     print("\n" + "="*70)
-    print("  K-LD2 Radar Aiming Tool")
+    print("  K-LD2 Radar Aiming Tool (Visual Mode)")
     print("="*70)
-    print("\nThis tool will BEEP when it detects motion.")
+    print("\nThis tool shows BIG VISUAL ALERTS when it detects motion.")
     print("\nHow to use:")
-    print("  1. Point radar in a direction")
-    print("  2. Wave your hand or swing club in front")
-    print("  3. Listen for BEEP (means detection!)")
-    print("  4. Adjust angle until you hear beeps at 5-6 feet")
+    print("  1. Point radar DIRECTLY at the ball location (5-6 feet away)")
+    print("  2. Tilt UP about 15-20° (aim at waist height, not ground)")
+    print("  3. Wave arms or swing club at the BALL LOCATION")
+    print("  4. Move TOWARD/AWAY from radar (not side-to-side!)")
+    print("  5. Watch for BIG █████ DETECTED █████ banners")
     print("\nTips:")
-    print("  - Start by aiming DIRECTLY at the ball spot")
-    print("  - Tilt UP about 15-20 degrees (aim at waist height)")
-    print("  - If no beeps at 5-6 ft, try tilting more UP or DOWN")
-    print("  - Try moving the club TOWARD the radar, not across")
-    print("\nPress Ctrl+C to exit\n")
+    print("  - NO DETECTION? Tilt radar UP more (aim higher)")
+    print("  - Still nothing? Try tilting DOWN (maybe too high)")
+    print("  - Move TOWARD radar, not perpendicular")
+    print("  - Try bigger, faster arm movements first")
+    print("\nWatching for motion at 5-6 feet...")
+    print("Press Ctrl+C to exit\n")
     print("="*70)
 
     kld2 = KLD2Manager(
@@ -47,18 +54,18 @@ def main():
     )
 
     detection_count = 0
-    last_beep_time = 0
+    last_detection_time = 0
 
     def on_speed_updated(speed_mph):
-        nonlocal detection_count, last_beep_time
+        nonlocal detection_count, last_detection_time
         if speed_mph >= 5.0:
             detection_count += 1
-            # Beep at most once per second
+            # Show banner at most once per second
             now = time.time()
-            if now - last_beep_time > 1.0:
-                beep()
-                last_beep_time = now
-                print(f"\n🔊 BEEP! Detection #{detection_count}")
+            if now - last_detection_time > 1.0:
+                magnitude = kld2.get_current_magnitude()
+                print_detection_banner(speed_mph, magnitude, detection_count)
+                last_detection_time = now
 
     kld2.speedUpdated.connect(on_speed_updated)
 
@@ -66,8 +73,8 @@ def main():
         print("Failed to start K-LD2!")
         return 1
 
-    print("\n✅ Radar active - start testing different angles!")
-    print("   (You'll hear a BEEP when motion is detected)\n")
+    print("\n✅ Radar active - watching for motion at 5-6 feet...")
+    print("   (Big █████ banners will appear when motion is detected)\n")
 
     try:
         while True:
@@ -80,14 +87,24 @@ def main():
         kld2.stop()
         print(f"\n📊 Total detections: {detection_count}")
         if detection_count == 0:
-            print("\n⚠️  NO DETECTIONS!")
-            print("   Try these fixes:")
-            print("   1. Tilt radar UP more (aim higher)")
-            print("   2. Move the club TOWARD/AWAY from radar, not across")
-            print("   3. Try a bigger, faster arm wave first")
-            print("   4. Check radar is pointed AT the ball location")
+            print("\n⚠️  NO DETECTIONS AT 5-6 FEET!")
+            print("\n   Possible issues:")
+            print("   1. Angle too low - Tilt radar UP more (aim at waist height)")
+            print("   2. Angle too high - Try tilting DOWN a bit")
+            print("   3. Wrong motion - Move TOWARD/AWAY from radar, not sideways")
+            print("   4. Not aimed at ball - Point directly at hitting zone")
+            print("   5. Too slow - Try bigger, faster arm movements")
+            print("\n   Try these angles systematically:")
+            print("     - Start at 10° up → test")
+            print("     - Then 20° up → test")
+            print("     - Then 30° up → test")
+            print("     - Find which one gives detections!")
         else:
-            print("\n✅ Radar is detecting! Now fine-tune the angle.")
+            print("\n✅ Radar is detecting! Check the magnitude values:")
+            print("   - If 60+ dB: Detecting close range (good!)")
+            print("   - If 30-60 dB: Detecting medium range")
+            print("   - If <30 dB: May be noise or very weak signal")
+            print("\n   Now test at the actual ball location (5-6 ft away)")
 
     return 0
 
