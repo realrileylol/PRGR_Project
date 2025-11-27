@@ -108,56 +108,95 @@ ApplicationWindow {
     property bool radarPulseEffect: false
     property var radarSpeedHistory: []
 
+    // Swing window tracking - captures peak during entire swing motion
+    property bool radarSwingActive: false
+    property real radarSwingPeak: 0.0
+    property real radarSwingWindowSpeed: 0.0  // Best speed in current swing
+
     // Load settings on startup
     Component.onCompleted: {
         loadSettings()
 
-        // Connect radar signals with enhanced tracking
+        // Connect radar signals with swing window tracking
         kld2Manager.speedUpdated.connect(function(speed) {
-            if (radarTestMode && speed >= 5.0) {
-                // Update current values
-                radarSpeed = speed
+            if (radarTestMode) {
+                // Always update magnitude
                 radarMagnitude = kld2Manager.get_current_magnitude()
 
-                // Track peak speed
-                if (speed > radarPeakSpeed) {
-                    radarPeakSpeed = speed
-                }
-
-                // Update detection count (filter duplicates within 0.5 mph)
-                if (Math.abs(speed - radarLastSpeed) > 0.5) {
-                    radarDetectionCount++
-                    radarSpeedHistory.push(speed)
-                    radarLastSpeed = speed
-
-                    // Calculate average
-                    var sum = 0
-                    for (var i = 0; i < radarSpeedHistory.length; i++) {
-                        sum += radarSpeedHistory[i]
+                if (speed >= 5.0) {
+                    // Start swing window if not active
+                    if (!radarSwingActive) {
+                        radarSwingActive = true
+                        radarSwingPeak = 0.0
+                        radarSwingWindowSpeed = 0.0
+                        radarStatus = "⛳ SWING DETECTED - Tracking..."
+                        console.log("🏌️ Swing window OPENED")
                     }
-                    radarAvgSpeed = sum / radarSpeedHistory.length
+
+                    // Track peak speed during this swing window
+                    if (speed > radarSwingPeak) {
+                        radarSwingPeak = speed
+                    }
+
+                    // Update display with current detection
+                    radarSpeed = speed
+                    radarSwingWindowSpeed = radarSwingPeak
+
+                    // Estimate distance based on magnitude
+                    if (radarMagnitude >= 85) {
+                        radarDistanceEstimate = "< 1 ft (too close!)"
+                    } else if (radarMagnitude >= 80) {
+                        radarDistanceEstimate = "~2 ft"
+                    } else if (radarMagnitude >= 75) {
+                        radarDistanceEstimate = "~3 ft"
+                    } else if (radarMagnitude >= 65) {
+                        radarDistanceEstimate = "~4 ft (ideal)"
+                    } else {
+                        radarDistanceEstimate = "> 4 ft (weak signal)"
+                    }
+
+                    // Trigger pulse effect
+                    radarPulseEffect = true
+                    radarPulseTimer.restart()
+
+                    // Reset swing close timer - keep window open while detecting motion
+                    radarSwingCloseTimer.restart()
                 }
-
-                // Estimate distance based on magnitude
-                if (radarMagnitude >= 85) {
-                    radarDistanceEstimate = "< 1 ft (too close!)"
-                } else if (radarMagnitude >= 80) {
-                    radarDistanceEstimate = "~2 ft"
-                } else if (radarMagnitude >= 75) {
-                    radarDistanceEstimate = "~3 ft"
-                } else if (radarMagnitude >= 65) {
-                    radarDistanceEstimate = "~4 ft (ideal)"
-                } else {
-                    radarDistanceEstimate = "> 4 ft (weak signal)"
-                }
-
-                radarStatus = "Detected: " + speed.toFixed(1) + " mph, " + radarMagnitude + " dB"
-
-                // Trigger pulse effect
-                radarPulseEffect = true
-                radarPulseTimer.restart()
             }
         })
+    }
+
+    // Timer to close swing window after inactivity (captures full swing)
+    Timer {
+        id: radarSwingCloseTimer
+        interval: 1500  // 1.5 seconds of no detection = swing complete
+        onTriggered: {
+            if (radarSwingActive && radarSwingPeak >= 5.0) {
+                console.log("🏌️ Swing window CLOSED - Peak: " + radarSwingPeak.toFixed(1) + " mph")
+
+                // Record this swing's peak
+                if (radarSwingPeak > radarPeakSpeed) {
+                    radarPeakSpeed = radarSwingPeak
+                }
+
+                // Count this swing
+                radarDetectionCount++
+                radarSpeedHistory.push(radarSwingPeak)
+
+                // Calculate average
+                var sum = 0
+                for (var i = 0; i < radarSpeedHistory.length; i++) {
+                    sum += radarSpeedHistory[i]
+                }
+                radarAvgSpeed = sum / radarSpeedHistory.length
+
+                radarStatus = "✅ Swing #" + radarDetectionCount + ": " + radarSwingPeak.toFixed(1) + " mph (PEAK)"
+
+                // Close swing window
+                radarSwingActive = false
+                radarSwingPeak = 0.0
+            }
+        }
     }
 
     // Timer to reset pulse effect
@@ -233,6 +272,9 @@ ApplicationWindow {
         radarLastSpeed = 0.0
         radarSpeedHistory = []
         radarDistanceEstimate = "---"
+        radarSwingActive = false
+        radarSwingPeak = 0.0
+        radarSwingWindowSpeed = 0.0
         radarStatus = "Stats reset - waiting for motion..."
     }
 
@@ -638,18 +680,31 @@ ApplicationWindow {
                         spacing: 4
 
                         Text {
-                            text: "CURRENT SPEED"
+                            text: radarSwingActive ? "SWING PEAK (Live)" : "CURRENT SPEED"
                             font.pixelSize: 13
-                            color: "#5F6B7A"
+                            color: radarSwingActive ? "#E65100" : "#5F6B7A"
                             font.bold: true
                             Layout.alignment: Qt.AlignHCenter
+                            Behavior on color { ColorAnimation { duration: 300 } }
                         }
 
                         Text {
-                            text: radarSpeed > 0 ? radarSpeed.toFixed(1) + " mph" : "---"
+                            text: {
+                                if (radarSwingActive && radarSwingWindowSpeed > 0) {
+                                    return radarSwingWindowSpeed.toFixed(1) + " mph"
+                                } else if (radarSpeed > 0) {
+                                    return radarSpeed.toFixed(1) + " mph"
+                                } else {
+                                    return "---"
+                                }
+                            }
                             font.pixelSize: 48
                             font.bold: true
-                            color: radarSpeed > 0 ? "#34C759" : "#9FB0C4"
+                            color: {
+                                if (radarSwingActive) return "#FF6F00"  // Orange during active swing
+                                if (radarSpeed > 0) return "#34C759"    // Green for detection
+                                return "#9FB0C4"                        // Gray when idle
+                            }
                             Layout.alignment: Qt.AlignHCenter
                             Behavior on color { ColorAnimation { duration: 300 } }
                         }
@@ -663,13 +718,17 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
 
                             Rectangle {
-                                width: Math.min(parent.width, (radarSpeed / 100) * parent.width)
+                                width: {
+                                    var displaySpeed = radarSwingActive && radarSwingWindowSpeed > 0 ? radarSwingWindowSpeed : radarSpeed
+                                    return Math.min(parent.width, (displaySpeed / 100) * parent.width)
+                                }
                                 height: parent.height
                                 radius: parent.radius
                                 color: {
-                                    if (radarSpeed >= 60) return "#34C759"  // Green for high speed
-                                    if (radarSpeed >= 30) return "#FF9800"  // Orange for medium
-                                    if (radarSpeed >= 10) return "#3A86FF"  // Blue for low
+                                    var displaySpeed = radarSwingActive && radarSwingWindowSpeed > 0 ? radarSwingWindowSpeed : radarSpeed
+                                    if (displaySpeed >= 60) return "#34C759"  // Green for high speed
+                                    if (displaySpeed >= 30) return "#FF9800"  // Orange for medium
+                                    if (displaySpeed >= 10) return "#3A86FF"  // Blue for low
                                     return "#9FB0C4"  // Gray for very low
                                 }
                                 Behavior on width { NumberAnimation { duration: 300 } }
