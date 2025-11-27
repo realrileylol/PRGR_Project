@@ -127,20 +127,20 @@ ApplicationWindow {
                     // Start swing window if not active
                     if (!radarSwingActive) {
                         radarSwingActive = true
-                        radarSwingPeak = 0.0
-                        radarSwingWindowSpeed = 0.0
+                        radarSwingPeak = speed  // Initialize with first detection
+                        radarSwingWindowSpeed = speed  // Show immediately in UI
                         radarStatus = "⛳ SWING DETECTED - Tracking..."
-                        console.log("🏌️ Swing window OPENED")
+                        console.log("🏌️ Swing window OPENED at " + speed.toFixed(1) + " mph")
+                    } else {
+                        // Swing already active - track peak during this swing window
+                        if (speed > radarSwingPeak) {
+                            radarSwingPeak = speed
+                            radarSwingWindowSpeed = speed  // Update display with new peak
+                        }
                     }
 
-                    // Track peak speed during this swing window
-                    if (speed > radarSwingPeak) {
-                        radarSwingPeak = speed
-                    }
-
-                    // Update display with current detection
+                    // Update current detection (for reference)
                     radarSpeed = speed
-                    radarSwingWindowSpeed = radarSwingPeak
 
                     // Estimate distance based on magnitude
                     if (radarMagnitude >= 85) {
