@@ -248,6 +248,13 @@ class KLD2Manager(QObject):
                 else:
                     print(f"Warning: Could not set sensitivity to {self.sensitivity}")
 
+            # Set hold time to minimum for fastest response
+            # $D00 command sets hold time (lower = faster detection clearing)
+            # This helps catch brief, fast movements like golf swings
+            hold_response = self._send_command("$D00=0")
+            if hold_response:
+                print("K-LD2 hold time set to minimum (fastest response)")
+
             # Start polling thread
             self.is_running = True
             self.poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
@@ -350,10 +357,11 @@ class KLD2Manager(QObject):
 
                 poll_count += 1
 
-                # Poll at ~20 Hz (50ms interval) for responsive detection
+                # Poll at ~50 Hz (20ms interval) for very fast detection
                 # K-LD2 can handle up to 100Hz polling if needed
+                # Faster polling = better chance of catching fast-moving clubhead
                 elapsed = time.time() - poll_start
-                sleep_time = max(0.05 - elapsed, 0.001)  # 50ms target, minimum 1ms
+                sleep_time = max(0.02 - elapsed, 0.001)  # 20ms target (50 Hz), minimum 1ms
                 time.sleep(sleep_time)
 
         except Exception as e:
