@@ -113,6 +113,10 @@ ApplicationWindow {
     property real radarSwingPeak: 0.0
     property real radarSwingWindowSpeed: 0.0  // Best speed in current swing
 
+    // Live speed trace for graphical visualization
+    property var radarSpeedTrace: []  // Last 100 speed readings for live graph
+    property int radarTraceMaxLength: 100
+
     // Load settings on startup
     Component.onCompleted: {
         loadSettings()
@@ -145,6 +149,14 @@ ApplicationWindow {
 
                     // Update current detection (for reference)
                     radarSpeed = speed
+
+                    // Add to live trace for graphical display
+                    var newTrace = radarSpeedTrace.slice()  // Copy array
+                    newTrace.push(speed)
+                    if (newTrace.length > radarTraceMaxLength) {
+                        newTrace.shift()  // Remove oldest
+                    }
+                    radarSpeedTrace = newTrace
 
                     // Estimate distance based on magnitude
                     if (radarMagnitude >= 85) {
@@ -276,6 +288,7 @@ ApplicationWindow {
         radarMagnitude = 0
         radarLastSpeed = 0.0
         radarSpeedHistory = []
+        radarSpeedTrace = []
         radarDistanceEstimate = "---"
         radarSwingActive = false
         radarSwingPeak = 0.0
@@ -611,7 +624,7 @@ ApplicationWindow {
         Rectangle {
             anchors.centerIn: parent
             width: 750
-            height: 460
+            height: 560
             color: "#FFFFFF"
             radius: 12
             border.color: "#3A86FF"
@@ -619,8 +632,8 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 24
-                spacing: 12
+                anchors.margins: 20
+                spacing: 10
 
                 // Header Row
                 RowLayout {
@@ -738,6 +751,93 @@ ApplicationWindow {
                                 }
                                 Behavior on width { NumberAnimation { duration: 300 } }
                                 Behavior on color { ColorAnimation { duration: 300 } }
+                            }
+                        }
+                    }
+                }
+
+                // Live Speed Trace - Oscilloscope-style visualization
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 80
+                    color: "#1A1D23"
+                    radius: 8
+                    border.color: "#3A86FF"
+                    border.width: 2
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 4
+
+                        Text {
+                            text: "📈 LIVE SPEED TRACE (Last " + radarSpeedTrace.length + " readings)"
+                            font.pixelSize: 10
+                            color: "#9FB0C4"
+                            font.bold: true
+                        }
+
+                        // Graph area
+                        Rectangle {
+                            width: parent.width
+                            height: parent.height - 18
+                            color: "#0A0C0F"
+                            radius: 4
+
+                            // Grid lines
+                            Repeater {
+                                model: 5
+                                Rectangle {
+                                    x: 0
+                                    y: index * (parent.height / 4)
+                                    width: parent.width
+                                    height: 1
+                                    color: "#2A2D33"
+                                    opacity: 0.3
+                                }
+                            }
+
+                            // Speed bars
+                            Row {
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.margins: 2
+                                spacing: 1
+
+                                Repeater {
+                                    model: radarSpeedTrace
+
+                                    Rectangle {
+                                        width: Math.max(2, (parent.width - (radarSpeedTrace.length * 1)) / radarSpeedTrace.length)
+                                        height: Math.max(2, (modelData / 100) * (parent.height - 4))
+                                        color: {
+                                            if (modelData >= 60) return "#34C759"  // Green
+                                            if (modelData >= 30) return "#FF9800"  // Orange
+                                            if (modelData >= 10) return "#3A86FF"  // Blue
+                                            return "#9FB0C4"  // Gray
+                                        }
+                                        opacity: 0.8
+                                        radius: 1
+
+                                        // Smooth animation
+                                        Behavior on height { NumberAnimation { duration: 100 } }
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+                                }
+                            }
+
+                            // Current peak line marker
+                            Rectangle {
+                                visible: radarSwingActive && radarSwingPeak > 0
+                                x: 0
+                                y: parent.height - ((radarSwingPeak / 100) * parent.height)
+                                width: parent.width
+                                height: 2
+                                color: "#FF6F00"
+                                opacity: 0.7
+
+                                Behavior on y { NumberAnimation { duration: 200 } }
                             }
                         }
                     }
