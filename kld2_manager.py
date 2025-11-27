@@ -357,11 +357,11 @@ class KLD2Manager(QObject):
 
                 poll_count += 1
 
-                # Poll at ~50 Hz (20ms interval) for very fast detection
-                # K-LD2 can handle up to 100Hz polling if needed
-                # Faster polling = better chance of catching fast-moving clubhead
+                # Poll at ~100 Hz (10ms interval) for MAXIMUM speed
+                # This is the fastest the K-LD2 can reliably handle
+                # Catches even the briefest, fastest clubhead movements
                 elapsed = time.time() - poll_start
-                sleep_time = max(0.02 - elapsed, 0.001)  # 20ms target (50 Hz), minimum 1ms
+                sleep_time = max(0.01 - elapsed, 0.001)  # 10ms target (100 Hz), minimum 1ms
                 time.sleep(sleep_time)
 
         except Exception as e:
