@@ -158,6 +158,11 @@ ApplicationWindow {
                     }
                     radarSpeedTrace = newTrace
 
+                    // Debug: Log trace updates every 10 readings
+                    if (radarSpeedTrace.length % 10 === 0) {
+                        console.log("📊 Trace buffer: " + radarSpeedTrace.length + " readings (latest: " + speed.toFixed(1) + " mph)")
+                    }
+
                     // Estimate distance based on magnitude
                     if (radarMagnitude >= 85) {
                         radarDistanceEstimate = "< 1 ft (too close!)"
