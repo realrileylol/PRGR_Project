@@ -107,7 +107,7 @@ ApplicationWindow {
 
         // Connect radar signals
         kld2Manager.speedUpdated.connect(function(speed) {
-            if (radarTestMode) {
+            if (radarTestMode && speed >= 5.0) {
                 radarSpeed = speed
                 radarMagnitude = kld2Manager.get_current_magnitude()
                 radarStatus = "Detected: " + speed.toFixed(1) + " mph, " + radarMagnitude + " dB"

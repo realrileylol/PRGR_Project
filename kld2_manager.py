@@ -180,15 +180,9 @@ class KLD2Manager(QObject):
                 speed_kmh = doppler_hz / 44.7
                 speed_mph = speed_kmh * 0.621371
 
-                # Only log verbose details in debug mode for speeds >= 5 mph
-                if self.debug_mode and abs(speed_mph) >= 5.0:
-                    print(f"🔍 K-LD2 Raw Response: '{response}'")
-                    print(f"   📊 Data: '{data}'")
-                    print(f"   📈 Parsed: {values}")
-                    print(f"   🎯 Speed bin: {speed_bin}")
-                    print(f"   💪 Magnitude: {magnitude_db} dB")
-                    print(f"   📐 Doppler: {doppler_hz:.1f} Hz")
-                    print(f"   📐 Speed: {speed_kmh:.1f} km/h = {speed_mph:.1f} mph")
+                # Debug output to diagnose speed readings
+                if self.debug_mode and abs(speed_mph) > 0:
+                    print(f"🔍 K-LD2 DETECTION: bin={speed_bin}, mag={magnitude_db}dB → {speed_mph:.2f} mph (doppler={doppler_hz:.1f}Hz, sampling_rate={self.sampling_rate}Hz)")
 
                 return (abs(speed_mph), magnitude_db)  # Return absolute speed and magnitude
 
