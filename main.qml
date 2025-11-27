@@ -764,10 +764,10 @@ ApplicationWindow {
                 // Live Speed Trace - Oscilloscope-style visualization
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 80
+                    height: 100
                     color: "#1A1D23"
                     radius: 8
-                    border.color: "#3A86FF"
+                    border.color: radarSpeedTrace.length > 0 ? "#3A86FF" : "#555555"
                     border.width: 2
 
                     Column {
@@ -775,19 +775,50 @@ ApplicationWindow {
                         anchors.margins: 8
                         spacing: 4
 
-                        Text {
-                            text: "📈 LIVE SPEED TRACE (Last " + radarSpeedTrace.length + " readings)"
-                            font.pixelSize: 10
-                            color: "#9FB0C4"
-                            font.bold: true
+                        RowLayout {
+                            width: parent.width
+                            spacing: 10
+
+                            Text {
+                                text: "📈 LIVE SPEED TRACE"
+                                font.pixelSize: 11
+                                color: "#9FB0C4"
+                                font.bold: true
+                            }
+
+                            Text {
+                                text: radarSpeedTrace.length + " readings"
+                                font.pixelSize: 10
+                                color: radarSpeedTrace.length > 0 ? "#3A86FF" : "#666666"
+                                font.bold: true
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Text {
+                                visible: radarSpeedTrace.length === 0
+                                text: "Waiting for motion..."
+                                font.pixelSize: 10
+                                color: "#666666"
+                                font.italic: true
+                            }
                         }
 
                         // Graph area
                         Rectangle {
                             width: parent.width
-                            height: parent.height - 18
+                            height: parent.height - 22
                             color: "#0A0C0F"
                             radius: 4
+
+                            // No data message
+                            Text {
+                                anchors.centerIn: parent
+                                visible: radarSpeedTrace.length === 0
+                                text: "Swing to see live trace..."
+                                font.pixelSize: 12
+                                color: "#444444"
+                            }
 
                             // Grid lines
                             Repeater {
@@ -809,12 +840,13 @@ ApplicationWindow {
                                 anchors.right: parent.right
                                 anchors.margins: 2
                                 spacing: 1
+                                visible: radarSpeedTrace.length > 0
 
                                 Repeater {
                                     model: radarSpeedTrace
 
                                     Rectangle {
-                                        width: Math.max(2, (parent.width - (radarSpeedTrace.length * 1)) / radarSpeedTrace.length)
+                                        width: Math.max(1, (parent.width - (radarSpeedTrace.length * 1)) / radarSpeedTrace.length)
                                         height: Math.max(2, (modelData / 100) * (parent.height - 4))
                                         color: {
                                             if (modelData >= 60) return "#34C759"  // Green
@@ -822,12 +854,12 @@ ApplicationWindow {
                                             if (modelData >= 10) return "#3A86FF"  // Blue
                                             return "#9FB0C4"  // Gray
                                         }
-                                        opacity: 0.8
+                                        opacity: 0.9
                                         radius: 1
 
                                         // Smooth animation
-                                        Behavior on height { NumberAnimation { duration: 100 } }
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on height { NumberAnimation { duration: 50 } }
+                                        Behavior on color { ColorAnimation { duration: 100 } }
                                     }
                                 }
                             }
@@ -836,13 +868,32 @@ ApplicationWindow {
                             Rectangle {
                                 visible: radarSwingActive && radarSwingPeak > 0
                                 x: 0
-                                y: parent.height - ((radarSwingPeak / 100) * parent.height)
+                                y: Math.max(2, parent.height - ((radarSwingPeak / 100) * parent.height))
                                 width: parent.width
                                 height: 2
                                 color: "#FF6F00"
-                                opacity: 0.7
+                                opacity: 0.8
 
-                                Behavior on y { NumberAnimation { duration: 200 } }
+                                Behavior on y { NumberAnimation { duration: 100 } }
+
+                                // Peak speed label
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 4
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 60
+                                    height: 18
+                                    color: "#FF6F00"
+                                    radius: 3
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: radarSwingPeak.toFixed(1) + " mph"
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                        color: "white"
+                                    }
+                                }
                             }
                         }
                     }
