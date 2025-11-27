@@ -2145,8 +2145,15 @@ if __name__ == "__main__":
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager, frame_provider)
     # K-LD2 radar sensor for speed and detection
-    # Debug mode enabled to see all detections, lower threshold for testing
-    kld2_manager = KLD2Manager(min_trigger_speed=10.0, debug_mode=True)
+    # Optimized for 4-foot detection with magnitude filtering
+    # Based on testing: 1-4ft = 65-84 dB, reject very close (<1ft) = 85+ dB
+    kld2_manager = KLD2Manager(
+        min_trigger_speed=10.0,
+        min_magnitude_db=0,      # Accept all signal strengths (no minimum)
+        max_magnitude_db=85,     # Reject very close movements (< 1 foot)
+        sensitivity=9,           # Maximum sensitivity for far-field
+        debug_mode=True
+    )
     capture_manager = CaptureManager(settings_manager, camera_manager, kld2_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
