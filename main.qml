@@ -95,9 +95,24 @@ ApplicationWindow {
     property real windDirection: 0
     property string ballCompression: "Mid-High (80–90)"
 
+    // Radar Test Mode
+    property bool radarTestMode: false
+    property string radarStatus: "Ready"
+    property real radarSpeed: 0.0
+    property int radarMagnitude: 0
+
     // Load settings on startup
     Component.onCompleted: {
         loadSettings()
+
+        // Connect radar signals
+        kld2Manager.speedUpdated.connect(function(speed) {
+            if (radarTestMode) {
+                radarSpeed = speed
+                radarMagnitude = kld2Manager.get_current_magnitude()
+                radarStatus = "Detected: " + speed.toFixed(1) + " mph, " + radarMagnitude + " dB"
+            }
+        })
     }
 
     // Save settings when they change
@@ -155,6 +170,28 @@ ApplicationWindow {
         settingsManager.resetToDefaults()
         loadSettings()
         console.log("All settings reset to default")
+    }
+
+    function toggleRadarTestMode() {
+        if (radarTestMode) {
+            // Stop radar test mode
+            kld2Manager.stop()
+            radarTestMode = false
+            radarStatus = "Stopped"
+            console.log("Radar test mode stopped")
+        } else {
+            // Start radar test mode
+            if (kld2Manager.start()) {
+                radarTestMode = true
+                radarStatus = "Radar active - waiting for motion..."
+                radarSpeed = 0.0
+                radarMagnitude = 0
+                console.log("Radar test mode started")
+            } else {
+                radarStatus = "Failed to start radar!"
+                console.log("Failed to start radar test mode")
+            }
+        }
     }
 
 /* ==========================================================
@@ -445,6 +482,170 @@ ApplicationWindow {
 
         function onStatusChanged(message, color) {
             console.log("K-LD2 Status:", message, "(" + color + ")")
+        }
+    }
+
+    // Radar Test Mode Overlay
+    Rectangle {
+        id: radarTestOverlay
+        anchors.fill: parent
+        color: "#E0000000"  // Semi-transparent black background
+        visible: radarTestMode
+        z: 1000  // Above everything else
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // Block clicks to content below
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 600
+            height: 400
+            color: "#FFFFFF"
+            radius: 12
+            border.color: "#3A86FF"
+            border.width: 3
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 30
+                spacing: 20
+
+                // Header
+                Text {
+                    text: "Radar Test Mode"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "#1A1D23"
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                // Status
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 60
+                    color: "#F5F7FA"
+                    radius: 8
+                    border.color: "#D0D5DD"
+                    border.width: 2
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: radarStatus
+                        font.pixelSize: 16
+                        color: "#5F6B7A"
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                // Speed Display
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 80
+                    color: radarSpeed > 0 ? "#E8F5E9" : "#F5F7FA"
+                    radius: 8
+                    border.color: radarSpeed > 0 ? "#34C759" : "#D0D5DD"
+                    border.width: 3
+
+                    Behavior on color { ColorAnimation { duration: 300 } }
+                    Behavior on border.color { ColorAnimation { duration: 300 } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 10
+
+                        Text {
+                            text: "Speed:"
+                            font.pixelSize: 22
+                            font.bold: true
+                            color: "#1A1D23"
+                        }
+
+                        Text {
+                            text: radarSpeed.toFixed(1) + " mph"
+                            font.pixelSize: 32
+                            font.bold: true
+                            color: radarSpeed > 0 ? "#34C759" : "#5F6B7A"
+                            Behavior on color { ColorAnimation { duration: 300 } }
+                        }
+                    }
+                }
+
+                // Magnitude Display
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 80
+                    color: radarMagnitude > 0 ? "#FFF3E0" : "#F5F7FA"
+                    radius: 8
+                    border.color: radarMagnitude > 0 ? "#FF9800" : "#D0D5DD"
+                    border.width: 3
+
+                    Behavior on color { ColorAnimation { duration: 300 } }
+                    Behavior on border.color { ColorAnimation { duration: 300 } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 10
+
+                        Text {
+                            text: "Magnitude:"
+                            font.pixelSize: 22
+                            font.bold: true
+                            color: "#1A1D23"
+                        }
+
+                        Text {
+                            text: radarMagnitude + " dB"
+                            font.pixelSize: 32
+                            font.bold: true
+                            color: radarMagnitude > 0 ? "#FF9800" : "#5F6B7A"
+                            Behavior on color { ColorAnimation { duration: 300 } }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                // Instructions
+                Text {
+                    text: "Swing club or wave at radar to see detection\nMove TOWARD/AWAY from radar (not sideways!)"
+                    font.pixelSize: 14
+                    color: "#5F6B7A"
+                    Layout.alignment: Qt.AlignHCenter
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                // Stop Button
+                Button {
+                    text: "Stop Test"
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 200
+                    implicitHeight: 50
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#B02A27" : "#DA3633"
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        win.toggleRadarTestMode()
+                    }
+                }
+            }
         }
     }
 

@@ -644,6 +644,80 @@ Item {
                         }
                     }
 
+                    // RADAR TEST
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 100
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 5
+
+                                Text {
+                                    text: "Radar Test Mode"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: text
+                                }
+
+                                Text {
+                                    text: "Test K-LD2 radar detection without camera"
+                                    font.pixelSize: 13
+                                    color: hint
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            Button {
+                                id: radarTestButton
+                                text: win && win.radarTestMode ? "Stop" : "Start"
+                                implicitWidth: 90
+                                implicitHeight: 50
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: {
+                                        if (parent.pressed) {
+                                            return win && win.radarTestMode ? "#B02A27" : "#2D9A4F"
+                                        }
+                                        return win && win.radarTestMode ? danger : success
+                                    }
+                                    radius: 8
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    if (win) {
+                                        win.toggleRadarTestMode()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }

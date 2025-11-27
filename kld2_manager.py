@@ -8,7 +8,7 @@ Manages continuous polling of K-LD2 radar sensor for:
 import serial
 import time
 import threading
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 
 
 class KLD2Manager(QObject):
@@ -207,6 +207,7 @@ class KLD2Manager(QObject):
             traceback.print_exc()
             return (0.0, 0)
 
+    @Slot(result=bool)
     def start(self):
         """Start continuous K-LD2 polling"""
         if self.is_running:
@@ -274,6 +275,7 @@ class KLD2Manager(QObject):
                 self.ser = None
             return False
 
+    @Slot()
     def stop(self):
         """Stop K-LD2 polling"""
         print("Stopping K-LD2...")
@@ -376,6 +378,7 @@ class KLD2Manager(QObject):
         """Get the most recent speed reading (for manual query)"""
         return self.current_speed_mph
 
+    @Slot(result=int)
     def get_current_magnitude(self):
         """Get the most recent magnitude (signal strength) reading in dB"""
         return self.current_magnitude_db
