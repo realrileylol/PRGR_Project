@@ -123,7 +123,8 @@ ApplicationWindow {
                 // Always update magnitude
                 radarMagnitude = kld2Manager.get_current_magnitude()
 
-                if (speed >= 5.0) {
+                // Show ALL detections >= 1 mph for debugging
+                if (speed >= 1.0) {
                     // Start swing window if not active
                     if (!radarSwingActive) {
                         radarSwingActive = true
@@ -136,6 +137,9 @@ ApplicationWindow {
                         if (speed > radarSwingPeak) {
                             radarSwingPeak = speed
                             radarSwingWindowSpeed = speed  // Update display with new peak
+                            console.log("   ⬆️ NEW PEAK: " + speed.toFixed(1) + " mph")
+                        } else {
+                            console.log("   📊 Detection: " + speed.toFixed(1) + " mph (current peak: " + radarSwingPeak.toFixed(1) + ")")
                         }
                     }
 
@@ -169,10 +173,11 @@ ApplicationWindow {
     // Timer to close swing window after inactivity (captures full swing)
     Timer {
         id: radarSwingCloseTimer
-        interval: 1500  // 1.5 seconds of no detection = swing complete
+        interval: 800  // 0.8 seconds of no detection = swing complete
         onTriggered: {
-            if (radarSwingActive && radarSwingPeak >= 5.0) {
+            if (radarSwingActive && radarSwingPeak >= 1.0) {
                 console.log("🏌️ Swing window CLOSED - Peak: " + radarSwingPeak.toFixed(1) + " mph")
+                console.log("=" .repeat(60))
 
                 // Record this swing's peak
                 if (radarSwingPeak > radarPeakSpeed) {
