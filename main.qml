@@ -95,24 +95,76 @@ ApplicationWindow {
     property real windDirection: 0
     property string ballCompression: "Mid-High (80–90)"
 
-    // Radar Test Mode
+    // Radar Test Mode - Enhanced
     property bool radarTestMode: false
     property string radarStatus: "Ready"
     property real radarSpeed: 0.0
     property int radarMagnitude: 0
+    property real radarPeakSpeed: 0.0
+    property int radarDetectionCount: 0
+    property string radarDistanceEstimate: "---"
+    property real radarAvgSpeed: 0.0
+    property real radarLastSpeed: 0.0
+    property bool radarPulseEffect: false
+    property var radarSpeedHistory: []
 
     // Load settings on startup
     Component.onCompleted: {
         loadSettings()
 
-        // Connect radar signals
+        // Connect radar signals with enhanced tracking
         kld2Manager.speedUpdated.connect(function(speed) {
             if (radarTestMode && speed >= 5.0) {
+                // Update current values
                 radarSpeed = speed
                 radarMagnitude = kld2Manager.get_current_magnitude()
+
+                // Track peak speed
+                if (speed > radarPeakSpeed) {
+                    radarPeakSpeed = speed
+                }
+
+                // Update detection count (filter duplicates within 0.5 mph)
+                if (Math.abs(speed - radarLastSpeed) > 0.5) {
+                    radarDetectionCount++
+                    radarSpeedHistory.push(speed)
+                    radarLastSpeed = speed
+
+                    // Calculate average
+                    var sum = 0
+                    for (var i = 0; i < radarSpeedHistory.length; i++) {
+                        sum += radarSpeedHistory[i]
+                    }
+                    radarAvgSpeed = sum / radarSpeedHistory.length
+                }
+
+                // Estimate distance based on magnitude
+                if (radarMagnitude >= 85) {
+                    radarDistanceEstimate = "< 1 ft (too close!)"
+                } else if (radarMagnitude >= 80) {
+                    radarDistanceEstimate = "~2 ft"
+                } else if (radarMagnitude >= 75) {
+                    radarDistanceEstimate = "~3 ft"
+                } else if (radarMagnitude >= 65) {
+                    radarDistanceEstimate = "~4 ft (ideal)"
+                } else {
+                    radarDistanceEstimate = "> 4 ft (weak signal)"
+                }
+
                 radarStatus = "Detected: " + speed.toFixed(1) + " mph, " + radarMagnitude + " dB"
+
+                // Trigger pulse effect
+                radarPulseEffect = true
+                radarPulseTimer.restart()
             }
         })
+    }
+
+    // Timer to reset pulse effect
+    Timer {
+        id: radarPulseTimer
+        interval: 300
+        onTriggered: radarPulseEffect = false
     }
 
     // Save settings when they change
@@ -172,6 +224,18 @@ ApplicationWindow {
         console.log("All settings reset to default")
     }
 
+    function resetRadarStats() {
+        radarPeakSpeed = 0.0
+        radarDetectionCount = 0
+        radarAvgSpeed = 0.0
+        radarSpeed = 0.0
+        radarMagnitude = 0
+        radarLastSpeed = 0.0
+        radarSpeedHistory = []
+        radarDistanceEstimate = "---"
+        radarStatus = "Stats reset - waiting for motion..."
+    }
+
     function toggleRadarTestMode() {
         if (radarTestMode) {
             // Stop radar test mode
@@ -184,8 +248,7 @@ ApplicationWindow {
             if (kld2Manager.start()) {
                 radarTestMode = true
                 radarStatus = "Radar active - waiting for motion..."
-                radarSpeed = 0.0
-                radarMagnitude = 0
+                resetRadarStats()
                 console.log("Radar test mode started")
             } else {
                 radarStatus = "Failed to start radar!"
@@ -485,7 +548,7 @@ ApplicationWindow {
         }
     }
 
-    // Radar Test Mode Overlay
+    // Radar Test Mode Overlay - Enhanced
     Rectangle {
         id: radarTestOverlay
         anchors.fill: parent
@@ -500,8 +563,8 @@ ApplicationWindow {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 600
-            height: 400
+            width: 750
+            height: 460
             color: "#FFFFFF"
             radius: 12
             border.color: "#3A86FF"
@@ -509,140 +572,322 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 30
-                spacing: 20
+                anchors.margins: 24
+                spacing: 12
 
-                // Header
-                Text {
-                    text: "Radar Test Mode"
-                    font.pixelSize: 28
-                    font.bold: true
-                    color: "#1A1D23"
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                // Status
-                Rectangle {
+                // Header Row
+                RowLayout {
                     Layout.fillWidth: true
-                    height: 60
-                    color: "#F5F7FA"
-                    radius: 8
-                    border.color: "#D0D5DD"
-                    border.width: 2
+                    spacing: 12
 
                     Text {
-                        anchors.centerIn: parent
-                        text: radarStatus
-                        font.pixelSize: 16
-                        color: "#5F6B7A"
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                // Speed Display
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 80
-                    color: radarSpeed > 0 ? "#E8F5E9" : "#F5F7FA"
-                    radius: 8
-                    border.color: radarSpeed > 0 ? "#34C759" : "#D0D5DD"
-                    border.width: 3
-
-                    Behavior on color { ColorAnimation { duration: 300 } }
-                    Behavior on border.color { ColorAnimation { duration: 300 } }
-
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 10
-
-                        Text {
-                            text: "Speed:"
-                            font.pixelSize: 22
-                            font.bold: true
-                            color: "#1A1D23"
-                        }
-
-                        Text {
-                            text: radarSpeed.toFixed(1) + " mph"
-                            font.pixelSize: 32
-                            font.bold: true
-                            color: radarSpeed > 0 ? "#34C759" : "#5F6B7A"
-                            Behavior on color { ColorAnimation { duration: 300 } }
-                        }
-                    }
-                }
-
-                // Magnitude Display
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 80
-                    color: radarMagnitude > 0 ? "#FFF3E0" : "#F5F7FA"
-                    radius: 8
-                    border.color: radarMagnitude > 0 ? "#FF9800" : "#D0D5DD"
-                    border.width: 3
-
-                    Behavior on color { ColorAnimation { duration: 300 } }
-                    Behavior on border.color { ColorAnimation { duration: 300 } }
-
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 10
-
-                        Text {
-                            text: "Magnitude:"
-                            font.pixelSize: 22
-                            font.bold: true
-                            color: "#1A1D23"
-                        }
-
-                        Text {
-                            text: radarMagnitude + " dB"
-                            font.pixelSize: 32
-                            font.bold: true
-                            color: radarMagnitude > 0 ? "#FF9800" : "#5F6B7A"
-                            Behavior on color { ColorAnimation { duration: 300 } }
-                        }
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
-
-                // Instructions
-                Text {
-                    text: "Swing club or wave at radar to see detection\nMove TOWARD/AWAY from radar (not sideways!)"
-                    font.pixelSize: 14
-                    color: "#5F6B7A"
-                    Layout.alignment: Qt.AlignHCenter
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
-                // Stop Button
-                Button {
-                    text: "Stop Test"
-                    Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 200
-                    implicitHeight: 50
-                    scale: pressed ? 0.95 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 100 } }
-
-                    background: Rectangle {
-                        color: parent.pressed ? "#B02A27" : "#DA3633"
-                        radius: 8
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                    }
-
-                    contentItem: Text {
-                        text: parent.text
-                        color: "white"
-                        font.pixelSize: 16
+                        text: "Radar Test Mode"
+                        font.pixelSize: 24
                         font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                        color: "#1A1D23"
+                        Layout.fillWidth: true
                     }
 
-                    onClicked: {
-                        soundManager.playClick()
-                        win.toggleRadarTestMode()
+                    // Session Stats (compact)
+                    Rectangle {
+                        implicitWidth: 120
+                        implicitHeight: 32
+                        color: "#F0F4F8"
+                        radius: 6
+                        border.color: "#D0D5DD"
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: "Swings:"
+                                font.pixelSize: 12
+                                color: "#5F6B7A"
+                                font.bold: true
+                            }
+
+                            Text {
+                                text: radarDetectionCount
+                                font.pixelSize: 14
+                                color: "#1A1D23"
+                                font.bold: true
+                            }
+                        }
+                    }
+                }
+
+                // Main Speed Display - LARGE with pulse effect
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 110
+                    color: radarSpeed > 0 ? "#E8F5E9" : "#F5F7FA"
+                    radius: 10
+                    border.color: radarSpeed > 0 ? "#34C759" : "#D0D5DD"
+                    border.width: radarPulseEffect ? 5 : 3
+                    scale: radarPulseEffect ? 1.02 : 1.0
+
+                    Behavior on color { ColorAnimation { duration: 300 } }
+                    Behavior on border.color { ColorAnimation { duration: 300 } }
+                    Behavior on border.width { NumberAnimation { duration: 200 } }
+                    Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        Text {
+                            text: "CURRENT SPEED"
+                            font.pixelSize: 13
+                            color: "#5F6B7A"
+                            font.bold: true
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: radarSpeed > 0 ? radarSpeed.toFixed(1) + " mph" : "---"
+                            font.pixelSize: 48
+                            font.bold: true
+                            color: radarSpeed > 0 ? "#34C759" : "#9FB0C4"
+                            Layout.alignment: Qt.AlignHCenter
+                            Behavior on color { ColorAnimation { duration: 300 } }
+                        }
+
+                        // Speed intensity bar
+                        Rectangle {
+                            Layout.preferredWidth: 200
+                            Layout.preferredHeight: 8
+                            radius: 4
+                            color: "#E0E0E0"
+                            Layout.alignment: Qt.AlignHCenter
+
+                            Rectangle {
+                                width: Math.min(parent.width, (radarSpeed / 100) * parent.width)
+                                height: parent.height
+                                radius: parent.radius
+                                color: {
+                                    if (radarSpeed >= 60) return "#34C759"  // Green for high speed
+                                    if (radarSpeed >= 30) return "#FF9800"  // Orange for medium
+                                    if (radarSpeed >= 10) return "#3A86FF"  // Blue for low
+                                    return "#9FB0C4"  // Gray for very low
+                                }
+                                Behavior on width { NumberAnimation { duration: 300 } }
+                                Behavior on color { ColorAnimation { duration: 300 } }
+                            }
+                        }
+                    }
+                }
+
+                // Stats Grid - Peak, Average, Distance
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 3
+                    rowSpacing: 8
+                    columnSpacing: 8
+
+                    // Peak Speed
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 70
+                        color: "#FFF3E0"
+                        radius: 8
+                        border.color: "#FF9800"
+                        border.width: 2
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                text: "🏆 PEAK"
+                                font.pixelSize: 11
+                                color: "#E65100"
+                                font.bold: true
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: radarPeakSpeed > 0 ? radarPeakSpeed.toFixed(1) : "---"
+                                font.pixelSize: 24
+                                font.bold: true
+                                color: "#E65100"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: "mph"
+                                font.pixelSize: 10
+                                color: "#E65100"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
+                    }
+
+                    // Average Speed
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 70
+                        color: "#E3F2FD"
+                        radius: 8
+                        border.color: "#3A86FF"
+                        border.width: 2
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                text: "📊 AVG"
+                                font.pixelSize: 11
+                                color: "#1565C0"
+                                font.bold: true
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: radarAvgSpeed > 0 ? radarAvgSpeed.toFixed(1) : "---"
+                                font.pixelSize: 24
+                                font.bold: true
+                                color: "#1565C0"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: "mph"
+                                font.pixelSize: 10
+                                color: "#1565C0"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
+                    }
+
+                    // Distance Estimate
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 70
+                        color: "#F3E5F5"
+                        radius: 8
+                        border.color: "#9C27B0"
+                        border.width: 2
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                text: "📏 DIST"
+                                font.pixelSize: 11
+                                color: "#6A1B9A"
+                                font.bold: true
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: radarDistanceEstimate
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#6A1B9A"
+                                Layout.alignment: Qt.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                    }
+                }
+
+                // Magnitude Display (compact)
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 50
+                    color: radarMagnitude > 0 ? "#FFF8E1" : "#F5F7FA"
+                    radius: 8
+                    border.color: radarMagnitude > 0 ? "#FFA000" : "#D0D5DD"
+                    border.width: 2
+
+                    Behavior on color { ColorAnimation { duration: 300 } }
+                    Behavior on border.color { ColorAnimation { duration: 300 } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Text {
+                            text: "Signal Strength:"
+                            font.pixelSize: 14
+                            font.bold: true
+                            color: "#5F6B7A"
+                        }
+
+                        Text {
+                            text: radarMagnitude > 0 ? radarMagnitude + " dB" : "---"
+                            font.pixelSize: 18
+                            font.bold: true
+                            color: radarMagnitude > 0 ? "#F57C00" : "#9FB0C4"
+                            Behavior on color { ColorAnimation { duration: 300 } }
+                        }
+                    }
+                }
+
+                // Button Row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Button {
+                        text: "Reset Stats"
+                        Layout.fillWidth: true
+                        implicitHeight: 44
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#2563EB" : "#3A86FF"
+                            radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            win.resetRadarStats()
+                        }
+                    }
+
+                    Button {
+                        text: "Stop Test"
+                        Layout.fillWidth: true
+                        implicitHeight: 44
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#B02A27" : "#DA3633"
+                            radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            win.toggleRadarTestMode()
+                        }
                     }
                 }
             }
