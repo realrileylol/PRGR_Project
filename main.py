@@ -1643,7 +1643,7 @@ class CaptureManager(QObject):
             frames_since_lock = 0  # Track how long ball has been locked
             detection_history = deque(maxlen=10)  # Track last 10 frames: True=detected, False=not detected
             radius_history = deque(maxlen=5)  # Track last 5 radius values for smoothing
-            frame_buffer = deque(maxlen=40)  # Circular buffer for 40 pre-impact frames (200ms at 200 FPS)
+            frame_buffer = deque(maxlen=120)  # Circular buffer for 120 pre-impact frames (600ms at 200 FPS)
 
             # Initialize hybrid ball tracker (template matching + Kalman filter)
             ball_tracker = BallTracker()
@@ -1873,24 +1873,24 @@ class CaptureManager(QObject):
                             print(f"   Capturing impact sequence...")
                             self.statusChanged.emit("Capturing...", "red")
 
-                            # Capture frames: 40 BEFORE impact (from buffer) + 20 AFTER impact
-                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (40 frames)
+                            # Capture frames: 120 BEFORE impact (from buffer) + 180 AFTER impact
+                            frames = list(frame_buffer)  # Get pre-impact frames from circular buffer (120 frames)
                             print(f"   📸 Captured {len(frames)} pre-impact frames from buffer")
 
-                            # Capture post-impact frames (20 frames = 100ms at 200 FPS)
+                            # Capture post-impact frames (180 frames = 900ms at 200 FPS)
                             frame_delay = 1.0 / frame_rate
-                            for i in range(20):
+                            for i in range(180):
                                 capture_frame = self.picam2.capture_array()
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 
-                            print(f"   📸 Total: {len(frames)} frames captured ({len(frames)-20} before + 20 after impact)")
+                            print(f"   📸 Total: {len(frames)} frames captured ({len(frames)-180} before + 180 after impact)")
 
                             print(f"Shot #{next_shot} saved!")
                             self.shotCaptured.emit(next_shot)
 
-                            # Create replay files (40 before + 20 after at 0.025x speed = 5 FPS playback)
-                            # Each frame visible for 200ms - LONGER pre-impact window to capture swing
+                            # Create replay files (120 before + 180 after at 0.025x speed = 5 FPS playback)
+                            # 300 total frames = 1.5 seconds - captures full swing including backswing through follow-through
                             replay_frames = frames  # All frames
 
                             # Create MP4 video for storage/transfer
