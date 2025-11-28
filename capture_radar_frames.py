@@ -6,6 +6,7 @@ Captures detailed frame-by-frame data during motion to diagnose speed ceiling is
 import serial
 import time
 import csv
+import os
 from datetime import datetime
 
 def send_command(ser, command):
@@ -121,7 +122,8 @@ def main():
 
         # Prepare CSV file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_filename = f"/home/user/PRGR_Project/radar_capture_{timestamp}.csv"
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        csv_filename = os.path.join(script_dir, f"radar_capture_{timestamp}.csv")
 
         csv_file = open(csv_filename, 'w', newline='')
         csv_writer = csv.writer(csv_file)

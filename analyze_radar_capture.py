@@ -210,7 +210,8 @@ def main():
     if len(sys.argv) < 2:
         # Find most recent capture file
         import glob
-        files = glob.glob("/home/user/PRGR_Project/radar_capture_*.csv")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        files = glob.glob(os.path.join(script_dir, "radar_capture_*.csv"))
         if not files:
             print("❌ No capture files found")
             print("Usage: python3 analyze_radar_capture.py <csv_file>")
