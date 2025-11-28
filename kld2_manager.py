@@ -250,18 +250,18 @@ class KLD2Manager(QObject):
             if hold_response:
                 print("K-LD2 hold time set to minimum (fastest response)")
 
-            # Configure direction detection - CRITICAL for golf swing detection
+            # Configure direction detection - Use BOTH to catch peak radial velocity
             # $R02 sets detection direction:
             # 0 = Approaching only (club coming toward radar)
-            # 1 = Receding only (club/ball going away from radar) ← OPTIMAL FOR GOLF
-            # 2 = Both directions
-            direction_response = self._send_command("$R02=1")
+            # 1 = Receding only (club/ball going away from radar)
+            # 2 = Both directions - catch club wherever radial velocity is highest
+            direction_response = self._send_command("$R02=2")
             if direction_response:
-                print("K-LD2 direction set to RECEDING ONLY - will detect downswing/impact/ball!")
+                print("K-LD2 direction set to BOTH (approach + recede) - tracking full swing arc!")
             else:
                 print("Warning: Could not set direction mode - trying legacy command")
                 # Try alternative command format
-                self._send_command("$D02=1")
+                self._send_command("$D02=2")
 
             # Verify direction setting
             current_dir = self._send_command("$R02")
