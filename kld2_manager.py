@@ -12,7 +12,7 @@ Model: K-LD2-RFB-00H-02 (RFBEAM MICROWAVE GMBH)
 import serial
 import time
 import threading
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot, Property
 
 class KLD2Manager(QObject):
     """Manages K-LD2 radar sensor for ball speed detection"""
@@ -25,11 +25,17 @@ class KLD2Manager(QObject):
     def __init__(self, min_trigger_speed=10.0, debug_mode=False):
         super().__init__()
         self.serial_port = None
-        self.is_running = False
+        self._is_running = False
         self.read_thread = None
         self.min_trigger_speed = min_trigger_speed  # Minimum speed to trigger detection
         self.debug_mode = debug_mode
 
+    @Property(bool)
+    def is_running(self):
+        """Property to expose is_running state to QML"""
+        return self._is_running
+
+    @Slot()
     def start(self):
         """Start the K-LD2 sensor"""
         try:
@@ -76,7 +82,7 @@ class KLD2Manager(QObject):
                 print(f"Continuous mode response: {response}")
 
             # Start reading thread
-            self.is_running = True
+            self._is_running = True
             self.read_thread = threading.Thread(target=self._read_loop, daemon=True)
             self.read_thread.start()
 
@@ -89,9 +95,10 @@ class KLD2Manager(QObject):
             self.statusChanged.emit(f"K-LD2 error: {e}", "red")
             return False
 
+    @Slot()
     def stop(self):
         """Stop the K-LD2 sensor"""
-        self.is_running = False
+        self._is_running = False
 
         if self.read_thread is not None:
             self.read_thread.join(timeout=2.0)
@@ -108,7 +115,7 @@ class KLD2Manager(QObject):
         """Background thread to read speed data from K-LD2"""
         buffer = ""
 
-        while self.is_running:
+        while self._is_running:
             try:
                 if self.serial_port.in_waiting > 0:
                     # Read data from serial port
@@ -171,7 +178,7 @@ class KLD2Manager(QObject):
                 time.sleep(0.01)  # 10ms sleep to prevent CPU spinning
 
             except Exception as e:
-                if self.is_running:  # Only print if we didn't intentionally stop
+                if self._is_running:  # Only print if we didn't intentionally stop
                     print(f"K-LD2 read error: {e}")
                     time.sleep(0.1)
 
