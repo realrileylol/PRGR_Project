@@ -76,15 +76,6 @@ class KLD2Manager(QObject):
                 response = self.serial_port.read(self.serial_port.in_waiting)
                 print(f"Sampling rate set response: {response}")
 
-            # Start continuous data streaming (use $S00 instead of $C00)
-            self.serial_port.write(b'$S00\r\n')
-            time.sleep(0.2)
-
-            # Read response
-            if self.serial_port.in_waiting > 0:
-                response = self.serial_port.read(self.serial_port.in_waiting)
-                print(f"Streaming start response: {response}")
-
             # Start reading thread
             self._is_running = True
             self.isRunningChanged.emit()  # Notify QML that state changed
@@ -118,11 +109,16 @@ class KLD2Manager(QObject):
         print("K-LD2 stopped")
 
     def _read_loop(self):
-        """Background thread to read speed data from K-LD2"""
+        """Background thread to poll K-LD2 for speed data"""
         buffer = ""
 
         while self._is_running:
             try:
+                # Poll the radar by sending $C00 command
+                self.serial_port.write(b'$C00\r\n')
+                time.sleep(0.05)  # 50ms between polls = 20Hz polling rate
+
+                # Read response
                 if self.serial_port.in_waiting > 0:
                     # Read data from serial port
                     data = self.serial_port.read(self.serial_port.in_waiting)
@@ -188,8 +184,6 @@ class KLD2Manager(QObject):
                                 if self.debug_mode:
                                     print(f"K-LD2 parse error: {line} ({e})")
                                 pass
-
-                time.sleep(0.01)  # 10ms sleep to prevent CPU spinning
 
             except Exception as e:
                 if self._is_running:  # Only print if we didn't intentionally stop
