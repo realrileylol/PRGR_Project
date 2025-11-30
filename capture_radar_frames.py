@@ -105,16 +105,30 @@ def main():
         hold_resp = send_command(ser, "$D00=0")
         print(f"Hold time: {hold_resp}")
 
-        # Get sampling rate
+        # Get sampling rate - CRITICAL for accurate speed conversion!
         samp_resp = send_command(ser, "$S04")
-        sampling_rate = 2560  # Default
+        sampling_rate = 2560  # Default assumption
         if samp_resp and samp_resp.startswith('@S04'):
             samp_val = samp_resp[4:].strip()
-            if samp_val == '02':
-                sampling_rate = 2560
-            elif samp_val == '01':
-                sampling_rate = 1280
-            print(f"Sampling rate: {sampling_rate} Hz (raw: {samp_val})")
+
+            # Decode S04 value to actual Hz
+            s04_to_hz = {
+                '01': 1280,
+                '02': 2560,
+                '03': 5120,
+                '1': 1280,
+                '2': 2560,
+                '3': 5120
+            }
+
+            actual_rate = s04_to_hz.get(samp_val)
+            if actual_rate:
+                sampling_rate = actual_rate
+                print(f"✓ Sampling rate: {sampling_rate} Hz (S04={samp_val})")
+            else:
+                print(f"⚠️  Unknown S04 value '{samp_val}' - using default {sampling_rate} Hz")
+        else:
+            print(f"⚠️  Could not read $S04 - using default {sampling_rate} Hz")
 
         print("\n" + "="*80)
         print("READY - Start swinging! (Ctrl+C to stop)")

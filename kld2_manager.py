@@ -268,6 +268,47 @@ class KLD2Manager(QObject):
             if current_dir:
                 print(f"K-LD2 current direction setting: {current_dir}")
 
+            # Query and verify sampling rate ($S04 register)
+            # CRITICAL: Sampling rate must match actual hardware setting for accurate speed conversion
+            # $S04 values:
+            #   01 = 1280 Hz
+            #   02 = 2560 Hz (default)
+            #   03 = 5120 Hz (if supported)
+            sampling_response = self._send_command("$S04")
+            if sampling_response:
+                print(f"K-LD2 $S04 response: {sampling_response}")
+
+                # Parse the response to get actual sampling rate
+                if sampling_response.startswith('@S04'):
+                    s04_value = sampling_response[4:].strip()
+
+                    # Decode S04 value to actual Hz
+                    s04_to_hz = {
+                        '01': 1280,
+                        '02': 2560,
+                        '03': 5120,
+                        '1': 1280,
+                        '2': 2560,
+                        '3': 5120
+                    }
+
+                    actual_sampling_rate = s04_to_hz.get(s04_value)
+
+                    if actual_sampling_rate:
+                        self.sampling_rate = actual_sampling_rate
+                        print(f"✓ K-LD2 sampling rate verified: {self.sampling_rate} Hz (S04={s04_value})")
+
+                        if actual_sampling_rate != 2560:
+                            print(f"⚠️  WARNING: Sampling rate is {actual_sampling_rate} Hz, not default 2560 Hz")
+                            print(f"   Speed calculations will use {actual_sampling_rate} Hz")
+                    else:
+                        print(f"⚠️  Unknown S04 value: {s04_value} - using default {self.sampling_rate} Hz")
+                else:
+                    print(f"⚠️  Unexpected S04 response format: {sampling_response}")
+            else:
+                print(f"⚠️  Could not read $S04 register - using default {self.sampling_rate} Hz")
+                print(f"   Speed calculations may be incorrect if hardware is configured differently!")
+
             # Start polling thread
             self.is_running = True
             self.poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
