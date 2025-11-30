@@ -129,24 +129,38 @@ class KLD2Manager(QObject):
                                 parts = line.split(';')
                                 if len(parts) >= 3:
                                     speed_bin = int(parts[0])
-                                    speed_mph = int(parts[1])
+                                    speed_mph_raw = int(parts[1])  # Can be negative for receding
                                     magnitude = int(parts[2])
 
                                     # Skip zero speed readings
-                                    if speed_mph == 0:
+                                    if speed_mph_raw == 0:
                                         continue
 
+                                    # GATE TIMING: Only detect RECEDING speeds (ball moving away)
+                                    # Setup: [pillows] <--4-5ft-- [golfer/ball] <--4-5ft-- [RADAR]
+                                    # Receding (negative) = ball moving toward pillows (WANT THIS!)
+                                    # Approaching (positive) = club backswing toward radar (IGNORE!)
+
+                                    is_receding = speed_mph_raw < 0
+                                    speed_mph = abs(speed_mph_raw)
+
                                     if self.debug_mode:
-                                        # In debug mode, show all detections
-                                        print(f"K-LD2: {speed_mph} mph (bin {speed_bin}, mag {magnitude})")
+                                        direction = "RECEDING (ball)" if is_receding else "APPROACHING (backswing)"
+                                        print(f"K-LD2: {speed_mph} mph {direction} (bin {speed_bin}, mag {magnitude})")
 
-                                    # Emit speed update
-                                    self.speedUpdated.emit(float(speed_mph))
+                                    # Only emit and trigger on RECEDING targets (ball after impact)
+                                    if is_receding:
+                                        # Emit speed update
+                                        self.speedUpdated.emit(float(speed_mph))
 
-                                    # Trigger detection if speed exceeds threshold
-                                    if speed_mph >= self.min_trigger_speed:
-                                        print(f"K-LD2 DETECTION: {speed_mph} mph")
-                                        self.detectionTriggered.emit()
+                                        # Trigger detection if speed exceeds threshold
+                                        if speed_mph >= self.min_trigger_speed:
+                                            print(f"K-LD2 DETECTION: {speed_mph} mph (ball moving away)")
+                                            self.detectionTriggered.emit()
+                                    else:
+                                        # Ignore approaching targets (backswing)
+                                        if self.debug_mode and speed_mph >= 5:
+                                            print(f"   Ignored backswing: {speed_mph} mph (approaching)")
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip

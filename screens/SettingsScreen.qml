@@ -644,6 +644,108 @@ Item {
                         }
                     }
 
+                    // K-LD2 RADAR TEST
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 150
+                        radius: 10
+                        color: card
+                        border.color: edge
+                        border.width: 2
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 10
+
+                            Text {
+                                text: "K-LD2 Radar Test"
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: text
+                            }
+
+                            Text {
+                                id: kld2StatusText
+                                text: "Status: Not Connected"
+                                font.pixelSize: 13
+                                color: hint
+                            }
+
+                            Text {
+                                id: kld2SpeedText
+                                text: "Speed: -- mph"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: text
+                                visible: false
+                            }
+
+                            RowLayout {
+                                spacing: 10
+
+                                Button {
+                                    text: kld2Manager && kld2Manager.is_running ? "Stop Test" : "Start Test"
+                                    implicitWidth: 120
+                                    implicitHeight: 40
+                                    scale: pressed ? 0.95 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                    background: Rectangle {
+                                        color: kld2Manager && kld2Manager.is_running
+                                            ? (parent.pressed ? "#B02A27" : danger)
+                                            : (parent.pressed ? "#2D9A4F" : success)
+                                        radius: 8
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+
+                                    contentItem: Text {
+                                        text: parent.text
+                                        color: "white"
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        if (kld2Manager.is_running) {
+                                            kld2Manager.stop()
+                                            kld2SpeedText.visible = false
+                                        } else {
+                                            kld2Manager.start()
+                                            kld2SpeedText.visible = true
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: "Swing behind radar. Only receding speeds (ball away) detected."
+                                    font.pixelSize: 11
+                                    color: hint
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        Connections {
+                            target: kld2Manager
+
+                            function onSpeedUpdated(speedMph) {
+                                kld2SpeedText.text = "Speed: " + speedMph.toFixed(0) + " mph (ball moving away)"
+                                kld2SpeedText.color = success
+                            }
+
+                            function onStatusChanged(message, color) {
+                                kld2StatusText.text = "Status: " + message
+                                kld2StatusText.color = (color === "green" ? success :
+                                                       color === "red" ? danger : hint)
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }
