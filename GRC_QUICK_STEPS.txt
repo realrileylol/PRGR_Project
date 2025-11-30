@@ -1,0 +1,342 @@
+╔══════════════════════════════════════════════════════════════╗
+║          GNU Radio Companion - Quick Start Steps            ║
+║              Visual Interface for KLD2 Monitoring            ║
+╚══════════════════════════════════════════════════════════════╝
+
+🎯 WHAT IS GNU RADIO COMPANION?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GNU Radio Companion (GRC) is a VISUAL DRAG-AND-DROP interface where
+you can:
+  ✓ See your signal flow graphically
+  ✓ Add/remove processing blocks with your mouse
+  ✓ Watch LIVE plots of your sensor data
+  ✓ Adjust parameters in REAL-TIME with sliders
+  ✓ No coding required!
+
+Think of it like:
+  - Building with LEGO blocks for radio signals
+  - Each block does one thing (filter, display, etc.)
+  - Connect blocks with wires to process your signal
+
+
+📥 STEP 1: INSTALL GNU RADIO COMPANION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+sudo apt-get update
+sudo apt-get install -y gnuradio
+
+Verify it installed:
+gnuradio-companion --version
+
+
+🚀 STEP 2: OPEN THE PRE-BUILT FLOWGRAPH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+cd /home/user/PRGR_Project
+gnuradio-companion kld2_monitor.grc
+
+A window will open showing your signal processing flowgraph!
+
+
+📊 STEP 3: UNDERSTAND WHAT YOU SEE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You'll see boxes (blocks) connected by arrows:
+
+┌─────────────┐
+│ Options     │  ← Settings (sample rate, title, etc.)
+└─────────────┘
+
+┌─────────────┐
+│ Variables   │  ← samp_rate, fft_size (adjustable)
+└─────────────┘
+
+┌─────────────┐      ┌──────────┐      ┌─────────────┐
+│ Signal      │─────→│   Add    │─────→│   Filter    │
+│ Source      │      │          │      │             │
+└─────────────┘  ┌──→└──────────┘      └──────┬──────┘
+                 │                            │
+┌─────────────┐  │                            ├────→ ┌─────────┐
+│ Noise       │──┘                            │      │ Time    │
+│ Source      │                               │      │ Plot    │
+└─────────────┘                               │      └─────────┘
+                                              │
+                                              ├────→ ┌─────────┐
+                                              │      │ Freq    │
+                                              │      │ Plot    │
+                                              │      └─────────┘
+                                              │
+                                              └────→ ┌─────────┐
+                                                     │ File    │
+                                                     │ Sink    │
+                                                     └─────────┘
+
+Signal Flow:
+1. Generate simulated Doppler signal
+2. Add noise (realistic)
+3. Filter out high frequencies
+4. Display in time domain (scope)
+5. Display in frequency domain (FFT)
+6. Save to file for later analysis
+
+
+▶️ STEP 4: RUN THE FLOWGRAPH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Click the ▶ PLAY button (or press F6)
+
+Two windows will pop up:
+
+┌─────────────────────────────────────────────────┐
+│ KLD2 Sensor - Time Domain                      │
+│                                                 │
+│  1.0 ┤     ╱╲    ╱╲    ╱╲    ╱╲               │
+│      ┤    ╱  ╲  ╱  ╲  ╱  ╲  ╱  ╲              │
+│  0.0 ┤───────────────────────────────────────  │
+│      ┤  ╲    ╲╱    ╲╱    ╲╱    ╲              │
+│ -1.0 ┤   ╲                                      │
+│      └────────────────────────────────────────  │
+│         Time (s) →                              │
+└─────────────────────────────────────────────────┘
+         This shows SIGNAL OVER TIME
+         (like an oscilloscope)
+
+
+┌─────────────────────────────────────────────────┐
+│ KLD2 Sensor - Frequency Domain (Doppler)       │
+│                                                 │
+│   0 ┤                 █                         │
+│     ┤                ███                        │
+│ -20 ┤               █████                       │
+│     ┤              ███████                      │
+│ -40 ┤             █████████                     │
+│     ┤            ███████████                    │
+│ -60 ┤           █████████████                   │
+│     └────────────────────────────────────────   │
+│         Frequency (Hz) →                        │
+└─────────────────────────────────────────────────┘
+         This shows FREQUENCY SPECTRUM
+         (peak = Doppler shift = club speed!)
+
+
+🛑 STEP 5: STOP THE FLOWGRAPH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Click the ■ STOP button (or press F7)
+
+The plot windows will close.
+
+
+🔧 STEP 6: MODIFY PARAMETERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Try changing things:
+
+1. Double-click on "analog_sig_source_x_0" block
+   ├─ Change "Frequency" from 100 to 200
+   └─ Click OK
+
+2. Double-click on "samp_rate" variable
+   ├─ Change value from 10000 to 5000
+   └─ Click OK
+
+3. Click ▶ to run again and see the difference!
+
+
+🎛️ STEP 7: ADD REAL-TIME SLIDER CONTROL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Want to adjust frequency WHILE it's running?
+
+1. Press Ctrl+F to search for blocks
+2. Type "QT GUI Range"
+3. Drag it to your flowgraph canvas
+
+4. Double-click the new block:
+   ├─ ID: doppler_freq
+   ├─ Label: Doppler Frequency
+   ├─ Default Value: 100
+   ├─ Start: 0
+   ├─ Stop: 500
+   ├─ Step: 10
+   └─ Click OK
+
+5. Double-click "Signal Source" block:
+   ├─ Change Frequency from "100" to "doppler_freq"
+   └─ Click OK
+
+6. Press F6 to run
+
+Now you'll see a SLIDER to adjust frequency in real-time!
+
+     Doppler Frequency
+     ├──────●───────┤ 100 Hz
+     0             500
+
+
+🔌 STEP 8: CONNECT YOUR REAL KLD2 SENSOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Currently using SIMULATED signal. To use real sensor:
+
+Method A - Use File Source (Easiest):
+───────────────────────────────────────
+
+1. First, record real data:
+   python3 gnuradio_kld2_monitor.py
+   (swing club, then Ctrl+C)
+
+2. In GRC, search for "File Source" block (Ctrl+F)
+3. Drag to canvas
+4. Double-click and configure:
+   ├─ File: /tmp/kld2_sensor_data.bin
+   ├─ Output Type: float
+   └─ Repeat: Yes
+
+5. DELETE the "Signal Source" and "Noise Source" blocks
+6. Connect: File Source → Throttle → Filter → ...
+7. Run and see your ACTUAL swing data!
+
+
+Method B - Live Sensor (Advanced):
+───────────────────────────────────
+
+1. Search for "Embedded Python Block"
+2. Drag to canvas
+3. Double-click and paste this code:
+
+   import numpy as np
+   from gnuradio import gr
+   import sys
+   sys.path.append('/home/user/PRGR_Project')
+   from kld2_sensor import KLD2Sensor
+
+   class blk(gr.sync_block):
+       def __init__(self):
+           gr.sync_block.__init__(
+               self,
+               name='KLD2 Source',
+               in_sig=None,
+               out_sig=[np.float32]
+           )
+           self.sensor = KLD2Sensor(sample_rate=10000)
+           self.sensor.start_stream()
+
+       def work(self, input_items, output_items):
+           samples = self.sensor.get_samples(len(output_items[0]))
+           output_items[0][:] = ((samples - 1.65) / 1.65).astype(np.float32)
+           return len(output_items[0])
+
+4. Connect output to your processing chain
+5. Run!
+
+
+🏌️ STEP 9: ANALYZE YOUR GOLF SWINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+While flowgraph is running:
+
+Time Plot:
+──────────
+  • Flat line = No motion
+  • Small waves = Slow movement
+  • Big fast waves = SWING!
+
+Frequency Plot:
+───────────────
+  • Peak near 0 Hz = No motion
+  • Peak at 50-200 Hz = Club swing
+  • HIGHER peak = FASTER swing
+
+To measure club speed:
+  1. Look at frequency plot during swing
+  2. Note the peak frequency (e.g., 1000 Hz)
+  3. Speed (m/s) = Peak_Freq × 6.25
+     Example: 1000 Hz × 6.25 = 6.25 m/s = 22.5 km/h
+
+
+📸 STEP 10: SAVE YOUR FLOWGRAPH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After making changes:
+  File → Save As → my_custom_kld2.grc
+
+Your flowgraph is saved as a .grc file you can open anytime!
+
+
+🎨 USEFUL GRC TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Keyboard Shortcuts:
+───────────────────
+  F6          - Run flowgraph
+  F7          - Stop flowgraph
+  Ctrl+F      - Find blocks
+  Ctrl+S      - Save
+  Delete      - Remove selected block
+  Ctrl+D      - Duplicate block
+  Ctrl+R      - Reload blocks
+
+Mouse Controls:
+───────────────
+  Click block   - Select it
+  Drag block    - Move it
+  Click port    - Start connection
+  Drag          - Pan canvas
+  Scroll wheel  - Zoom in/out
+
+Plot Window Controls:
+─────────────────────
+  Scroll wheel  - Zoom in/out on plot
+  Right drag    - Pan plot
+  Pause button  - Freeze display
+  Toolbar icons - Auto-scale, save image, etc.
+
+
+🔧 TROUBLESHOOTING GRC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"ImportError: No module named gnuradio"
+→ sudo apt-get install -y python3-gnuradio
+
+"Qt platform plugin error"
+→ export QT_QPA_PLATFORM=xcb
+  gnuradio-companion
+
+Red blocks or missing connections
+→ All inputs must be connected!
+  Check block colors (red = error)
+
+No plots appear when running
+→ Check "Generate Options" in top "Options" block
+  Should be "QT GUI" not "No GUI"
+
+Plots are empty/blank
+→ Check sample rate is reasonable
+  Check signal source is enabled
+  Try auto-scale on plot
+
+
+📚 MORE HELP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Detailed guide:
+  cat GNU_RADIO_COMPANION_GUIDE.md
+
+GRC Tutorials:
+  https://wiki.gnuradio.org/index.php/Tutorials
+
+Example flowgraphs on your system:
+  /usr/share/gnuradio/examples/
+
+
+═══════════════════════════════════════════════════════════════
+
+Ready to start? Just run:
+
+  gnuradio-companion kld2_monitor.grc
+
+Then click the ▶ PLAY button!
+
+Happy monitoring! 🏌️📡
