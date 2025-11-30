@@ -2145,7 +2145,8 @@ if __name__ == "__main__":
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager, frame_provider)
     # K-LD2 radar sensor for speed and detection (20480 Hz sampling rate)
-    kld2_manager = KLD2Manager(min_trigger_speed=10.0, debug_mode=True)
+    # Only trigger on speeds >= 15 mph
+    kld2_manager = KLD2Manager(min_trigger_speed=15.0, debug_mode=True)
     capture_manager = CaptureManager(settings_manager, camera_manager, kld2_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()

@@ -123,19 +123,12 @@ class KLD2Manager(QObject):
                     # Read data from serial port
                     data = self.serial_port.read(self.serial_port.in_waiting)
 
-                    # DEBUG: Print raw data
-                    print(f"RAW DATA: {data}")
-
                     buffer += data.decode('ascii', errors='ignore')
 
                     # Process complete lines
                     while '\n' in buffer:
                         line, buffer = buffer.split('\n', 1)
                         line = line.strip()
-
-                        # DEBUG: Print all received lines
-                        if line:
-                            print(f"LINE: '{line}'")
 
                         # Parse K-LD2 ASCII response format: speed_bin;speed_mph;magnitude;
                         # Example: "001;001;066;" = speed bin 1, 1 mph, magnitude 66
@@ -149,7 +142,7 @@ class KLD2Manager(QObject):
                                     speed_mph_raw = int(parts[1])  # Can be negative for receding
                                     magnitude = int(parts[2])
 
-                                    # Skip zero speed readings
+                                    # Skip zero speed readings (no motion)
                                     if speed_mph_raw == 0:
                                         continue
 
@@ -161,7 +154,8 @@ class KLD2Manager(QObject):
                                     is_receding = speed_mph_raw < 0
                                     speed_mph = abs(speed_mph_raw)
 
-                                    if self.debug_mode:
+                                    # Debug output for non-zero speeds
+                                    if self.debug_mode and speed_mph > 0:
                                         direction = "RECEDING (ball)" if is_receding else "APPROACHING (backswing)"
                                         print(f"K-LD2: {speed_mph} mph {direction} (bin {speed_bin}, mag {magnitude})")
 
