@@ -433,19 +433,4 @@ ApplicationWindow {
         }
     }
 
-    // Handle K-LD2 speed updates
-    Connections {
-        target: kld2Manager
-
-        function onSpeedUpdated(speedMph) {
-            // Update club head speed from K-LD2 radar sensor
-            win.clubSpeed = speedMph
-            console.log("K-LD2 Club Speed:", speedMph.toFixed(1), "mph")
-        }
-
-        function onStatusChanged(message, color) {
-            console.log("K-LD2 Status:", message, "(" + color + ")")
-        }
-    }
-
 }
