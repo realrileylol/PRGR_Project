@@ -21,6 +21,7 @@ class KLD2Manager(QObject):
     speedUpdated = Signal(float)  # Speed in MPH
     statusChanged = Signal(str, str)  # (message, color)
     detectionTriggered = Signal()  # Emitted when ball is detected
+    isRunningChanged = Signal()  # Notify when is_running changes
 
     def __init__(self, min_trigger_speed=10.0, debug_mode=False):
         super().__init__()
@@ -30,7 +31,7 @@ class KLD2Manager(QObject):
         self.min_trigger_speed = min_trigger_speed  # Minimum speed to trigger detection
         self.debug_mode = debug_mode
 
-    @Property(bool)
+    @Property(bool, notify=isRunningChanged)
     def is_running(self):
         """Property to expose is_running state to QML"""
         return self._is_running
@@ -44,15 +45,17 @@ class KLD2Manager(QObject):
 
             for port in port_candidates:
                 try:
+                    print(f"Trying K-LD2 on {port}...")
                     # K-LD2 uses 38400 baud rate, not 115200!
                     self.serial_port = serial.Serial(
                         port=port,
                         baudrate=38400,  # CORRECT baud rate for K-LD2
                         timeout=1
                     )
-                    print(f"K-LD2 connected on {port} @ 38400 baud")
+                    print(f"✓ K-LD2 connected on {port} @ 38400 baud")
                     break
-                except:
+                except Exception as e:
+                    print(f"✗ {port} failed: {e}")
                     continue
 
             if self.serial_port is None:
@@ -83,6 +86,7 @@ class KLD2Manager(QObject):
 
             # Start reading thread
             self._is_running = True
+            self.isRunningChanged.emit()  # Notify QML that state changed
             self.read_thread = threading.Thread(target=self._read_loop, daemon=True)
             self.read_thread.start()
 
@@ -99,6 +103,7 @@ class KLD2Manager(QObject):
     def stop(self):
         """Stop the K-LD2 sensor"""
         self._is_running = False
+        self.isRunningChanged.emit()  # Notify QML that state changed
 
         if self.read_thread is not None:
             self.read_thread.join(timeout=2.0)
