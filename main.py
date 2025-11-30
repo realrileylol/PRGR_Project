@@ -17,6 +17,7 @@ from PySide6.QtMultimedia import QSoundEffect
 from ProfileManager import ProfileManager
 from HistoryManager import HistoryManager
 from SettingsManager import SettingsManager
+from kld2_manager import KLD2Manager
 
 # Try to import Picamera2 and cv2 (only works on Pi)
 try:
@@ -786,18 +787,32 @@ class CaptureManager(QObject):
     errorOccurred = Signal(str)  # error_message
     replayReady = Signal(str)  # gif_filepath - emitted when replay GIF is ready to display in popup
 
-    def __init__(self, settings_manager=None, camera_manager=None):
+    def __init__(self, settings_manager=None, camera_manager=None, kld2_manager=None):
         super().__init__()
         self.settings_manager = settings_manager
         self.camera_manager = camera_manager
+        self.kld2_manager = kld2_manager
         self.is_running = False
         self.capture_thread = None
         self.picam2 = None  # Store camera instance for cleanup
         self._stopping = False  # Flag to track if we're in the process of stopping
 
+        # K-LD2 detection trigger state
+        self.kld2_triggered = False
+        self.use_kld2_trigger = True  # Set to True to use K-LD2, False for camera-based
+
         # Edge velocity tracking state
         self.prev_gray = None  # Previous frame for optical flow
         self.ball_motion_history = deque(maxlen=10)  # Track ball velocity over time
+
+        # Connect K-LD2 signal if available
+        if self.kld2_manager:
+            self.kld2_manager.detectionTriggered.connect(self._on_kld2_detection)
+
+    def _on_kld2_detection(self):
+        """Handle K-LD2 detection signal (ball was hit)"""
+        print("K-LD2 DETECTION TRIGGERED")
+        self.kld2_triggered = True
 
     @Slot()
     def startCapture(self):
@@ -822,7 +837,15 @@ class CaptureManager(QObject):
             self.camera_manager.stopCamera()
             time.sleep(1)  # Give camera time to release
 
+        # Start K-LD2 sensor for speed and detection
+        if self.kld2_manager and self.use_kld2_trigger:
+            print("Starting K-LD2 radar sensor...")
+            if not self.kld2_manager.start():
+                print("Warning: K-LD2 failed to start - using camera-based detection")
+                self.use_kld2_trigger = False
+
         self.is_running = True
+        self.kld2_triggered = False  # Reset trigger flag
         self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self.capture_thread.start()
         print("🎥 Capture started", flush=True)
@@ -833,6 +856,11 @@ class CaptureManager(QObject):
         print("Stopping capture...")
         self._stopping = True
         self.is_running = False
+
+        # Stop K-LD2 sensor
+        if self.kld2_manager and self.use_kld2_trigger:
+            print("Stopping K-LD2...")
+            self.kld2_manager.stop()
 
         # Stop camera if running
         if self.picam2 is not None:
@@ -1797,29 +1825,38 @@ class CaptureManager(QObject):
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
                         # Ball is still visible and locked - check for impact
 
+                        # === K-LD2 RADAR DETECTION MODE ===
+                        if self.use_kld2_trigger:
+                            # Use K-LD2 radar sensor to detect impact
+                            impact_detected = self.kld2_triggered
+
+                            if frames_since_lock % 30 == 0:  # Print every 30 frames
+                                print(f"Waiting for K-LD2 detection... (ball locked {frames_since_lock} frames)")
+
                         # === CAMERA-BASED MOTION DETECTION MODE ===
-                        # Use camera-based ball motion detection
-                        # Calculate movement for debugging
-                        if impact_axis == 0:
-                            directional_movement = (x - original_ball[0]) * impact_direction
                         else:
-                            directional_movement = (y - original_ball[1]) * impact_direction
+                            # Use camera-based ball motion detection
+                            # Calculate movement for debugging
+                            if impact_axis == 0:
+                                directional_movement = (x - original_ball[0]) * impact_direction
+                            else:
+                                directional_movement = (y - original_ball[1]) * impact_direction
 
-                        # DEBUG: Print movement every 10 frames when ball is locked
-                        if frames_since_lock % 10 == 0:
-                            print(f"DEBUG: Ball ({int(original_ball[0])},{int(original_ball[1])}) → ({x},{y}) | Y-movement: {y - original_ball[1]:.1f} | Directional: {directional_movement:.1f} | Threshold: {impact_threshold}")
+                            # DEBUG: Print movement every 10 frames when ball is locked
+                            if frames_since_lock % 10 == 0:
+                                print(f"DEBUG: Ball ({int(original_ball[0])},{int(original_ball[1])}) → ({x},{y}) | Y-movement: {y - original_ball[1]:.1f} | Directional: {directional_movement:.1f} | Threshold: {impact_threshold}")
 
-                        if FAST_DETECTION_AVAILABLE:
-                            impact_detected = fast_detection.detect_impact(
-                                int(original_ball[0]), int(original_ball[1]),  # Previous position
-                                int(x), int(y),  # Current position
-                                impact_threshold,  # Distance threshold
-                                impact_axis,       # Which axis is down range (0=X, 1=Y)
-                                impact_direction   # Which direction is down range (1=pos, -1=neg)
-                            )
-                        else:
-                            # Fallback Python directional motion detection
-                            impact_detected = directional_movement > impact_threshold
+                            if FAST_DETECTION_AVAILABLE:
+                                impact_detected = fast_detection.detect_impact(
+                                    int(original_ball[0]), int(original_ball[1]),  # Previous position
+                                    int(x), int(y),  # Current position
+                                    impact_threshold,  # Distance threshold
+                                    impact_axis,       # Which axis is down range (0=X, 1=Y)
+                                    impact_direction   # Which direction is down range (1=pos, -1=neg)
+                                )
+                            else:
+                                # Fallback Python directional motion detection
+                                impact_detected = directional_movement > impact_threshold
 
                         if impact_detected:
                             # IMPACT! Ball moved suddenly - it was HIT!
@@ -1888,6 +1925,9 @@ class CaptureManager(QObject):
                             radius_history.clear()
                             detection_history.clear()
                             frame_buffer.clear()
+
+                            # Reset K-LD2 trigger for next shot
+                            self.kld2_triggered = False
 
                             # Reset hybrid ball tracker
                             ball_tracker.reset()
@@ -2104,7 +2144,9 @@ if __name__ == "__main__":
     # Create managers
     settings_manager = SettingsManager()
     camera_manager = CameraManager(settings_manager, frame_provider)
-    capture_manager = CaptureManager(settings_manager, camera_manager)
+    # K-LD2 radar sensor for speed and detection (20480 Hz sampling rate)
+    kld2_manager = KLD2Manager(min_trigger_speed=10.0, debug_mode=True)
+    capture_manager = CaptureManager(settings_manager, camera_manager, kld2_manager)
     sound_manager = SoundManager()
     profile_manager = ProfileManager()
     history_manager = HistoryManager()
@@ -2112,6 +2154,7 @@ if __name__ == "__main__":
     # Expose managers to QML
     engine.rootContext().setContextProperty("cameraManager", camera_manager)
     engine.rootContext().setContextProperty("captureManager", capture_manager)
+    engine.rootContext().setContextProperty("kld2Manager", kld2_manager)
     engine.rootContext().setContextProperty("soundManager", sound_manager)
     engine.rootContext().setContextProperty("profileManager", profile_manager)
     engine.rootContext().setContextProperty("historyManager", history_manager)
