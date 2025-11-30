@@ -1,8 +1,12 @@
 """
 K-LD2 Radar Manager - Detects ball speed using K-LD2 Doppler radar sensor
 
-Uses 20480 Hz sampling rate for better speed detection (was 2560 Hz before)
-Detects receding speeds (ball moving away from radar)
+Model: K-LD2-RFB-00H-02 (RFBEAM MICROWAVE GMBH)
+- Uses 38400 baud rate (not 115200!)
+- ASCII command protocol with $ commands and @ responses
+- Commands: $R00 (check detection), $C00 (get speed/magnitude)
+- Response format: speed_bin;speed_mph;magnitude;
+- Uses 20480 Hz sampling rate for golf swing speeds (max ~144 mph)
 """
 
 import serial
@@ -34,12 +38,13 @@ class KLD2Manager(QObject):
 
             for port in port_candidates:
                 try:
+                    # K-LD2 uses 38400 baud rate, not 115200!
                     self.serial_port = serial.Serial(
                         port=port,
-                        baudrate=115200,
+                        baudrate=38400,  # CORRECT baud rate for K-LD2
                         timeout=1
                     )
-                    print(f"K-LD2 connected on {port}")
+                    print(f"K-LD2 connected on {port} @ 38400 baud")
                     break
                 except:
                     continue
@@ -49,11 +54,26 @@ class KLD2Manager(QObject):
                 self.statusChanged.emit("K-LD2 not found", "red")
                 return False
 
-            # Configure K-LD2 for 20480 Hz sampling rate (was 2560 Hz)
-            # This provides better speed detection accuracy
-            time.sleep(0.1)
-            self.serial_port.write(b'$S0405\r\n')  # Set 20480 Hz sampling rate
-            time.sleep(0.1)
+            # Wake up radar and configure
+            time.sleep(0.2)
+
+            # Set 20480 Hz sampling rate for golf swing speeds (max ~144 mph)
+            self.serial_port.write(b'$S0405\r\n')
+            time.sleep(0.2)
+
+            # Read response
+            if self.serial_port.in_waiting > 0:
+                response = self.serial_port.read(self.serial_port.in_waiting)
+                print(f"Sampling rate set response: {response}")
+
+            # Start continuous speed readings
+            self.serial_port.write(b'$C00\r\n')
+            time.sleep(0.2)
+
+            # Read response
+            if self.serial_port.in_waiting > 0:
+                response = self.serial_port.read(self.serial_port.in_waiting)
+                print(f"Continuous mode response: {response}")
 
             # Start reading thread
             self.is_running = True
@@ -100,33 +120,38 @@ class KLD2Manager(QObject):
                         line, buffer = buffer.split('\n', 1)
                         line = line.strip()
 
-                        # Parse K-LD2 speed data (format: speed in m/s)
-                        if line and not line.startswith('$'):
+                        # Parse K-LD2 ASCII response format: speed_bin;speed_mph;magnitude;
+                        # Example: "001;001;066;" = speed bin 1, 1 mph, magnitude 66
+                        # Example: "009;003;074;" = speed bin 9, 3 mph, magnitude 74
+                        if line and not line.startswith('$') and not line.startswith('@'):
                             try:
-                                speed_ms = float(line)
+                                # Split by semicolon
+                                parts = line.split(';')
+                                if len(parts) >= 3:
+                                    speed_bin = int(parts[0])
+                                    speed_mph = int(parts[1])
+                                    magnitude = int(parts[2])
 
-                                # Convert m/s to mph
-                                speed_mph = abs(speed_ms * 2.23694)
+                                    # Skip zero speed readings
+                                    if speed_mph == 0:
+                                        continue
 
-                                # Detect receding speeds (negative values = ball moving away)
-                                # K-LD2 returns negative for receding targets
-                                # We use absolute value for speed display
+                                    if self.debug_mode:
+                                        # In debug mode, show all detections
+                                        print(f"K-LD2: {speed_mph} mph (bin {speed_bin}, mag {magnitude})")
 
+                                    # Emit speed update
+                                    self.speedUpdated.emit(float(speed_mph))
+
+                                    # Trigger detection if speed exceeds threshold
+                                    if speed_mph >= self.min_trigger_speed:
+                                        print(f"K-LD2 DETECTION: {speed_mph} mph")
+                                        self.detectionTriggered.emit()
+
+                            except (ValueError, IndexError) as e:
+                                # Invalid data format, skip
                                 if self.debug_mode:
-                                    # In debug mode, show all detections above 5 mph
-                                    if speed_mph >= 5.0:
-                                        print(f"K-LD2: {speed_mph:.1f} mph (raw: {speed_ms:.2f} m/s)")
-
-                                # Emit speed update
-                                self.speedUpdated.emit(speed_mph)
-
-                                # Trigger detection if speed exceeds threshold
-                                if speed_mph >= self.min_trigger_speed:
-                                    print(f"K-LD2 DETECTION: {speed_mph:.1f} mph")
-                                    self.detectionTriggered.emit()
-
-                            except ValueError:
-                                # Invalid speed data, skip
+                                    print(f"K-LD2 parse error: {line} ({e})")
                                 pass
 
                 time.sleep(0.01)  # 10ms sleep to prevent CPU spinning
