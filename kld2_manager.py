@@ -76,14 +76,14 @@ class KLD2Manager(QObject):
                 response = self.serial_port.read(self.serial_port.in_waiting)
                 print(f"Sampling rate set response: {response}")
 
-            # Start continuous speed readings
-            self.serial_port.write(b'$C00\r\n')
+            # Start continuous data streaming (use $S00 instead of $C00)
+            self.serial_port.write(b'$S00\r\n')
             time.sleep(0.2)
 
             # Read response
             if self.serial_port.in_waiting > 0:
                 response = self.serial_port.read(self.serial_port.in_waiting)
-                print(f"Continuous mode response: {response}")
+                print(f"Streaming start response: {response}")
 
             # Start reading thread
             self._is_running = True
