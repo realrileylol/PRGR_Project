@@ -21,7 +21,7 @@ class KLD2Manager(QObject):
 
     def __init__(self, port='/dev/serial0', baudrate=38400, min_trigger_speed=15.0,
                  min_magnitude_db=0, max_magnitude_db=999,
-                 sensitivity=None, sampling_rate=2560, debug_mode=False):
+                 sensitivity=None, sampling_rate=20480, debug_mode=False):
         super().__init__()
         self.port = port
         self.baudrate = baudrate
@@ -60,7 +60,8 @@ class KLD2Manager(QObject):
         # Will be set via $D01 command during startup if not None
         self.sensitivity = sensitivity
 
-        # K-LD2 sampling rate (Hz) - default 2560 Hz (S04=02)
+        # K-LD2 sampling rate (Hz) - default 20480 Hz (S04=05) for fast golf swings
+        # Higher sampling rate = can detect faster speeds (max detectable speed ~144 mph at 20480 Hz)
         # Used for bin-to-speed conversion
         self.sampling_rate = sampling_rate
 
@@ -268,12 +269,22 @@ class KLD2Manager(QObject):
             if current_dir:
                 print(f"K-LD2 current direction setting: {current_dir}")
 
+            # SET sampling rate to 20480 Hz for fast golf swings (club speeds 50-120+ mph)
+            # $S04 values: 01=1280, 02=2560, 03=5120, 04=10240, 05=20480 Hz
+            print("Setting K-LD2 sampling rate to 20480 Hz for high-speed detection...")
+            set_sampling_response = self._send_command("$S04=05")
+            if set_sampling_response:
+                print(f"  Sampling rate SET response: {set_sampling_response}")
+            time.sleep(0.2)  # Give sensor time to apply new sampling rate
+
             # Query and verify sampling rate ($S04 register)
             # CRITICAL: Sampling rate must match actual hardware setting for accurate speed conversion
             # $S04 values:
             #   01 = 1280 Hz
             #   02 = 2560 Hz (default)
-            #   03 = 5120 Hz (if supported)
+            #   03 = 5120 Hz
+            #   04 = 10240 Hz
+            #   05 = 20480 Hz (for fast golf swings!)
             sampling_response = self._send_command("$S04")
             if sampling_response:
                 print(f"K-LD2 $S04 response: {sampling_response}")
@@ -287,9 +298,13 @@ class KLD2Manager(QObject):
                         '01': 1280,
                         '02': 2560,
                         '03': 5120,
+                        '04': 10240,
+                        '05': 20480,
                         '1': 1280,
                         '2': 2560,
-                        '3': 5120
+                        '3': 5120,
+                        '4': 10240,
+                        '5': 20480
                     }
 
                     actual_sampling_rate = s04_to_hz.get(s04_value)
