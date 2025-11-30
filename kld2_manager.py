@@ -40,8 +40,9 @@ class KLD2Manager(QObject):
     def start(self):
         """Start the K-LD2 sensor"""
         try:
-            # Find K-LD2 serial port (usually /dev/ttyUSB0 or /dev/ttyACM0)
-            port_candidates = ['/dev/ttyUSB0', '/dev/ttyACM0', '/dev/ttyUSB1']
+            # K-LD2 connected via GPIO UART pins (not USB)
+            # Pin 8 (GPIO14/RXD) -> Radar TX, Pin 10 (GPIO15/TXD) -> Radar RX
+            port_candidates = ['/dev/serial0', '/dev/ttyAMA0', '/dev/ttyS0']
 
             for port in port_candidates:
                 try:
