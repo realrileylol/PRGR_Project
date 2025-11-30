@@ -126,12 +126,20 @@ class KLD2Manager(QObject):
                 if self.serial_port.in_waiting > 0:
                     # Read data from serial port
                     data = self.serial_port.read(self.serial_port.in_waiting)
+
+                    # DEBUG: Print raw data
+                    print(f"RAW DATA: {data}")
+
                     buffer += data.decode('ascii', errors='ignore')
 
                     # Process complete lines
                     while '\n' in buffer:
                         line, buffer = buffer.split('\n', 1)
                         line = line.strip()
+
+                        # DEBUG: Print all received lines
+                        if line:
+                            print(f"LINE: '{line}'")
 
                         # Parse K-LD2 ASCII response format: speed_bin;speed_mph;magnitude;
                         # Example: "001;001;066;" = speed bin 1, 1 mph, magnitude 66
