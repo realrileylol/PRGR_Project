@@ -1,0 +1,23 @@
+# KLD2 Sensor Monitoring Requirements
+# Install with: pip3 install --break-system-packages -r requirements_kld2.txt
+
+# Core dependencies (already in main requirements)
+numpy>=1.19.0
+PySide6>=6.0.0
+
+# Signal processing
+scipy>=1.5.0
+matplotlib>=3.3.0
+
+# Hardware interface (Raspberry Pi only)
+spidev>=3.5
+RPi.GPIO>=0.7.0
+
+# GNU Radio (install via apt-get, not pip)
+# sudo apt-get install -y gnuradio python3-gnuradio gr-qtgui
+
+# Qt for GUI (install via apt-get for compatibility)
+# sudo apt-get install -y python3-pyqt5
+
+# Optional: Enhanced plotting
+pyqtgraph>=0.12.0

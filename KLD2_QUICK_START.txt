@@ -1,0 +1,225 @@
+╔══════════════════════════════════════════════════════════════╗
+║       KLD2 Doppler Radar Sensor - Quick Start Guide         ║
+║              Golf Swing Monitoring with GNU Radio            ║
+╚══════════════════════════════════════════════════════════════╝
+
+🔧 HARDWARE SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MCP3008 ADC → Raspberry Pi Connections:
+────────────────────────────────────────
+  VDD  → 3.3V (Pin 1)
+  VREF → 3.3V (Pin 1)
+  AGND → GND  (Pin 6)
+  CLK  → GPIO 11 (Pin 23)
+  DOUT → GPIO 9  (Pin 21)
+  DIN  → GPIO 10 (Pin 19)
+  CS   → GPIO 8  (Pin 24)
+
+KLD2 Sensor → MCP3008:
+──────────────────────
+  Signal → CH0 (Pin 1)
+  GND    → AGND
+  VCC    → 3.3V or 5V
+
+
+📦 INSTALLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Run setup script:
+   chmod +x setup_kld2.sh
+   ./setup_kld2.sh
+
+2. Enable SPI (if not already):
+   sudo raspi-config
+   → Interface Options → SPI → Yes
+   → Reboot
+
+3. Verify installation:
+   ls /dev/spi*           # Should show /dev/spidev0.0
+   python3 kld2_sensor.py # Test sensor module
+
+
+🚀 USAGE - THREE OPTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option 1: Simple Monitor (Easiest - Recommended)
+─────────────────────────────────────────────────
+Uses matplotlib for visualization
+
+  # Test with simulation
+  python3 simple_kld2_monitor.py --sim
+
+  # Monitor real sensor
+  python3 simple_kld2_monitor.py
+
+  # With custom sample rate
+  python3 simple_kld2_monitor.py --rate=2000
+
+
+Option 2: GNU Radio Python Script (Advanced)
+─────────────────────────────────────────────
+Full signal processing capabilities
+
+  # Test with simulation
+  python3 gnuradio_kld2_monitor.py --simulation
+
+  # Monitor real sensor
+  python3 gnuradio_kld2_monitor.py
+
+  # With custom sample rate
+  python3 gnuradio_kld2_monitor.py --rate=5000
+
+
+Option 3: GNU Radio Companion GUI (Most Flexible)
+──────────────────────────────────────────────────
+Visual flowgraph editor
+
+  # Open flowgraph
+  gnuradio-companion kld2_monitor.grc
+
+  # Or generate Python and run
+  grcc kld2_monitor.grc
+  python3 kld2_monitor.py
+
+
+📊 UNDERSTANDING THE DISPLAY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Time Domain (Top Plot):
+───────────────────────
+Shows raw sensor voltage over time
+  • Flat line (~1.65V) = No movement
+  • Oscillating = Club in motion
+  • High amplitude = Fast swing
+  • Red line = Detection threshold
+
+Frequency Domain (Bottom Plot):
+───────────────────────────────
+Shows Doppler frequency components
+  • 0-50 Hz = Slow movements
+  • 50-200 Hz = Club swing frequencies
+  • Peak = Club head speed indicator
+
+
+🏌️ TYPICAL READINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Doppler Freq → Approximate Speed (24GHz radar):
+────────────────────────────────────────────────
+  100 Hz   →   2.25 km/h  (very slow)
+  500 Hz   →  11.25 km/h  (practice swing)
+  1 kHz    →  22.5 km/h   (slow swing)
+  5 kHz    → 112.5 km/h   (normal swing)
+  10 kHz   → 225 km/h     (fast swing)
+
+
+⚙️ CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Adjust Sample Rate:
+───────────────────
+  python3 simple_kld2_monitor.py --rate=1000
+
+Change ADC Channel (if not using CH0):
+──────────────────────────────────────
+  Edit kld2_sensor.py, line ~87:
+  adc_channel = 1  # Change to your channel (0-7)
+
+Adjust Swing Detection Threshold:
+─────────────────────────────────
+  Edit simple_kld2_monitor.py, line ~32:
+  self.swing_threshold = 0.5  # Increase = less sensitive
+
+Data Recording Location:
+────────────────────────
+  GNU Radio saves to: /tmp/kld2_sensor_data.bin
+
+
+🔧 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: "No SPI device found"
+──────────────────────────────
+  sudo raspi-config
+  → Interface Options → SPI → Yes
+  → Reboot
+
+
+Problem: "Permission denied"
+────────────────────────────
+  sudo usermod -a -G spi,gpio $USER
+  → Logout and login again
+
+
+Problem: "No signal detected"
+─────────────────────────────
+  1. Check wiring (see diagram above)
+  2. Verify sensor has power (check LED)
+  3. Test ADC with multimeter (~1.65V at rest)
+  4. Wave hand in front of sensor
+  5. Try simulation mode first
+
+
+Problem: Noisy signal
+─────────────────────
+  1. Use shielded cables
+  2. Check all grounds are connected
+  3. Lower sample rate (--rate=500)
+  4. Increase buffer size
+
+
+Problem: Qt/GUI errors
+──────────────────────
+  export QT_QPA_PLATFORM=xcb
+  python3 gnuradio_kld2_monitor.py
+
+
+📝 TEST CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ SPI enabled: ls /dev/spi*
+□ Wiring correct (see diagram)
+□ Sensor powered (LED on)
+□ Simulation works: python3 simple_kld2_monitor.py --sim
+□ Real sensor works: python3 simple_kld2_monitor.py
+□ Swing detection triggers when moving club
+
+
+📚 FILES CREATED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Core Files:
+───────────
+  kld2_sensor.py ................. Sensor driver/interface
+  simple_kld2_monitor.py ......... Simple matplotlib monitor
+  gnuradio_kld2_monitor.py ....... GNU Radio flowgraph script
+  kld2_monitor.grc ............... GNU Radio Companion file
+
+Documentation:
+──────────────
+  KLD2_SETUP.md .................. Detailed setup guide
+  KLD2_QUICK_START.txt ........... This file
+
+Installation:
+─────────────
+  setup_kld2.sh .................. Automated setup script
+  requirements_kld2.txt .......... Python dependencies
+
+
+🆘 NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Read KLD2_SETUP.md for detailed instructions
+2. Test in simulation mode first
+3. Verify hardware with multimeter
+4. Check system logs: dmesg | grep spi
+5. Ensure all dependencies installed: ./setup_kld2.sh
+
+
+═══════════════════════════════════════════════════════════════
+
+For complete documentation: See KLD2_SETUP.md
+For hardware details: Check your KLD2 sensor datasheet
+
+Happy swing monitoring! ⛳🏌️
