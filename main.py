@@ -686,7 +686,13 @@ class CameraManager(QObject):
         try:
             print(f"Starting video recording: {filename}")
 
-            # Stop camera preview if running
+            # Stop NEW high-FPS preview if running (Picamera2)
+            if self.preview_active:
+                print("Stopping preview before recording...")
+                self.stopPreview()
+                time.sleep(0.5)
+
+            # Stop OLD camera preview if running (rpicam-apps)
             if self.camera_process is not None:
                 self.stopCamera()
                 time.sleep(0.5)
@@ -735,6 +741,12 @@ class CameraManager(QObject):
                 self.recordingSaved.emit(os.path.basename(self.current_recording_path))
 
             self.current_recording_path = None
+
+            # Restart preview after recording (if it was running before)
+            # User likely wants to see the preview again
+            print("Restarting preview after recording...")
+            time.sleep(0.5)  # Give camera time to fully release
+            self.startPreview()
 
         except Exception as e:
             print(f"Error stopping recording: {e}")
