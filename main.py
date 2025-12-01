@@ -275,10 +275,12 @@ class CameraManager(QObject):
             self.preview_picam2 = Picamera2()
 
             # Configure based on format
+            # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
             if camera_format == "RAW":
                 # RAW format for high FPS (bypasses ISP)
+                # OV9281 outputs native Y format (grayscale) - no Bayer conversion needed!
                 config = self.preview_picam2.create_video_configuration(
-                    main={"size": resolution, "format": "SRGGB10"},  # 10-bit Bayer RAW
+                    main={"size": resolution},  # Use native sensor format (Y/grayscale)
                     controls={
                         "FrameRate": frame_rate,
                         "ExposureTime": shutter_speed,
@@ -1700,10 +1702,12 @@ class CaptureManager(QObject):
                         resolution = (320, 240)
 
                     # Configure camera based on format
+                    # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
                     if camera_format == "RAW":
                         # RAW format for high FPS (bypasses ISP, eliminates motion blur)
+                        # OV9281 outputs native Y format (grayscale) - no Bayer conversion needed!
                         config = self.picam2.create_video_configuration(
-                            main={"size": resolution, "format": "SRGGB10"},  # 10-bit Bayer RAW
+                            main={"size": resolution},  # Use native sensor format (Y/grayscale)
                             controls={
                                 "FrameRate": frame_rate,
                                 "ExposureTime": shutter_speed,
