@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("captureManager", &captureManager);
 
     // Load main QML file
-    const QUrl url(QStringLiteral("qrc:/screens/AppWindow.qml"));
+    const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl) {

@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>main.qml</file>
         <file>screens/AppWindow.qml</file>
         <file>screens/CameraScreen.qml</file>
         <file>screens/CameraSettings.qml</file>
