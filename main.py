@@ -683,9 +683,9 @@ class CameraManager(QObject):
             gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
             frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
 
-        # Calculate bitrate (higher = better quality, smoother playback)
-        # 10 Mbps for 640x480 @ 45 FPS = smooth, high-quality video
-        bitrate = 10000000  # 10 Mbps
+        # Calculate bitrate (optimized for Pi 4B hardware decoding)
+        # 5 Mbps for 640x480 @ 45 FPS = smooth playback + excellent quality
+        bitrate = 5000000  # 5 Mbps (Pi 4B sweet spot)
 
         try:
             print(f"Starting video recording: {filename}")
