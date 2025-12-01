@@ -103,7 +103,7 @@ Item {
                     id: cameraImage
                     anchors.fill: parent
                     fillMode: Image.PreserveAspectFit
-                    source: "image://frame/live"
+                    source: "image://frameprovider/live"
                     cache: false  // Disable caching for real-time video
                     asynchronous: false  // Synchronous for lower latency
                     visible: cameraActive
@@ -116,7 +116,7 @@ Item {
                         function onFrameReady() {
                             // Force image reload by changing source slightly
                             cameraImage.frameCounter++
-                            cameraImage.source = "image://frame/live?" + cameraImage.frameCounter
+                            cameraImage.source = "image://frameprovider/live?" + cameraImage.frameCounter
                         }
                     }
                 }
