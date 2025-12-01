@@ -332,10 +332,9 @@ class CameraManager(QObject):
                 else:
                     frame = self.preview_picam2.capture_array("main")  # ISP processed
 
-                # DEBUG: Print frame info on first capture
-                if frame_count == 0:
-                    print(f"   Frame shape: {frame.shape}, dtype: {frame.dtype}, min/max: {frame.min()}/{frame.max()}")
-                frame_count += 1
+                # DEBUG: Print frame info on first few captures
+                if frame_count < 3:
+                    print(f"   [Frame {frame_count}] BEFORE processing: shape={frame.shape}, dtype={frame.dtype}, size={frame.size}, min/max={frame.min()}/{frame.max()}")
 
                 # Convert from camera format to grayscale for display
                 # lores stream outputs YUV420 format (even for monochrome camera)
@@ -349,6 +348,8 @@ class CameraManager(QObject):
                     if total_pixels == y_pixels * 3 // 2:  # YUV420 format (1.5x pixels)
                         # Extract just the Y channel (first height*width pixels)
                         frame = frame.reshape(-1)[:y_pixels].reshape(height, width)
+                        if frame_count < 3:
+                            print(f"   [Frame {frame_count}] AFTER Y extraction: shape={frame.shape}, size={frame.size}")
                     # else: already grayscale
                 elif len(frame.shape) == 3:
                     # Multi-channel format
@@ -362,6 +363,11 @@ class CameraManager(QObject):
                 # Convert Bayer RAW to grayscale if needed (for color Bayer sensors)
                 # OV9281 is monochrome so this will just return frame as-is
                 frame = self._convert_bayer_to_gray(frame)
+
+                # DEBUG: Final frame shape before display
+                if frame_count < 3:
+                    print(f"   [Frame {frame_count}] FINAL (sending to display): shape={frame.shape}, size={frame.size}")
+                frame_count += 1
 
                 # Update frame provider (thread-safe)
                 if self.frame_provider is not None:
