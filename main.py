@@ -338,16 +338,15 @@ class CameraManager(QObject):
 
                 # Convert from camera format to grayscale for display
                 # lores stream outputs YUV420 format (even for monochrome camera)
+                # YUV420 stacks Y, U, V planes vertically: (height*1.5, width)
                 if len(frame.shape) == 2:
-                    # Already 2D - might be YUV420 packed as 1D array
-                    # YUV420: First 2/3 is Y (luminance), last 1/3 is U/V (chrominance)
-                    height, width = resolution
-                    total_pixels = frame.size
-                    y_pixels = height * width
+                    width, height = resolution  # e.g., (320, 240)
 
-                    if total_pixels == y_pixels * 3 // 2:  # YUV420 format (1.5x pixels)
-                        # Extract just the Y channel (first height*width pixels)
-                        frame = frame.reshape(-1)[:y_pixels].reshape(height, width)
+                    # Check if this is YUV420 format: frame height = resolution height × 1.5
+                    if frame.shape[0] == height * 3 // 2:  # YUV420 detected
+                        # Extract Y channel (first 'height' rows, full width)
+                        # For 320×240: extract rows 0-239 from (360, 320) frame
+                        frame = frame[:height, :]
                         if frame_count < 3:
                             print(f"   [Frame {frame_count}] AFTER Y extraction: shape={frame.shape}, size={frame.size}")
                     # else: already grayscale
@@ -989,15 +988,15 @@ class CaptureManager(QObject):
             frame = self.picam2.capture_array("lores")  # Direct sensor data - bypasses ISP!
 
             # lores stream outputs YUV420 format (even for monochrome camera)
-            # YUV420: First 2/3 is Y (luminance), last 1/3 is U/V (chrominance)
+            # YUV420 stacks Y, U, V planes vertically: (height*1.5, width)
             if hasattr(self, 'capture_resolution') and len(frame.shape) == 2:
-                height, width = self.capture_resolution
-                total_pixels = frame.size
-                y_pixels = height * width
+                width, height = self.capture_resolution  # e.g., (320, 240)
 
-                if total_pixels == y_pixels * 3 // 2:  # YUV420 format
-                    # Extract just the Y channel (grayscale luminance)
-                    frame = frame.reshape(-1)[:y_pixels].reshape(height, width)
+                # Check if this is YUV420 format: frame height = resolution height × 1.5
+                if frame.shape[0] == height * 3 // 2:  # YUV420 detected
+                    # Extract Y channel (first 'height' rows, full width)
+                    # For 320×240: extract rows 0-239 from (360, 320) frame
+                    frame = frame[:height, :]
 
             return frame
         else:
