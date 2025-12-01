@@ -20,18 +20,21 @@ class KLD2Manager(QObject):
     """Manages K-LD2 radar sensor for ball speed detection (receding targets only)"""
 
     # Signals
-    speedUpdated = Signal(float)  # Speed in MPH
+    speedUpdated = Signal(float)  # Speed in MPH (for display)
+    clubSpeedUpdated = Signal(float)  # Club head speed (approaching)
+    ballSpeedUpdated = Signal(float)  # Ball speed (receding)
     statusChanged = Signal(str, str)  # (message, color)
-    detectionTriggered = Signal()  # Emitted when ball is detected
+    detectionTriggered = Signal()  # Emitted when trigger condition met
     isRunningChanged = Signal()  # Notify when is_running changes
 
-    def __init__(self, min_trigger_speed=10.0, debug_mode=False):
+    def __init__(self, min_trigger_speed=10.0, debug_mode=False, trigger_mode="club"):
         super().__init__()
         self.serial_port = None
         self._is_running = False
         self.read_thread = None
         self.min_trigger_speed = min_trigger_speed  # Minimum speed to trigger detection
         self.debug_mode = debug_mode
+        self.trigger_mode = trigger_mode  # "club" or "ball" - what triggers camera
 
     @Property(bool, notify=isRunningChanged)
     def is_running(self):
@@ -148,18 +151,30 @@ class KLD2Manager(QObject):
                                     # Debug: show both speeds
                                     if self.debug_mode:
                                         if approaching_speed > 0:
-                                            print(f"K-LD2: {approaching_speed} mph APPROACHING (mag {approaching_mag})")
+                                            print(f"K-LD2: {approaching_speed} mph CLUB (approaching, mag {approaching_mag})")
                                         if receding_speed > 0:
-                                            print(f"K-LD2: {receding_speed} mph RECEDING (mag {receding_mag})")
+                                            print(f"K-LD2: {receding_speed} mph BALL (receding, mag {receding_mag})")
 
-                                    # Only process RECEDING targets (ball moving away after impact)
+                                    # Emit separate signals for club and ball speeds
+                                    if approaching_speed > 0:
+                                        self.clubSpeedUpdated.emit(float(approaching_speed))
                                     if receding_speed > 0:
-                                        # Emit speed updates for GUI display
-                                        self.speedUpdated.emit(float(receding_speed))
+                                        self.ballSpeedUpdated.emit(float(receding_speed))
 
-                                        # Trigger detection if speed exceeds threshold
+                                    # Trigger based on mode (for camera capture timing)
+                                    if self.trigger_mode == "club":
+                                        # Trigger on CLUB HEAD (approaching) - catches swing BEFORE impact
+                                        # This allows camera to capture pre-impact frames!
+                                        if approaching_speed >= self.min_trigger_speed:
+                                            print(f"CAMERA TRIGGER: Club {approaching_speed} mph (before impact)")
+                                            self.speedUpdated.emit(float(approaching_speed))
+                                            self.detectionTriggered.emit()
+                                    else:  # trigger_mode == "ball"
+                                        # Trigger on BALL (receding) - happens AFTER impact
+                                        # Too late for pre-impact camera frames!
                                         if receding_speed >= self.min_trigger_speed:
-                                            print(f"K-LD2 BALL DETECTION: {receding_speed} mph (receding)")
+                                            print(f"CAMERA TRIGGER: Ball {receding_speed} mph (after impact)")
+                                            self.speedUpdated.emit(float(receding_speed))
                                             self.detectionTriggered.emit()
 
                             except (ValueError, IndexError) as e:
