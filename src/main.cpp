@@ -9,6 +9,7 @@
 #include "FrameProvider.h"
 #include "CameraManager.h"
 #include "CaptureManager.h"
+#include "SoundManager.h"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -24,6 +25,7 @@ int main(int argc, char *argv[]) {
     // Create managers
     SettingsManager settingsManager;
     KLD2Manager kld2Manager;
+    SoundManager soundManager;
     FrameProvider frameProvider;
     CameraManager cameraManager(&frameProvider, &settingsManager);
     CaptureManager captureManager(&kld2Manager, &settingsManager);
@@ -37,6 +39,7 @@ int main(int argc, char *argv[]) {
     // Expose managers to QML
     engine.rootContext()->setContextProperty("settingsManager", &settingsManager);
     engine.rootContext()->setContextProperty("kld2Manager", &kld2Manager);
+    engine.rootContext()->setContextProperty("soundManager", &soundManager);
     engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
     engine.rootContext()->setContextProperty("captureManager", &captureManager);
 
