@@ -27,6 +27,7 @@ set(SOURCES
     src/CameraManager.cpp
     src/CaptureManager.cpp
     src/FrameProvider.cpp
+    src/SoundManager.cpp
 )
 
 # Header files
@@ -36,6 +37,7 @@ set(HEADERS
     include/CameraManager.h
     include/CaptureManager.h
     include/FrameProvider.h
+    include/SoundManager.h
 )
 
 # QML resources
