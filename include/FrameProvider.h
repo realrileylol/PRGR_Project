@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QObject>
 #include <QQuickImageProvider>
 #include <QImage>
 #include <QMutex>
@@ -11,10 +10,11 @@
  *
  * Converts OpenCV Mat frames to QImage for real-time preview in QML.
  * Thread-safe frame updates from camera capture thread.
+ *
+ * Note: QQuickImageProvider cannot inherit from QObject,
+ * so we use direct method calls instead of signals.
  */
-class FrameProvider : public QObject, public QQuickImageProvider {
-    Q_OBJECT
-
+class FrameProvider : public QQuickImageProvider {
 public:
     FrameProvider();
     ~FrameProvider() = default;
@@ -24,9 +24,6 @@ public:
 
     // Thread-safe frame update
     void updateFrame(const cv::Mat &frame);
-
-signals:
-    void frameUpdated();
 
 private:
     QImage cvMatToQImage(const cv::Mat &mat);

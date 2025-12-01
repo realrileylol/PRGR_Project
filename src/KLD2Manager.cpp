@@ -1,5 +1,6 @@
 #include "KLD2Manager.h"
 #include <QSerialPortInfo>
+#include <QThread>
 #include <QDebug>
 
 KLD2Manager::KLD2Manager(QObject *parent)

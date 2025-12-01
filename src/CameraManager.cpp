@@ -237,7 +237,7 @@ void CameraManager::previewLoop() {
         // Update frame provider (thread-safe)
         if (m_frameProvider) {
             m_frameProvider->updateFrame(frame);
-            emit frameReady();
+            // QML will poll for frame updates via image provider
         }
 
         // FPS tracking

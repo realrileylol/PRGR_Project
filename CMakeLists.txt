@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find required Qt packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml Multimedia SerialPort)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2 Multimedia SerialPort)
 
 # Find OpenCV
 find_package(OpenCV REQUIRED)
@@ -54,6 +54,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Gui
     Qt6::Quick
     Qt6::Qml
+    Qt6::QuickControls2
     Qt6::Multimedia
     Qt6::SerialPort
     ${OpenCV_LIBS}
