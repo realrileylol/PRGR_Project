@@ -94,7 +94,7 @@ Item {
             // Main speed display
             Rectangle {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: 280
                 radius: 12
                 color: card
                 border.color: edge
@@ -102,13 +102,13 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 30
-                    spacing: 20
+                    anchors.margins: 20
+                    spacing: 15
 
                     // Large speed display
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 200
+                        Layout.fillHeight: true
                         radius: 10
                         color: currentSpeedText.text === "---" ? bg : "#E8F5E9"
                         border.color: currentSpeedText.text === "---" ? edge : success
@@ -116,7 +116,7 @@ Item {
 
                         ColumnLayout {
                             anchors.centerIn: parent
-                            spacing: 10
+                            spacing: 5
 
                             Text {
                                 id: currentSpeedText
@@ -128,138 +128,112 @@ Item {
                             }
 
                             Text {
-                                text: "mph (Club Head Speed)"
-                                font.pixelSize: 18
+                                text: "mph"
+                                font.pixelSize: 24
+                                color: hint
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                id: directionText
+                                text: ""
+                                font.pixelSize: 14
                                 color: hint
                                 Layout.alignment: Qt.AlignHCenter
                             }
                         }
                     }
 
-                    // Info section
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        rowSpacing: 15
-                        columnSpacing: 20
+                }
+            }
 
-                        // Connection Status
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 80
-                            radius: 8
-                            color: bg
-                            border.color: edge
-                            border.width: 1
+            // Info section
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 5
+                // Connection Status
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    radius: 8
+                    color: bg
 
-                                Text {
-                                    text: "Connection"
-                                    font.pixelSize: 13
-                                    color: hint
-                                    font.bold: true
-                                }
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 3
 
-                                Text {
-                                    id: connectionStatusText
-                                    text: "Not Connected"
-                                    font.pixelSize: 16
-                                    color: danger
-                                }
-                            }
+                        Text {
+                            text: "Status"
+                            font.pixelSize: 11
+                            color: hint
+                            Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Detection Mode
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 80
-                            radius: 8
-                            color: bg
-                            border.color: edge
-                            border.width: 1
+                        Text {
+                            id: connectionStatusText
+                            text: "Not Connected"
+                            font.pixelSize: 14
+                            color: danger
+                            font.bold: true
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                    }
+                }
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 5
+                // Peak Speed
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    radius: 8
+                    color: bg
 
-                                Text {
-                                    text: "Detection Mode"
-                                    font.pixelSize: 13
-                                    color: hint
-                                    font.bold: true
-                                }
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 3
 
-                                Text {
-                                    text: "Follow-Through"
-                                    font.pixelSize: 16
-                                    color: text
-                                }
-                            }
+                        Text {
+                            text: "Peak"
+                            font.pixelSize: 11
+                            color: hint
+                            Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Peak Speed
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 80
-                            radius: 8
-                            color: bg
-                            border.color: edge
-                            border.width: 1
+                        Text {
+                            id: peakSpeedText
+                            text: "---"
+                            font.pixelSize: 14
+                            color: accent
+                            font.bold: true
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                    }
+                }
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 5
+                // Trigger Threshold
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 70
+                    radius: 8
+                    color: bg
 
-                                Text {
-                                    text: "Peak Speed"
-                                    font.pixelSize: 13
-                                    color: hint
-                                    font.bold: true
-                                }
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 3
 
-                                Text {
-                                    id: peakSpeedText
-                                    text: "--- mph"
-                                    font.pixelSize: 16
-                                    color: accent
-                                    font.bold: true
-                                }
-                            }
+                        Text {
+                            text: "Threshold"
+                            font.pixelSize: 11
+                            color: hint
+                            Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Trigger Threshold
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 80
-                            radius: 8
-                            color: bg
-                            border.color: edge
-                            border.width: 1
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 5
-
-                                Text {
-                                    text: "Trigger Threshold"
-                                    font.pixelSize: 13
-                                    color: hint
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    text: "≥ 15 mph"
-                                    font.pixelSize: 16
-                                    color: text
-                                }
-                            }
+                        Text {
+                            text: "≥ 15 mph"
+                            font.pixelSize: 14
+                            color: text
+                            font.bold: true
+                            Layout.alignment: Qt.AlignHCenter
                         }
                     }
                 }
@@ -329,7 +303,7 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        peakSpeedText.text = "--- mph"
+                        peakSpeedText.text = "---"
                     }
                 }
             }
@@ -365,9 +339,9 @@ Item {
             currentSpeedText.text = Math.round(speedMph).toString()
 
             // Update peak speed
-            var currentPeak = peakSpeedText.text === "--- mph" ? 0 : parseInt(peakSpeedText.text)
+            var currentPeak = peakSpeedText.text === "---" ? 0 : parseInt(peakSpeedText.text)
             if (speedMph > currentPeak) {
-                peakSpeedText.text = Math.round(speedMph) + " mph"
+                peakSpeedText.text = Math.round(speedMph).toString()
             }
 
             // Flash the display briefly

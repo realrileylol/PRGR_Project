@@ -146,32 +146,23 @@ class KLD2Manager(QObject):
                                     if speed_mph_raw == 0:
                                         continue
 
-                                    # CLUB HEAD SPEED MODE: Detect RECEDING speeds (follow-through moving away)
-                                    # Setup: [RADAR] --4-5ft--> [golfer/ball] --4-5ft--> [pillows]
-                                    # Receding (negative) = club follow-through moving away (WANT THIS!)
-                                    # Approaching (positive) = club backswing toward radar (IGNORE!)
+                                    # DEBUG: Show RAW values to diagnose sign issue
+                                    if self.debug_mode:
+                                        print(f"RAW: bin={speed_bin}, speed_raw={speed_mph_raw}, mag={magnitude}")
 
-                                    is_receding = speed_mph_raw < 0
+                                    # TEMPORARY: Detect ALL speeds (both directions) to diagnose
+                                    # K-LD2 might not return signed values
                                     speed_mph = abs(speed_mph_raw)
 
-                                    # Debug output for non-zero speeds
-                                    if self.debug_mode and speed_mph > 0:
-                                        direction = "RECEDING (follow-through)" if is_receding else "APPROACHING (backswing)"
-                                        print(f"K-LD2: {speed_mph} mph {direction} (bin {speed_bin}, mag {magnitude})")
-
-                                    # Only emit and trigger on RECEDING targets (follow-through)
-                                    if is_receding:
-                                        # Emit speed update
+                                    # Always emit speed updates
+                                    if speed_mph > 0:
+                                        print(f"K-LD2: {speed_mph} mph (raw value: {speed_mph_raw})")
                                         self.speedUpdated.emit(float(speed_mph))
 
                                         # Trigger detection if speed exceeds threshold
                                         if speed_mph >= self.min_trigger_speed:
-                                            print(f"K-LD2 DETECTION: {speed_mph} mph (club head speed)")
+                                            print(f"K-LD2 DETECTION: {speed_mph} mph")
                                             self.detectionTriggered.emit()
-                                    else:
-                                        # Ignore approaching targets (backswing)
-                                        if self.debug_mode and speed_mph >= 5:
-                                            print(f"   Ignored backswing: {speed_mph} mph (approaching)")
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip
