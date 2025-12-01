@@ -8,7 +8,7 @@
 #include "KLD2Manager.h"
 #include "FrameProvider.h"
 #include "CameraManager.h"
-// #include "CaptureManager.h"  // TODO: Implement
+#include "CaptureManager.h"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     KLD2Manager kld2Manager;
     FrameProvider frameProvider;
     CameraManager cameraManager(&frameProvider, &settingsManager);
-    // CaptureManager captureManager(&kld2Manager, &settingsManager);  // TODO: Implement
+    CaptureManager captureManager(&kld2Manager, &settingsManager);
 
     // Create QML engine
     QQmlApplicationEngine engine;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("settingsManager", &settingsManager);
     engine.rootContext()->setContextProperty("kld2Manager", &kld2Manager);
     engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
-    // engine.rootContext()->setContextProperty("captureManager", &captureManager);  // TODO: Implement
+    engine.rootContext()->setContextProperty("captureManager", &captureManager);
 
     // Load main QML file
     const QUrl url(QStringLiteral("qrc:/screens/AppWindow.qml"));
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     qDebug() << "✓ SettingsManager initialized";
     qDebug() << "✓ KLD2Manager initialized";
     qDebug() << "✓ CameraManager initialized (rpicam-vid with named pipes)";
-    qDebug() << "⚠ CaptureManager not yet implemented";
+    qDebug() << "✓ CaptureManager initialized (200 FPS hybrid detection)";
 
     return app.exec();
 }

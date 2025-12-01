@@ -25,8 +25,8 @@ set(SOURCES
     src/SettingsManager.cpp
     src/KLD2Manager.cpp
     src/CameraManager.cpp
+    src/CaptureManager.cpp
     src/FrameProvider.cpp
-    # src/CaptureManager.cpp  # TODO: Implement
 )
 
 # Header files
@@ -34,8 +34,8 @@ set(HEADERS
     include/SettingsManager.h
     include/KLD2Manager.h
     include/CameraManager.h
+    include/CaptureManager.h
     include/FrameProvider.h
-    # include/CaptureManager.h  # TODO: Implement
 )
 
 # QML resources
