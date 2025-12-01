@@ -669,7 +669,7 @@ class CameraManager(QObject):
 
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"video_{timestamp}.h264"
+        filename = f"video_{timestamp}.mp4"  # MP4 for smooth playback
         filepath = os.path.join(videos_folder, filename)
         self.current_recording_path = filepath
 
@@ -682,6 +682,10 @@ class CameraManager(QObject):
             shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 10000)
             gain = float(self.settings_manager.getNumber("cameraGain") or 6.0)
             frame_rate = int(self.settings_manager.getNumber("cameraFrameRate") or 45)
+
+        # Calculate bitrate (higher = better quality, smoother playback)
+        # 10 Mbps for 640x480 @ 45 FPS = smooth, high-quality video
+        bitrate = 10000000  # 10 Mbps
 
         try:
             print(f"Starting video recording: {filename}")
@@ -698,6 +702,7 @@ class CameraManager(QObject):
                 time.sleep(0.5)
 
             # Start recording with rpicam-vid
+            # Use libav codec for MP4 container (smooth playback)
             cmd = [
                 'rpicam-vid',
                 '--timeout', '0',  # Run indefinitely until stopped
@@ -707,7 +712,12 @@ class CameraManager(QObject):
                 '--shutter', str(shutter_speed),
                 '--gain', str(gain),
                 '--output', filepath,
-                '--codec', 'h264',
+                '--codec', 'libav',  # MP4 container for smooth playback
+                '--libav-format', 'mp4',  # Explicit MP4 format
+                '--bitrate', str(bitrate),  # 10 Mbps for high quality
+                '--intra', str(frame_rate),  # Keyframe every 1 second for smooth seeking
+                '--profile', 'high',  # High profile for better compression
+                '--level', '4.2',  # H.264 level for up to 1080p60
                 '--preview', '22,82,756,254'  # Show preview while recording
             ]
 
