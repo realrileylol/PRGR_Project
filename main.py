@@ -739,16 +739,34 @@ class CameraManager(QObject):
 
         try:
             print("Stopping recording...")
-            self.recording_process.terminate()
-            self.recording_process.wait(timeout=2)
+            # Send SIGINT (Ctrl+C) instead of SIGTERM to allow graceful shutdown
+            # This lets rpicam-vid finalize the MP4 container properly
+            import signal
+            import subprocess
+
+            self.recording_process.send_signal(signal.SIGINT)
+
+            try:
+                # Give it up to 5 seconds to finish writing and close the file
+                self.recording_process.wait(timeout=5)
+                print("Recording stopped gracefully")
+            except subprocess.TimeoutExpired:
+                print("Timeout waiting for recording to stop, forcing termination...")
+                self.recording_process.terminate()
+                self.recording_process.wait(timeout=2)
+
             self.recording_process = None
             self.is_recording = False
+            # Wait a moment for file system to flush
+            time.sleep(0.5)
 
             if self.current_recording_path and os.path.exists(self.current_recording_path):
                 # Get file size for confirmation
                 file_size = os.path.getsize(self.current_recording_path) / (1024 * 1024)  # MB
                 print(f"Recording saved: {self.current_recording_path} ({file_size:.1f} MB)")
                 self.recordingSaved.emit(os.path.basename(self.current_recording_path))
+            else:
+                print(f"Warning: Recording file not found: {self.current_recording_path}")
 
             self.current_recording_path = None
 
@@ -761,6 +779,11 @@ class CameraManager(QObject):
         except Exception as e:
             print(f"Error stopping recording: {e}")
             self.is_recording = False
+            if self.recording_process:
+                try:
+                    self.recording_process.kill()
+                except:
+                    pass
             self.recording_process = None
             self.current_recording_path = None
 
