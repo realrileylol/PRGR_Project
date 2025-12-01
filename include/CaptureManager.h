@@ -4,7 +4,6 @@
 #include <QThread>
 #include <QString>
 #include <opencv2/opencv.hpp>
-#include <libcamera/libcamera.h>
 #include <deque>
 #include <memory>
 #include <atomic>
@@ -73,12 +72,6 @@ private:
 
     KLD2Manager *m_kld2Manager;
     SettingsManager *m_settings;
-
-    // libcamera objects
-    std::unique_ptr<libcamera::CameraManager> m_cameraManager;
-    std::shared_ptr<libcamera::Camera> m_camera;
-    std::unique_ptr<libcamera::FrameBufferAllocator> m_allocator;
-    std::unique_ptr<libcamera::CameraConfiguration> m_config;
 
     // Capture thread
     CaptureThread *m_captureThread;
