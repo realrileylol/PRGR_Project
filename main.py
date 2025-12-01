@@ -190,35 +190,98 @@ class CameraManager(QObject):
         self._preview_stopping = False
         print("Preview stopped")
 
+    def _convert_bayer_to_gray(self, frame):
+        """Convert Bayer RAW (SRGGB10) to grayscale
+
+        For high-speed processing, we use simple averaging instead of full debayering.
+        This is much faster and sufficient for preview display.
+        """
+        # Check if this is 10-bit Bayer RAW data (uint16, single channel)
+        if frame.dtype == np.uint16 and len(frame.shape) == 2:
+            # Simple debayer: average 2x2 Bayer pixels to get grayscale
+            # RGGB pattern: [R G]
+            #               [G B]
+            height, width = frame.shape
+            # Average in 2x2 blocks (R + G1 + G2 + B) / 4
+            gray = np.zeros((height // 2, width // 2), dtype=np.uint8)
+            for i in range(0, height - 1, 2):
+                for j in range(0, width - 1, 2):
+                    # Get 2x2 block and average
+                    block = frame[i:i+2, j:j+2]
+                    # Scale from 10-bit (0-1023) to 8-bit (0-255)
+                    gray[i//2, j//2] = np.mean(block) // 4
+
+            # Resize back to original resolution for consistency
+            gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_LINEAR)
+            return gray
+        else:
+            # Not Bayer RAW, return as-is
+            return frame
+
     def _preview_loop(self):
         """Background thread for high-FPS preview rendering"""
         try:
-            # Load camera settings - optimized for smooth preview
-            # Use 60 FPS for preview (good balance of smoothness vs CPU usage)
-            # Can go up to 100 FPS if needed
+            # Load camera settings
             shutter_speed = 8500   # 8.5ms for indoor
             gain = 5.0             # Good indoor gain
-            frame_rate = 60        # Smooth preview (can increase to 100)
+            frame_rate = 60        # Default preview FPS
+            resolution_str = "320x240"  # Default to high-FPS mode
+            camera_format = "RAW"  # Default to RAW for high FPS
 
             if self.settings_manager:
                 shutter_speed = int(self.settings_manager.getNumber("cameraShutterSpeed") or 8500)
                 gain = float(self.settings_manager.getNumber("cameraGain") or 5.0)
-                # Use slightly lower FPS for preview to reduce CPU load
-                # Ball capture still uses 100 FPS for detection
-                frame_rate = 60
+                resolution_str = self.settings_manager.getString("cameraResolution") or "320x240"
+                camera_format = self.settings_manager.getString("cameraFormat") or "RAW"
 
-            print(f"Preview settings: Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+            # Parse resolution string (e.g., "320x240" -> (320, 240))
+            try:
+                width, height = map(int, resolution_str.split('x'))
+                resolution = (width, height)
+            except:
+                print(f"Invalid resolution '{resolution_str}', using 320x240")
+                resolution = (320, 240)
+
+            # Adjust FPS based on resolution and format
+            # RAW format bypasses ISP and allows much higher FPS
+            if camera_format == "RAW":
+                if resolution == (320, 240):
+                    frame_rate = 120  # High-speed capture for motion analysis
+                elif resolution == (640, 480):
+                    frame_rate = 60   # Moderate speed
+            else:  # YUV420 (ISP processed)
+                if resolution == (320, 240):
+                    frame_rate = 60   # ISP-limited
+                elif resolution == (640, 480):
+                    frame_rate = 30   # ISP maxes out around 30 FPS
+
+            print(f"Preview settings: Resolution={resolution}, Format={camera_format}, Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
 
             # Initialize camera
             self.preview_picam2 = Picamera2()
-            config = self.preview_picam2.create_video_configuration(
-                main={"size": (640, 480)},
-                controls={
-                    "FrameRate": frame_rate,
-                    "ExposureTime": shutter_speed,
-                    "AnalogueGain": gain
-                }
-            )
+
+            # Configure based on format
+            if camera_format == "RAW":
+                # RAW format for high FPS (bypasses ISP)
+                config = self.preview_picam2.create_video_configuration(
+                    main={"size": resolution, "format": "SRGGB10"},  # 10-bit Bayer RAW
+                    controls={
+                        "FrameRate": frame_rate,
+                        "ExposureTime": shutter_speed,
+                        "AnalogueGain": gain
+                    }
+                )
+            else:
+                # YUV420 format (ISP processed, lower FPS)
+                config = self.preview_picam2.create_video_configuration(
+                    main={"size": resolution},
+                    controls={
+                        "FrameRate": frame_rate,
+                        "ExposureTime": shutter_speed,
+                        "AnalogueGain": gain
+                    }
+                )
+
             self.preview_picam2.configure(config)
             self.preview_picam2.start()
 
@@ -244,6 +307,9 @@ class CameraManager(QObject):
 
                 # Capture frame
                 frame = self.preview_picam2.capture_array()
+
+                # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
+                frame = self._convert_bayer_to_gray(frame)
 
                 # Update frame provider (thread-safe)
                 if self.frame_provider is not None:
@@ -1014,6 +1080,34 @@ class CaptureManager(QObject):
 
         return club_detected
 
+    def _convert_bayer_to_gray(self, frame):
+        """Convert Bayer RAW (SRGGB10) to grayscale
+
+        For high-speed processing, we use simple averaging instead of full debayering.
+        This is much faster and sufficient for ball detection.
+        """
+        # Check if this is 10-bit Bayer RAW data (uint16, single channel)
+        if frame.dtype == np.uint16 and len(frame.shape) == 2:
+            # Simple debayer: average 2x2 Bayer pixels to get grayscale
+            # RGGB pattern: [R G]
+            #               [G B]
+            height, width = frame.shape
+            # Average in 2x2 blocks (R + G1 + G2 + B) / 4
+            gray = np.zeros((height // 2, width // 2), dtype=np.uint8)
+            for i in range(0, height - 1, 2):
+                for j in range(0, width - 1, 2):
+                    # Get 2x2 block and average
+                    block = frame[i:i+2, j:j+2]
+                    # Scale from 10-bit (0-1023) to 8-bit (0-255)
+                    gray[i//2, j//2] = np.mean(block) // 4
+
+            # Resize back to original resolution for consistency
+            gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_LINEAR)
+            return gray
+        else:
+            # Not Bayer RAW, return as-is
+            return frame
+
     def _detect_ball(self, frame):
         """Detect golf ball in frame using color-filtered circle detection
 
@@ -1560,16 +1654,46 @@ class CaptureManager(QObject):
                         time.sleep(3)  # Wait longer between retries (was 2, now 3)
 
                     self.picam2 = Picamera2()
-                    # Use native monochrome format - OV9281 outputs Y (grayscale)
-                    # RGB888 conversion is broken/slow, causing black images and FPS drop
-                    config = self.picam2.create_video_configuration(
-                        main={"size": (640, 480)},  # Let camera use native Y format
-                        controls={
-                            "FrameRate": frame_rate,
-                            "ExposureTime": shutter_speed,
-                            "AnalogueGain": gain
-                        }
-                    )
+
+                    # Get resolution and format from settings
+                    resolution_str = "320x240"  # Default to high-FPS mode
+                    camera_format = "RAW"  # Default to RAW for high FPS
+
+                    if self.settings_manager:
+                        resolution_str = self.settings_manager.getString("cameraResolution") or "320x240"
+                        camera_format = self.settings_manager.getString("cameraFormat") or "RAW"
+
+                    # Parse resolution string
+                    try:
+                        width, height = map(int, resolution_str.split('x'))
+                        resolution = (width, height)
+                    except:
+                        print(f"Invalid resolution '{resolution_str}', using 320x240")
+                        resolution = (320, 240)
+
+                    # Configure camera based on format
+                    if camera_format == "RAW":
+                        # RAW format for high FPS (bypasses ISP, eliminates motion blur)
+                        config = self.picam2.create_video_configuration(
+                            main={"size": resolution, "format": "SRGGB10"},  # 10-bit Bayer RAW
+                            controls={
+                                "FrameRate": frame_rate,
+                                "ExposureTime": shutter_speed,
+                                "AnalogueGain": gain
+                            }
+                        )
+                    else:
+                        # YUV420 format (ISP processed, limited to ~30 FPS at 640x480)
+                        config = self.picam2.create_video_configuration(
+                            main={"size": resolution},  # Let camera use native format
+                            controls={
+                                "FrameRate": frame_rate,
+                                "ExposureTime": shutter_speed,
+                                "AnalogueGain": gain
+                            }
+                        )
+
+                    print(f"   Capture config: {resolution} {camera_format} @ {frame_rate} FPS")
                     self.picam2.configure(config)
                     self.picam2.start()
 
@@ -1601,6 +1725,9 @@ class CaptureManager(QObject):
             # === IMMEDIATE DEBUG - Save first frame to see what camera is capturing ===
             print("🔍 Capturing first frame for diagnosis...", flush=True)
             first_frame = self.picam2.capture_array()
+
+            # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
+            first_frame = self._convert_bayer_to_gray(first_frame)
 
             # Save first frame for diagnosis
             self._save_frame("capture_first_frame.jpg", first_frame)
@@ -1669,6 +1796,9 @@ class CaptureManager(QObject):
                 loop_start_time = time.time()
 
                 frame = self.picam2.capture_array()
+
+                # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
+                frame = self._convert_bayer_to_gray(frame)
 
                 # Apply sharpening for better ball edge detection
                 sharpen_kernel = np.array([[-1,-1,-1],
@@ -1881,6 +2011,8 @@ class CaptureManager(QObject):
                             frame_delay = 1.0 / frame_rate
                             for i in range(20):
                                 capture_frame = self.picam2.capture_array()
+                                # Convert Bayer RAW to grayscale if needed
+                                capture_frame = self._convert_bayer_to_gray(capture_frame)
                                 frames.append(capture_frame)
                                 time.sleep(frame_delay)
 

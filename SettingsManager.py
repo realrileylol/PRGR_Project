@@ -44,7 +44,9 @@ class SettingsManager(QObject):
             "temperature": 75.0,
             "windSpeed": 0.0,
             "windDirection": 0.0,
-            "ballCompression": "Mid-High (80–90)"
+            "ballCompression": "Mid-High (80–90)",
+            "cameraResolution": "320x240",  # 320x240 for 120+ FPS, 640x480 for 30 FPS
+            "cameraFormat": "RAW"  # RAW for high FPS, YUV420 for ISP processing
         }
 
     def _save_settings(self):

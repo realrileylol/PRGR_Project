@@ -18,6 +18,8 @@ Item {
     property real evCompensation: 0.0    // exposure compensation (-2.0 to +2.0)
     property int frameRate: 30           // frames per second (30, 60, 90, 120)
     property string timeOfDay: "Cloudy/Shade"
+    property string resolution: "320x240"  // camera resolution
+    property string format: "RAW"          // camera format (RAW or YUV420)
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -40,14 +42,18 @@ Item {
         var loadedEV = settingsManager.getNumber("cameraEV")
         var loadedFPS = settingsManager.getNumber("cameraFrameRate")
         var loadedTOD = settingsManager.getString("cameraTimeOfDay")
+        var loadedResolution = settingsManager.getString("cameraResolution")
+        var loadedFormat = settingsManager.getString("cameraFormat")
 
         shutterSpeed = loadedShutter || 5000
         gain = loadedGain || 2.0
         evCompensation = loadedEV || 0.0
         frameRate = loadedFPS || 30
         timeOfDay = loadedTOD || "Cloudy/Shade"
+        resolution = loadedResolution || "320x240"
+        format = loadedFormat || "RAW"
 
-        console.log("Loaded camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
+        console.log("Loaded camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay, "Res:", resolution, "Format:", format)
 
         // Update combo box to match loaded timeOfDay
         for (var i = 0; i < timeOfDaySelect.model.length; i++) {
@@ -67,8 +73,10 @@ Item {
         settingsManager.setNumber("cameraEV", evCompensation)
         settingsManager.setNumber("cameraFrameRate", frameRate)
         settingsManager.setString("cameraTimeOfDay", timeOfDay)
+        settingsManager.setString("cameraResolution", resolution)
+        settingsManager.setString("cameraFormat", format)
 
-        console.log("Saved camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay)
+        console.log("Saved camera settings:", "Shutter:", shutterSpeed, "Gain:", gain, "EV:", evCompensation, "FPS:", frameRate, "TOD:", timeOfDay, "Res:", resolution, "Format:", format)
     }
 
     function applyPreset(preset) {
@@ -570,6 +578,148 @@ Item {
                                   frameRate === 90 ? "Very High - Excellent spin resolution" :
                                   frameRate === 100 ? "OV9281 Optimal - Best shot detection & spin accuracy" :
                                   "Ultra High - Maximum spin accuracy (requires processing power)"
+                            color: hint
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                // --- Resolution ---
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 10
+                    color: card
+                    border.color: edge
+                    border.width: 2
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 10
+
+                        Text {
+                            text: "Resolution: " + resolution
+                            color: cameraSettings.text
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Repeater {
+                                model: ["320x240", "640x480"]
+
+                                Button {
+                                    text: modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 50
+                                    scale: pressed ? 0.95 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                    background: Rectangle {
+                                        color: resolution === modelData ? accent : (parent.pressed ? "#E8F0FE" : "#F5F7FA")
+                                        radius: 8
+                                        border.color: resolution === modelData ? accent : edge
+                                        border.width: 2
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+
+                                    contentItem: Text {
+                                        text: parent.text
+                                        color: resolution === modelData ? "white" : cameraSettings.text
+                                        font.pixelSize: 14
+                                        font.bold: resolution === modelData
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        resolution = modelData
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: resolution === "320x240" ? "Low resolution - Enables 120+ FPS for high-speed capture" :
+                                  "Standard resolution - Limited to 30-60 FPS by ISP"
+                            color: hint
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                // --- Format ---
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+                    radius: 10
+                    color: card
+                    border.color: edge
+                    border.width: 2
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 10
+
+                        Text {
+                            text: "Format: " + format
+                            color: cameraSettings.text
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Repeater {
+                                model: ["RAW", "YUV420"]
+
+                                Button {
+                                    text: modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 50
+                                    scale: pressed ? 0.95 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                    background: Rectangle {
+                                        color: format === modelData ? accent : (parent.pressed ? "#E8F0FE" : "#F5F7FA")
+                                        radius: 8
+                                        border.color: format === modelData ? accent : edge
+                                        border.width: 2
+                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                    }
+
+                                    contentItem: Text {
+                                        text: parent.text
+                                        color: format === modelData ? "white" : cameraSettings.text
+                                        font.pixelSize: 14
+                                        font.bold: format === modelData
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        format = modelData
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: format === "RAW" ? "RAW (Bayer) - Bypasses ISP for 120+ FPS, eliminates motion blur" :
+                                  "YUV420 - ISP processed, limited to ~30 FPS at 640x480"
                             color: hint
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
