@@ -721,7 +721,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "Swing in front of radar. Detects club head speed (approaching)."
+                                    text: "Swing with radar behind you. Detects follow-through speed (away from radar)."
                                     font.pixelSize: 11
                                     color: hint
                                     wrapMode: Text.WordWrap
@@ -734,7 +734,7 @@ Item {
                             target: kld2Manager
 
                             function onSpeedUpdated(speedMph) {
-                                kld2SpeedText.text = "Club Head Speed: " + speedMph.toFixed(0) + " mph"
+                                kld2SpeedText.text = "Club Head Speed: " + speedMph.toFixed(0) + " mph (follow-through)"
                                 kld2SpeedText.color = success
                             }
 

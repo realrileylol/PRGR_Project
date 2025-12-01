@@ -146,21 +146,21 @@ class KLD2Manager(QObject):
                                     if speed_mph_raw == 0:
                                         continue
 
-                                    # CLUB HEAD SPEED MODE: Detect APPROACHING speeds (club moving toward radar)
-                                    # Setup: [pillows] <--4-5ft-- [golfer/ball] <--4-5ft-- [RADAR]
-                                    # Approaching (positive) = club head moving toward radar (WANT THIS!)
-                                    # Receding (negative) = follow-through moving away (IGNORE!)
+                                    # CLUB HEAD SPEED MODE: Detect RECEDING speeds (follow-through moving away)
+                                    # Setup: [RADAR] --4-5ft--> [golfer/ball] --4-5ft--> [pillows]
+                                    # Receding (negative) = club follow-through moving away (WANT THIS!)
+                                    # Approaching (positive) = club backswing toward radar (IGNORE!)
 
-                                    is_approaching = speed_mph_raw > 0
+                                    is_receding = speed_mph_raw < 0
                                     speed_mph = abs(speed_mph_raw)
 
                                     # Debug output for non-zero speeds
                                     if self.debug_mode and speed_mph > 0:
-                                        direction = "APPROACHING (club head)" if is_approaching else "RECEDING (follow-through)"
+                                        direction = "RECEDING (follow-through)" if is_receding else "APPROACHING (backswing)"
                                         print(f"K-LD2: {speed_mph} mph {direction} (bin {speed_bin}, mag {magnitude})")
 
-                                    # Only emit and trigger on APPROACHING targets (club head)
-                                    if is_approaching:
+                                    # Only emit and trigger on RECEDING targets (follow-through)
+                                    if is_receding:
                                         # Emit speed update
                                         self.speedUpdated.emit(float(speed_mph))
 
@@ -169,9 +169,9 @@ class KLD2Manager(QObject):
                                             print(f"K-LD2 DETECTION: {speed_mph} mph (club head speed)")
                                             self.detectionTriggered.emit()
                                     else:
-                                        # Ignore receding targets (follow-through)
+                                        # Ignore approaching targets (backswing)
                                         if self.debug_mode and speed_mph >= 5:
-                                            print(f"   Ignored follow-through: {speed_mph} mph (receding)")
+                                            print(f"   Ignored backswing: {speed_mph} mph (approaching)")
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip
