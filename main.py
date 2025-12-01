@@ -337,19 +337,31 @@ class CameraManager(QObject):
                     print(f"   Frame shape: {frame.shape}, dtype: {frame.dtype}, min/max: {frame.min()}/{frame.max()}")
                 frame_count += 1
 
-                # Convert Bayer RAW to grayscale if needed (for color Bayer sensors)
-                # OV9281 is monochrome so this will just return frame as-is
-                frame = self._convert_bayer_to_gray(frame)
+                # Convert from camera format to grayscale for display
+                # lores stream outputs YUV420 format (even for monochrome camera)
+                if len(frame.shape) == 2:
+                    # Already 2D - might be YUV420 packed as 1D array
+                    # YUV420: First 2/3 is Y (luminance), last 1/3 is U/V (chrominance)
+                    height, width = resolution
+                    total_pixels = frame.size
+                    y_pixels = height * width
 
-                # Ensure frame is proper grayscale format for display
-                if len(frame.shape) == 3:
-                    # If multi-channel, convert to grayscale
+                    if total_pixels == y_pixels * 3 // 2:  # YUV420 format (1.5x pixels)
+                        # Extract just the Y channel (first height*width pixels)
+                        frame = frame.reshape(-1)[:y_pixels].reshape(height, width)
+                    # else: already grayscale
+                elif len(frame.shape) == 3:
+                    # Multi-channel format
                     if frame.shape[2] == 3:
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
                     elif frame.shape[2] == 4:
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
                     elif frame.shape[2] == 1:
                         frame = frame[:, :, 0]  # Squeeze single channel
+
+                # Convert Bayer RAW to grayscale if needed (for color Bayer sensors)
+                # OV9281 is monochrome so this will just return frame as-is
+                frame = self._convert_bayer_to_gray(frame)
 
                 # Update frame provider (thread-safe)
                 if self.frame_provider is not None:
@@ -966,9 +978,22 @@ class CaptureManager(QObject):
         self.kld2_triggered = True
 
     def _capture_frame(self):
-        """Capture frame from correct stream (lores for RAW, main for YUV)"""
+        """Capture frame from correct stream (lores for RAW, main for YUV) and convert to grayscale"""
         if hasattr(self, 'use_lores_stream') and self.use_lores_stream:
-            return self.picam2.capture_array("lores")  # Direct sensor data - bypasses ISP!
+            frame = self.picam2.capture_array("lores")  # Direct sensor data - bypasses ISP!
+
+            # lores stream outputs YUV420 format (even for monochrome camera)
+            # YUV420: First 2/3 is Y (luminance), last 1/3 is U/V (chrominance)
+            if hasattr(self, 'capture_resolution') and len(frame.shape) == 2:
+                height, width = self.capture_resolution
+                total_pixels = frame.size
+                y_pixels = height * width
+
+                if total_pixels == y_pixels * 3 // 2:  # YUV420 format
+                    # Extract just the Y channel (grayscale luminance)
+                    frame = frame.reshape(-1)[:y_pixels].reshape(height, width)
+
+            return frame
         else:
             return self.picam2.capture_array("main")  # ISP processed
 
@@ -1776,6 +1801,9 @@ class CaptureManager(QObject):
                     except:
                         print(f"Invalid resolution '{resolution_str}', using 320x240")
                         resolution = (320, 240)
+
+                    # Store resolution for YUV420 conversion in _capture_frame()
+                    self.capture_resolution = resolution
 
                     # Configure camera based on format
                     # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
