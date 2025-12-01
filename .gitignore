@@ -23,6 +23,7 @@ __pycache__/
 *.pyo
 
 # C++ build artifacts
+build/  # CMake build directory for main C++ project
 cpp_module/build/
 cpp_module/*.so
 cpp_module/*.egg-info/
