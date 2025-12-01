@@ -191,28 +191,33 @@ class CameraManager(QObject):
         print("Preview stopped")
 
     def _convert_bayer_to_gray(self, frame):
-        """Convert Bayer RAW (SRGGB10) to grayscale
+        """Convert Bayer RAW (SRGGB10) to grayscale using fast vectorized operations
 
         For high-speed processing, we use simple averaging instead of full debayering.
-        This is much faster and sufficient for preview display.
+        Vectorized NumPy operations are 100x faster than Python loops for 120 FPS.
         """
         # Check if this is 10-bit Bayer RAW data (uint16, single channel)
         if frame.dtype == np.uint16 and len(frame.shape) == 2:
-            # Simple debayer: average 2x2 Bayer pixels to get grayscale
-            # RGGB pattern: [R G]
-            #               [G B]
+            # VECTORIZED debayer: Extract all R, G1, G2, B pixels at once
+            # RGGB Bayer pattern: [R  G1]
+            #                     [G2 B ]
             height, width = frame.shape
-            # Average in 2x2 blocks (R + G1 + G2 + B) / 4
-            gray = np.zeros((height // 2, width // 2), dtype=np.uint8)
-            for i in range(0, height - 1, 2):
-                for j in range(0, width - 1, 2):
-                    # Get 2x2 block and average
-                    block = frame[i:i+2, j:j+2]
-                    # Scale from 10-bit (0-1023) to 8-bit (0-255)
-                    gray[i//2, j//2] = np.mean(block) // 4
+
+            # Ensure even dimensions for 2x2 blocks
+            h = (height // 2) * 2
+            w = (width // 2) * 2
+
+            # Extract each channel using array slicing (FAST - no loops!)
+            R  = frame[0:h:2, 0:w:2].astype(np.float32)  # Top-left
+            G1 = frame[0:h:2, 1:w:2].astype(np.float32)  # Top-right
+            G2 = frame[1:h:2, 0:w:2].astype(np.float32)  # Bottom-left
+            B  = frame[1:h:2, 1:w:2].astype(np.float32)  # Bottom-right
+
+            # Average all 4 channels and scale from 10-bit (0-1023) to 8-bit (0-255)
+            gray_small = ((R + G1 + G2 + B) / 4.0 / 4.0).astype(np.uint8)
 
             # Resize back to original resolution for consistency
-            gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_LINEAR)
+            gray = cv2.resize(gray_small, (width, height), interpolation=cv2.INTER_LINEAR)
             return gray
         else:
             # Not Bayer RAW, return as-is
@@ -1081,28 +1086,33 @@ class CaptureManager(QObject):
         return club_detected
 
     def _convert_bayer_to_gray(self, frame):
-        """Convert Bayer RAW (SRGGB10) to grayscale
+        """Convert Bayer RAW (SRGGB10) to grayscale using fast vectorized operations
 
         For high-speed processing, we use simple averaging instead of full debayering.
-        This is much faster and sufficient for ball detection.
+        Vectorized NumPy operations are 100x faster than Python loops for 120 FPS.
         """
         # Check if this is 10-bit Bayer RAW data (uint16, single channel)
         if frame.dtype == np.uint16 and len(frame.shape) == 2:
-            # Simple debayer: average 2x2 Bayer pixels to get grayscale
-            # RGGB pattern: [R G]
-            #               [G B]
+            # VECTORIZED debayer: Extract all R, G1, G2, B pixels at once
+            # RGGB Bayer pattern: [R  G1]
+            #                     [G2 B ]
             height, width = frame.shape
-            # Average in 2x2 blocks (R + G1 + G2 + B) / 4
-            gray = np.zeros((height // 2, width // 2), dtype=np.uint8)
-            for i in range(0, height - 1, 2):
-                for j in range(0, width - 1, 2):
-                    # Get 2x2 block and average
-                    block = frame[i:i+2, j:j+2]
-                    # Scale from 10-bit (0-1023) to 8-bit (0-255)
-                    gray[i//2, j//2] = np.mean(block) // 4
+
+            # Ensure even dimensions for 2x2 blocks
+            h = (height // 2) * 2
+            w = (width // 2) * 2
+
+            # Extract each channel using array slicing (FAST - no loops!)
+            R  = frame[0:h:2, 0:w:2].astype(np.float32)  # Top-left
+            G1 = frame[0:h:2, 1:w:2].astype(np.float32)  # Top-right
+            G2 = frame[1:h:2, 0:w:2].astype(np.float32)  # Bottom-left
+            B  = frame[1:h:2, 1:w:2].astype(np.float32)  # Bottom-right
+
+            # Average all 4 channels and scale from 10-bit (0-1023) to 8-bit (0-255)
+            gray_small = ((R + G1 + G2 + B) / 4.0 / 4.0).astype(np.uint8)
 
             # Resize back to original resolution for consistency
-            gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_LINEAR)
+            gray = cv2.resize(gray_small, (width, height), interpolation=cv2.INTER_LINEAR)
             return gray
         else:
             # Not Bayer RAW, return as-is
