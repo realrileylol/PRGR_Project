@@ -320,7 +320,7 @@ Item {
                 Text {
                     anchors.fill: parent
                     anchors.margins: 15
-                    text: "💡 Setup: Place radar behind you. Swing your club - radar detects follow-through speed (club moving away from radar)."
+                    text: "💡 Setup: Position radar near your swing. Swing your club - radar detects club head speed in any direction (backswing, downswing, follow-through)."
                     font.pixelSize: 13
                     color: "#B8860B"
                     wrapMode: Text.WordWrap

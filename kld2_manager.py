@@ -1,12 +1,14 @@
 """
-K-LD2 Radar Manager - Detects ball speed using K-LD2 Doppler radar sensor
+K-LD2 Radar Manager - Detects club head speed using K-LD2 Doppler radar sensor
 
 Model: K-LD2-RFB-00H-02 (RFBEAM MICROWAVE GMBH)
 - Uses 38400 baud rate (not 115200!)
 - ASCII command protocol with $ commands and @ responses
-- Commands: $R00 (check detection), $C00 (get speed/magnitude)
+- Commands: $S0405 (set 20480 Hz sampling), $C00 (get speed/magnitude)
 - Response format: speed_bin;speed_mph;magnitude;
-- Uses 20480 Hz sampling rate for golf swing speeds (max ~144 mph)
+- Returns ABSOLUTE speed only (no directional sign)
+- Detects club head speed in any direction (backswing, downswing, follow-through)
+- 20480 Hz sampling rate for golf swing speeds (max ~144 mph)
 """
 
 import serial
@@ -15,7 +17,7 @@ import threading
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
 class KLD2Manager(QObject):
-    """Manages K-LD2 radar sensor for ball speed detection"""
+    """Manages K-LD2 radar sensor for club head speed detection"""
 
     # Signals
     speedUpdated = Signal(float)  # Speed in MPH
@@ -139,30 +141,26 @@ class KLD2Manager(QObject):
                                 parts = line.split(';')
                                 if len(parts) >= 3:
                                     speed_bin = int(parts[0])
-                                    speed_mph_raw = int(parts[1])  # Can be negative for receding
+                                    speed_mph = int(parts[1])  # K-LD2 returns absolute speed (no sign)
                                     magnitude = int(parts[2])
 
                                     # Skip zero speed readings (no motion)
-                                    if speed_mph_raw == 0:
+                                    if speed_mph == 0:
                                         continue
 
-                                    # DEBUG: Show RAW values to diagnose sign issue
-                                    if self.debug_mode:
-                                        print(f"RAW: bin={speed_bin}, speed_raw={speed_mph_raw}, mag={magnitude}")
+                                    # K-LD2 returns absolute speeds only (no directional sign)
+                                    # Detects club head speed in ANY direction
+                                    if self.debug_mode and speed_mph > 0:
+                                        print(f"K-LD2: {speed_mph} mph (bin {speed_bin}, mag {magnitude})")
 
-                                    # TEMPORARY: Detect ALL speeds (both directions) to diagnose
-                                    # K-LD2 might not return signed values
-                                    speed_mph = abs(speed_mph_raw)
+                                    # Emit speed updates for GUI display
+                                    self.speedUpdated.emit(float(speed_mph))
 
-                                    # Always emit speed updates
-                                    if speed_mph > 0:
-                                        print(f"K-LD2: {speed_mph} mph (raw value: {speed_mph_raw})")
-                                        self.speedUpdated.emit(float(speed_mph))
-
-                                        # Trigger detection if speed exceeds threshold
-                                        if speed_mph >= self.min_trigger_speed:
+                                    # Trigger detection if speed exceeds threshold
+                                    if speed_mph >= self.min_trigger_speed:
+                                        if self.debug_mode:
                                             print(f"K-LD2 DETECTION: {speed_mph} mph")
-                                            self.detectionTriggered.emit()
+                                        self.detectionTriggered.emit()
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip
