@@ -4,10 +4,10 @@ K-LD2 Radar Manager - Detects club head speed using K-LD2 Doppler radar sensor
 Model: K-LD2-RFB-00H-02 (RFBEAM MICROWAVE GMBH)
 - Uses 38400 baud rate (not 115200!)
 - ASCII command protocol with $ commands and @ responses
-- Commands: $S0405 (set 20480 Hz sampling), $C00 (get speed/magnitude)
-- Response format: speed_bin;speed_mph;magnitude;
-- Returns ABSOLUTE speed only (no directional sign)
-- Detects club head speed in any direction (backswing, downswing, follow-through)
+- Commands: $S0405 (set 20480 Hz sampling), $C01 (get speed with direction)
+- Response format: approaching_speed;receding_speed;approaching_mag;receding_mag;
+- Can separate approaching (toward radar) from receding (away from radar)
+- Detects RECEDING targets only (ball moving away after impact)
 - 20480 Hz sampling rate for golf swing speeds (max ~144 mph)
 """
 
@@ -17,7 +17,7 @@ import threading
 from PySide6.QtCore import QObject, Signal, Slot, Property
 
 class KLD2Manager(QObject):
-    """Manages K-LD2 radar sensor for club head speed detection"""
+    """Manages K-LD2 radar sensor for ball speed detection (receding targets only)"""
 
     # Signals
     speedUpdated = Signal(float)  # Speed in MPH
@@ -116,8 +116,8 @@ class KLD2Manager(QObject):
 
         while self._is_running:
             try:
-                # Poll the radar by sending $C00 command
-                self.serial_port.write(b'$C00\r\n')
+                # Poll the radar by sending $C01 command (returns directional data)
+                self.serial_port.write(b'$C01\r\n')
                 time.sleep(0.05)  # 50ms between polls = 20Hz polling rate
 
                 # Read response
@@ -132,35 +132,35 @@ class KLD2Manager(QObject):
                         line, buffer = buffer.split('\n', 1)
                         line = line.strip()
 
-                        # Parse K-LD2 ASCII response format: speed_bin;speed_mph;magnitude;
-                        # Example: "001;001;066;" = speed bin 1, 1 mph, magnitude 66
-                        # Example: "009;003;074;" = speed bin 9, 3 mph, magnitude 74
+                        # Parse K-LD2 $C01 response format: approaching;receding;app_mag;rec_mag;
+                        # Example: "040;000;072;000;" = 40 mph approaching, 0 receding
+                        # Example: "000;010;000;075;" = 0 approaching, 10 mph receding
                         if line and not line.startswith('$') and not line.startswith('@'):
                             try:
                                 # Split by semicolon
                                 parts = line.split(';')
-                                if len(parts) >= 3:
-                                    speed_bin = int(parts[0])
-                                    speed_mph = int(parts[1])  # K-LD2 returns absolute speed (no sign)
-                                    magnitude = int(parts[2])
+                                if len(parts) >= 4:
+                                    approaching_speed = int(parts[0])
+                                    receding_speed = int(parts[1])
+                                    approaching_mag = int(parts[2])
+                                    receding_mag = int(parts[3])
 
-                                    # Skip zero speed readings (no motion)
-                                    if speed_mph == 0:
-                                        continue
+                                    # Debug: show both speeds
+                                    if self.debug_mode:
+                                        if approaching_speed > 0:
+                                            print(f"K-LD2: {approaching_speed} mph APPROACHING (mag {approaching_mag})")
+                                        if receding_speed > 0:
+                                            print(f"K-LD2: {receding_speed} mph RECEDING (mag {receding_mag})")
 
-                                    # K-LD2 returns absolute speeds only (no directional sign)
-                                    # Detects club head speed in ANY direction
-                                    if self.debug_mode and speed_mph > 0:
-                                        print(f"K-LD2: {speed_mph} mph (bin {speed_bin}, mag {magnitude})")
+                                    # Only process RECEDING targets (ball moving away after impact)
+                                    if receding_speed > 0:
+                                        # Emit speed updates for GUI display
+                                        self.speedUpdated.emit(float(receding_speed))
 
-                                    # Emit speed updates for GUI display
-                                    self.speedUpdated.emit(float(speed_mph))
-
-                                    # Trigger detection if speed exceeds threshold
-                                    if speed_mph >= self.min_trigger_speed:
-                                        if self.debug_mode:
-                                            print(f"K-LD2 DETECTION: {speed_mph} mph")
-                                        self.detectionTriggered.emit()
+                                        # Trigger detection if speed exceeds threshold
+                                        if receding_speed >= self.min_trigger_speed:
+                                            print(f"K-LD2 BALL DETECTION: {receding_speed} mph (receding)")
+                                            self.detectionTriggered.emit()
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip

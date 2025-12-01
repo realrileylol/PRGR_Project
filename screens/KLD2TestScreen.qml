@@ -320,7 +320,7 @@ Item {
                 Text {
                     anchors.fill: parent
                     anchors.margins: 15
-                    text: "💡 Setup: Position radar near your swing. Swing your club - radar detects club head speed in any direction (backswing, downswing, follow-through)."
+                    text: "💡 Setup: Place radar 2-4 feet behind ball, pointing at ball. Radar detects RECEDING speeds only (ball moving away after impact). Ignores backswing/downswing."
                     font.pixelSize: 13
                     color: "#B8860B"
                     wrapMode: Text.WordWrap
