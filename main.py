@@ -320,6 +320,7 @@ class CameraManager(QObject):
             fps_counter = 0
             fps_start = time.time()
             current_fps = 0
+            frame_count = 0  # For debug output
 
             # Main preview loop
             while self.preview_active:
@@ -331,9 +332,24 @@ class CameraManager(QObject):
                 else:
                     frame = self.preview_picam2.capture_array("main")  # ISP processed
 
+                # DEBUG: Print frame info on first capture
+                if frame_count == 0:
+                    print(f"   Frame shape: {frame.shape}, dtype: {frame.dtype}, min/max: {frame.min()}/{frame.max()}")
+                frame_count += 1
+
                 # Convert Bayer RAW to grayscale if needed (for color Bayer sensors)
                 # OV9281 is monochrome so this will just return frame as-is
                 frame = self._convert_bayer_to_gray(frame)
+
+                # Ensure frame is proper grayscale format for display
+                if len(frame.shape) == 3:
+                    # If multi-channel, convert to grayscale
+                    if frame.shape[2] == 3:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                    elif frame.shape[2] == 4:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
+                    elif frame.shape[2] == 1:
+                        frame = frame[:, :, 0]  # Squeeze single channel
 
                 # Update frame provider (thread-safe)
                 if self.frame_provider is not None:
