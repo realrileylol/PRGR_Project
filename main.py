@@ -277,16 +277,19 @@ class CameraManager(QObject):
             # Configure based on format
             # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
             if camera_format == "RAW":
-                # RAW format for high FPS (bypasses ISP)
-                # OV9281 outputs native Y format (grayscale) - no Bayer conversion needed!
+                # RAW format for high FPS (bypasses ISP completely)
+                # Use lores stream which gets direct sensor output without ISP processing
                 config = self.preview_picam2.create_video_configuration(
-                    main={"size": resolution},  # Use native sensor format (Y/grayscale)
+                    main={"size": (640, 480), "format": "YUV420"},  # Dummy main (required but not used)
+                    lores={"size": resolution},  # THIS is what we actually capture - bypasses ISP!
+                    buffer_count=2,  # Minimal buffering for low latency
                     controls={
                         "FrameRate": frame_rate,
                         "ExposureTime": shutter_speed,
                         "AnalogueGain": gain
                     }
                 )
+                self.use_lores_stream = True  # Flag to capture from lores instead of main
             else:
                 # YUV420 format (ISP processed, lower FPS)
                 config = self.preview_picam2.create_video_configuration(
@@ -297,6 +300,7 @@ class CameraManager(QObject):
                         "AnalogueGain": gain
                     }
                 )
+                self.use_lores_stream = False
 
             self.preview_picam2.configure(config)
             self.preview_picam2.start()
@@ -321,10 +325,14 @@ class CameraManager(QObject):
             while self.preview_active:
                 loop_start = time.time()
 
-                # Capture frame
-                frame = self.preview_picam2.capture_array()
+                # Capture frame (from lores stream if in RAW mode, otherwise main stream)
+                if hasattr(self, 'use_lores_stream') and self.use_lores_stream:
+                    frame = self.preview_picam2.capture_array("lores")  # Direct sensor output!
+                else:
+                    frame = self.preview_picam2.capture_array("main")  # ISP processed
 
-                # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
+                # Convert Bayer RAW to grayscale if needed (for color Bayer sensors)
+                # OV9281 is monochrome so this will just return frame as-is
                 frame = self._convert_bayer_to_gray(frame)
 
                 # Update frame provider (thread-safe)
@@ -940,6 +948,13 @@ class CaptureManager(QObject):
         """Handle K-LD2 detection signal (ball was hit)"""
         print("K-LD2 DETECTION TRIGGERED")
         self.kld2_triggered = True
+
+    def _capture_frame(self):
+        """Capture frame from correct stream (lores for RAW, main for YUV)"""
+        if hasattr(self, 'use_lores_stream') and self.use_lores_stream:
+            return self.picam2.capture_array("lores")  # Direct sensor data - bypasses ISP!
+        else:
+            return self.picam2.capture_array("main")  # ISP processed
 
     @Slot()
     def startCapture(self):
@@ -1749,16 +1764,19 @@ class CaptureManager(QObject):
                     # Configure camera based on format
                     # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
                     if camera_format == "RAW":
-                        # RAW format for high FPS (bypasses ISP, eliminates motion blur)
-                        # OV9281 outputs native Y format (grayscale) - no Bayer conversion needed!
+                        # RAW format for high FPS (bypasses ISP completely!)
+                        # Use lores stream which gets direct sensor output - NO ISP PROCESSING
                         config = self.picam2.create_video_configuration(
-                            main={"size": resolution},  # Use native sensor format (Y/grayscale)
+                            main={"size": (640, 480), "format": "YUV420"},  # Dummy main (required)
+                            lores={"size": resolution},  # THIS bypasses ISP - direct sensor data!
+                            buffer_count=4,  # Small buffer for low latency
                             controls={
                                 "FrameRate": frame_rate,
                                 "ExposureTime": shutter_speed,
                                 "AnalogueGain": gain
                             }
                         )
+                        self.use_lores_stream = True  # Flag to use lores stream
                     else:
                         # YUV420 format (ISP processed, limited to ~30 FPS at 640x480)
                         config = self.picam2.create_video_configuration(
@@ -1769,6 +1787,7 @@ class CaptureManager(QObject):
                                 "AnalogueGain": gain
                             }
                         )
+                        self.use_lores_stream = False
 
                     print(f"   Capture config: {resolution} {camera_format} @ {frame_rate} FPS")
                     self.picam2.configure(config)
@@ -1779,7 +1798,7 @@ class CaptureManager(QObject):
                     time.sleep(2)
                     # Capture and discard first 10 frames (often dark/unstable)
                     for i in range(10):
-                        _ = self.picam2.capture_array()
+                        _ = self._capture_frame()
                         time.sleep(0.05)
                     print("   Camera warmed up", flush=True)
                     camera_initialized = True
@@ -1801,7 +1820,7 @@ class CaptureManager(QObject):
 
             # === IMMEDIATE DEBUG - Save first frame to see what camera is capturing ===
             print("🔍 Capturing first frame for diagnosis...", flush=True)
-            first_frame = self.picam2.capture_array()
+            first_frame = self._capture_frame()
 
             # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
             first_frame = self._convert_bayer_to_gray(first_frame)
@@ -1872,7 +1891,7 @@ class CaptureManager(QObject):
             while self.is_running:
                 loop_start_time = time.time()
 
-                frame = self.picam2.capture_array()
+                frame = self._capture_frame()
 
                 # Convert Bayer RAW to grayscale if needed (for SRGGB10 format)
                 frame = self._convert_bayer_to_gray(frame)
@@ -2087,7 +2106,7 @@ class CaptureManager(QObject):
                             # Capture post-impact frames (20 frames = 100ms at 200 FPS)
                             frame_delay = 1.0 / frame_rate
                             for i in range(20):
-                                capture_frame = self.picam2.capture_array()
+                                capture_frame = self._capture_frame()
                                 # Convert Bayer RAW to grayscale if needed
                                 capture_frame = self._convert_bayer_to_gray(capture_frame)
                                 frames.append(capture_frame)
