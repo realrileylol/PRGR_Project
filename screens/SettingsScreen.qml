@@ -721,7 +721,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "Swing behind radar. Only receding speeds (ball away) detected."
+                                    text: "Swing in front of radar. Detects club head speed (approaching)."
                                     font.pixelSize: 11
                                     color: hint
                                     wrapMode: Text.WordWrap
@@ -734,7 +734,7 @@ Item {
                             target: kld2Manager
 
                             function onSpeedUpdated(speedMph) {
-                                kld2SpeedText.text = "Speed: " + speedMph.toFixed(0) + " mph (ball moving away)"
+                                kld2SpeedText.text = "Club Head Speed: " + speedMph.toFixed(0) + " mph"
                                 kld2SpeedText.color = success
                             }
 
