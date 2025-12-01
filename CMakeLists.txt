@@ -13,15 +13,10 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml Multimedia SerialPort)
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
-# Find libcamera
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBCAMERA REQUIRED libcamera)
-
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${OpenCV_INCLUDE_DIRS}
-    ${LIBCAMERA_INCLUDE_DIRS}
 )
 
 # Source files
@@ -30,8 +25,8 @@ set(SOURCES
     src/SettingsManager.cpp
     src/KLD2Manager.cpp
     src/CameraManager.cpp
-    src/CaptureManager.cpp
     src/FrameProvider.cpp
+    # src/CaptureManager.cpp  # TODO: Implement
 )
 
 # Header files
@@ -39,8 +34,8 @@ set(HEADERS
     include/SettingsManager.h
     include/KLD2Manager.h
     include/CameraManager.h
-    include/CaptureManager.h
     include/FrameProvider.h
+    # include/CaptureManager.h  # TODO: Implement
 )
 
 # QML resources
@@ -62,9 +57,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Multimedia
     Qt6::SerialPort
     ${OpenCV_LIBS}
-    ${LIBCAMERA_LIBRARIES}
-    camera
-    camera-base
 )
 
 # Compiler flags for optimization

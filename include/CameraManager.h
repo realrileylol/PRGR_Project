@@ -4,23 +4,22 @@
 #include <QThread>
 #include <QString>
 #include <QProcess>
+#include <QFile>
 #include <opencv2/opencv.hpp>
-#include <libcamera/libcamera.h>
-#include <memory>
 #include <atomic>
 
 #include "FrameProvider.h"
 #include "SettingsManager.h"
 
 /**
- * @brief High-performance camera manager using libcamera
+ * @brief High-performance camera manager using rpicam-vid with named pipes
  *
  * Features:
- * - Direct libcamera C++ API for maximum performance
- * - 120+ FPS at 320x240 using lores stream (bypasses ISP)
- * - YUV420 Y-channel extraction for grayscale display
- * - Separate preview and recording modes
- * - rpicam-vid integration for MP4 recording
+ * - rpicam-vid outputs YUV420 to named pipe (FIFO)
+ * - 120+ FPS at 320x240 (bypasses ISP overhead)
+ * - Background thread reads pipe and extracts Y channel
+ * - Separate recording mode with MP4 output
+ * - Simple, reliable, no libcamera API complexity
  */
 class CameraManager : public QObject {
     Q_OBJECT
@@ -55,23 +54,26 @@ private:
 
     void previewLoop();
     cv::Mat extractYChannelFromYUV420(const uint8_t *data, int width, int height);
+    bool createNamedPipe(const QString &pipePath);
+    void cleanupNamedPipe();
 
     FrameProvider *m_frameProvider;
     SettingsManager *m_settings;
 
-    // libcamera objects
-    std::unique_ptr<libcamera::CameraManager> m_cameraManager;
-    std::shared_ptr<libcamera::Camera> m_camera;
-    std::unique_ptr<libcamera::FrameBufferAllocator> m_allocator;
-    std::unique_ptr<libcamera::CameraConfiguration> m_config;
-
-    // Preview thread
+    // Preview via rpicam-vid + named pipe
+    QProcess *m_previewProcess;
+    QString m_pipePath;
+    int m_pipeFd;  // File descriptor for pipe
     PreviewThread *m_previewThread;
     std::atomic<bool> m_previewActive;
 
     // Recording
     QProcess *m_recordingProcess;
     bool m_recordingActive;
+
+    // Frame dimensions
+    int m_previewWidth;
+    int m_previewHeight;
 };
 
 /**

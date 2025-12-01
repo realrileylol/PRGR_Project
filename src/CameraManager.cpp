@@ -3,26 +3,24 @@
 #include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>
-#include <libcamera/control_ids.h>
-#include <libcamera/property_ids.h>
-#include <sys/mman.h>
-#include <chrono>
-#include <thread>
-
-using namespace libcamera;
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent)
     : QObject(parent)
     , m_frameProvider(frameProvider)
     , m_settings(settings)
-    , m_cameraManager(nullptr)
-    , m_camera(nullptr)
-    , m_allocator(nullptr)
-    , m_config(nullptr)
+    , m_previewProcess(nullptr)
+    , m_pipePath("/tmp/prgr_camera_pipe")
+    , m_pipeFd(-1)
     , m_previewThread(nullptr)
     , m_previewActive(false)
     , m_recordingProcess(nullptr)
     , m_recordingActive(false)
+    , m_previewWidth(320)
+    , m_previewHeight(240)
 {
     // Create videos folder
     QString videosPath = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/PRGR_Videos";
@@ -32,15 +30,31 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
 CameraManager::~CameraManager() {
     stopPreview();
     stopRecording();
+    cleanupNamedPipe();
+}
 
-    if (m_camera) {
-        m_camera->release();
-        m_camera.reset();
+bool CameraManager::createNamedPipe(const QString &pipePath) {
+    // Remove existing pipe if any
+    unlink(pipePath.toLocal8Bit().constData());
+
+    // Create named pipe (FIFO)
+    if (mkfifo(pipePath.toLocal8Bit().constData(), 0666) == -1) {
+        qWarning() << "Failed to create named pipe:" << strerror(errno);
+        return false;
     }
 
-    if (m_cameraManager) {
-        m_cameraManager->stop();
-        m_cameraManager.reset();
+    qDebug() << "Created named pipe:" << pipePath;
+    return true;
+}
+
+void CameraManager::cleanupNamedPipe() {
+    if (m_pipeFd >= 0) {
+        close(m_pipeFd);
+        m_pipeFd = -1;
+    }
+
+    if (!m_pipePath.isEmpty()) {
+        unlink(m_pipePath.toLocal8Bit().constData());
     }
 }
 
@@ -50,36 +64,74 @@ void CameraManager::startPreview() {
         return;
     }
 
-    // Initialize libcamera if not already done
-    if (!m_cameraManager) {
-        m_cameraManager = std::make_unique<CameraManager>();
-        int ret = m_cameraManager->start();
-        if (ret) {
-            emit errorOccurred("Failed to start camera manager");
-            return;
-        }
+    // Load camera settings
+    int shutterSpeed = m_settings->cameraShutterSpeed();
+    double gain = m_settings->cameraGain();
+    QString resolutionStr = m_settings->cameraResolution();
+    QString format = m_settings->cameraFormat();
+
+    // Parse resolution
+    QStringList resParts = resolutionStr.split('x');
+    m_previewWidth = 320;
+    m_previewHeight = 240;
+    if (resParts.size() == 2) {
+        m_previewWidth = resParts[0].toInt();
+        m_previewHeight = resParts[1].toInt();
     }
 
-    // Get camera
-    if (m_cameraManager->cameras().empty()) {
-        emit errorOccurred("No cameras available");
+    // Determine frame rate based on resolution and format
+    int frameRate = 120;  // Default high-speed
+    if (format == "RAW") {
+        frameRate = (m_previewWidth == 320 && m_previewHeight == 240) ? 120 : 60;
+    } else {
+        frameRate = (m_previewWidth == 320 && m_previewHeight == 240) ? 60 : 30;
+    }
+
+    qDebug() << "Starting preview: Resolution=" << m_previewWidth << "x" << m_previewHeight
+             << "Format=" << format << "Shutter=" << shutterSpeed << "µs"
+             << "Gain=" << gain << "x FPS=" << frameRate;
+
+    // Create named pipe
+    if (!createNamedPipe(m_pipePath)) {
+        emit errorOccurred("Failed to create named pipe");
         return;
     }
 
-    m_camera = m_cameraManager->cameras()[0];
-    if (m_camera->acquire()) {
-        emit errorOccurred("Failed to acquire camera");
+    // Start rpicam-vid to output YUV420 to pipe
+    m_previewProcess = new QProcess(this);
+
+    QStringList args;
+    args << "--timeout" << "0";  // No timeout
+    args << "--width" << QString::number(m_previewWidth);
+    args << "--height" << QString::number(m_previewHeight);
+    args << "--framerate" << QString::number(frameRate);
+    args << "--shutter" << QString::number(shutterSpeed);
+    args << "--gain" << QString::number(gain);
+    args << "--codec" << "yuv420";  // Raw YUV420 output
+    args << "--output" << m_pipePath;  // Output to named pipe
+    args << "--nopreview";  // No X11 preview window
+
+    qDebug() << "Starting rpicam-vid with args:" << args.join(" ");
+
+    m_previewProcess->start("rpicam-vid", args);
+
+    if (!m_previewProcess->waitForStarted(5000)) {
+        emit errorOccurred("Failed to start rpicam-vid");
+        delete m_previewProcess;
+        m_previewProcess = nullptr;
+        cleanupNamedPipe();
         return;
     }
 
-    qDebug() << "Camera acquired:" << QString::fromStdString(m_camera->id());
+    qDebug() << "rpicam-vid started, opening pipe for reading...";
 
-    // Start preview thread
+    // Start preview thread to read from pipe
     m_previewActive.store(true);
     m_previewThread = new PreviewThread(this);
     m_previewThread->start();
 
     emit previewActiveChanged();
+    qDebug() << "Preview active";
 }
 
 void CameraManager::stopPreview() {
@@ -90,193 +142,95 @@ void CameraManager::stopPreview() {
     qDebug() << "Stopping preview...";
     m_previewActive.store(false);
 
+    // Wait for thread to finish
     if (m_previewThread) {
         m_previewThread->wait(2000);
         delete m_previewThread;
         m_previewThread = nullptr;
     }
 
-    if (m_camera) {
-        m_camera->stop();
-        m_camera->release();
-        m_camera.reset();
+    // Stop rpicam-vid process
+    if (m_previewProcess) {
+        m_previewProcess->terminate();
+        if (!m_previewProcess->waitForFinished(2000)) {
+            m_previewProcess->kill();
+            m_previewProcess->waitForFinished(1000);
+        }
+        delete m_previewProcess;
+        m_previewProcess = nullptr;
     }
+
+    // Cleanup pipe
+    cleanupNamedPipe();
 
     emit previewActiveChanged();
     qDebug() << "Preview stopped";
 }
 
 void CameraManager::previewLoop() {
-    qDebug() << "Preview loop starting...";
+    qDebug() << "Preview loop starting, opening pipe for reading...";
 
-    // Load camera settings
-    int shutterSpeed = m_settings->cameraShutterSpeed();
-    double gain = m_settings->cameraGain();
-    QString resolutionStr = m_settings->cameraResolution();
-    QString format = m_settings->cameraFormat();
-
-    // Parse resolution
-    QStringList resParts = resolutionStr.split('x');
-    int width = 320, height = 240;
-    if (resParts.size() == 2) {
-        width = resParts[0].toInt();
-        height = resParts[1].toInt();
-    }
-
-    // Determine frame rate based on resolution and format
-    int frameRate = 120;  // Default high-speed
-    if (format == "RAW") {
-        frameRate = (width == 320 && height == 240) ? 120 : 60;
-    } else {
-        frameRate = (width == 320 && height == 240) ? 60 : 30;
-    }
-
-    qDebug() << "Preview settings: Resolution=" << width << "x" << height
-             << "Format=" << format << "Shutter=" << shutterSpeed << "µs"
-             << "Gain=" << gain << "x FPS=" << frameRate;
-
-    // Configure camera
-    // For RAW mode, use lores stream to bypass ISP
-    m_config = m_camera->generateConfiguration({StreamRole::VideoRecording});
-    if (!m_config) {
-        emit errorOccurred("Failed to generate camera configuration");
+    // Open pipe for reading (blocks until rpicam-vid opens it for writing)
+    m_pipeFd = open(m_pipePath.toLocal8Bit().constData(), O_RDONLY);
+    if (m_pipeFd < 0) {
+        qWarning() << "Failed to open pipe:" << strerror(errno);
         m_previewActive.store(false);
+        emit errorOccurred("Failed to open camera pipe");
         return;
     }
 
-    StreamConfiguration &streamConfig = m_config->at(0);
+    qDebug() << "Pipe opened, starting frame capture loop...";
 
-    if (format == "RAW") {
-        // Use lores stream for direct sensor access (bypasses ISP)
-        streamConfig.size.width = width;
-        streamConfig.size.height = height;
-        streamConfig.pixelFormat = formats::YUV420;  // OV9281 outputs YUV420
-        streamConfig.bufferCount = 2;  // Minimal buffering
-    } else {
-        // Standard ISP-processed mode
-        streamConfig.size.width = width;
-        streamConfig.size.height = height;
-        streamConfig.pixelFormat = formats::YUV420;
-        streamConfig.bufferCount = 4;
-    }
+    // Calculate frame size for YUV420
+    // YUV420: Y (width*height) + U (width/2*height/2) + V (width/2*height/2)
+    // Total = width*height*1.5
+    const int frameSize = m_previewWidth * m_previewHeight * 3 / 2;
+    const int ySize = m_previewWidth * m_previewHeight;
 
-    // Validate and apply configuration
-    CameraConfiguration::Status configStatus = m_config->validate();
-    if (configStatus == CameraConfiguration::Invalid) {
-        emit errorOccurred("Invalid camera configuration");
-        m_previewActive.store(false);
-        return;
-    }
-
-    if (m_camera->configure(m_config.get())) {
-        emit errorOccurred("Failed to configure camera");
-        m_previewActive.store(false);
-        return;
-    }
-
-    qDebug() << "Camera configured: Stream size="
-             << streamConfig.size.width << "x" << streamConfig.size.height
-             << "Format=" << QString::fromStdString(streamConfig.pixelFormat.toString());
-
-    // Allocate buffers
-    m_allocator = std::make_unique<FrameBufferAllocator>(m_camera);
-    Stream *stream = streamConfig.stream();
-
-    int ret = m_allocator->allocate(stream);
-    if (ret < 0) {
-        emit errorOccurred("Failed to allocate buffers");
-        m_previewActive.store(false);
-        return;
-    }
-
-    qDebug() << "Allocated" << m_allocator->buffers(stream).size() << "buffers";
-
-    // Set camera controls
-    ControlList controls;
-    controls.set(controls::FrameDurationLimits, Span<const int64_t, 2>({
-        static_cast<int64_t>(1000000 / frameRate),  // Min frame duration (max FPS)
-        static_cast<int64_t>(1000000 / frameRate)   // Max frame duration (min FPS)
-    }));
-    controls.set(controls::ExposureTime, shutterSpeed);
-    controls.set(controls::AnalogueGain, static_cast<float>(gain));
-
-    // Create requests
-    std::vector<std::unique_ptr<Request>> requests;
-    for (const std::unique_ptr<FrameBuffer> &buffer : m_allocator->buffers(stream)) {
-        std::unique_ptr<Request> request = m_camera->createRequest();
-        if (!request) {
-            emit errorOccurred("Failed to create request");
-            m_previewActive.store(false);
-            return;
-        }
-
-        if (request->addBuffer(stream, buffer.get())) {
-            emit errorOccurred("Failed to add buffer to request");
-            m_previewActive.store(false);
-            return;
-        }
-
-        request->controls() = controls;
-        requests.push_back(std::move(request));
-    }
-
-    // Start camera
-    if (m_camera->start()) {
-        emit errorOccurred("Failed to start camera");
-        m_previewActive.store(false);
-        return;
-    }
-
-    qDebug() << "Camera started - entering preview loop";
-
-    // Queue initial requests
-    for (std::unique_ptr<Request> &request : requests) {
-        m_camera->queueRequest(request.get());
-    }
-
-    // FPS tracking
+    std::vector<uint8_t> frameBuffer(frameSize);
+    int frameCount = 0;
     int fpsCounter = 0;
     auto fpsStart = std::chrono::steady_clock::now();
-    int frameCount = 0;
 
-    // Main preview loop
     while (m_previewActive.load()) {
-        // Wait for completed request
-        Request *request = nullptr;
-        {
-            // Simple polling for completed requests
-            // In production, use camera's request completion signal
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            continue;  // TODO: Implement proper request completion handling
+        // Read one complete frame from pipe
+        ssize_t bytesRead = 0;
+        ssize_t totalRead = 0;
+
+        while (totalRead < frameSize && m_previewActive.load()) {
+            bytesRead = read(m_pipeFd, frameBuffer.data() + totalRead, frameSize - totalRead);
+
+            if (bytesRead < 0) {
+                if (errno == EINTR) {
+                    continue;  // Interrupted, retry
+                }
+                qWarning() << "Pipe read error:" << strerror(errno);
+                m_previewActive.store(false);
+                break;
+            } else if (bytesRead == 0) {
+                // EOF - rpicam-vid closed pipe
+                qDebug() << "Pipe EOF - rpicam-vid stopped";
+                m_previewActive.store(false);
+                break;
+            }
+
+            totalRead += bytesRead;
         }
 
-        // Process frame
-        FrameBuffer *buffer = request->buffers().begin()->second;
-        const FrameBuffer::Plane &plane = buffer->planes()[0];
-
-        // Map buffer to user space
-        void *mem = mmap(nullptr, plane.length, PROT_READ, MAP_SHARED, plane.fd.get(), 0);
-        if (mem == MAP_FAILED) {
-            qWarning() << "Failed to mmap buffer";
+        if (totalRead != frameSize) {
+            qWarning() << "Incomplete frame read:" << totalRead << "bytes (expected" << frameSize << ")";
             continue;
         }
 
-        // Extract Y channel from YUV420 (if RAW mode)
-        cv::Mat frame;
-        if (format == "RAW") {
-            frame = extractYChannelFromYUV420(static_cast<const uint8_t*>(mem), width, height);
-        } else {
-            // For non-RAW, also extract Y channel from YUV420
-            frame = extractYChannelFromYUV420(static_cast<const uint8_t*>(mem), width, height);
-        }
-
-        munmap(mem, plane.length);
+        // Extract Y channel from YUV420
+        cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
 
         // Debug first few frames
         if (frameCount < 3) {
+            double minVal, maxVal;
+            cv::minMaxLoc(frame, &minVal, &maxVal);
             qDebug() << "Frame" << frameCount << "shape:" << frame.cols << "x" << frame.rows
-                     << "type:" << frame.type() << "min/max:" <<
-                     cv::minMaxLoc(frame).first << "/" << cv::minMaxLoc(frame).second;
+                     << "type:" << frame.type() << "min/max:" << minVal << "/" << maxVal;
         }
         frameCount++;
 
@@ -295,26 +249,25 @@ void CameraManager::previewLoop() {
             fpsCounter = 0;
             fpsStart = now;
         }
-
-        // Requeue request
-        request->reuse(Request::ReuseBuffers);
-        request->controls() = controls;
-        m_camera->queueRequest(request);
     }
 
     qDebug() << "Preview loop exiting";
-    m_camera->stop();
+
+    if (m_pipeFd >= 0) {
+        close(m_pipeFd);
+        m_pipeFd = -1;
+    }
 }
 
 cv::Mat CameraManager::extractYChannelFromYUV420(const uint8_t *data, int width, int height) {
     // YUV420 format: Y plane (height × width), then U plane (height/2 × width/2), then V plane
     // For grayscale, we only need the Y plane (first height × width bytes)
 
-    // Create Mat pointing to Y channel data
-    cv::Mat yChannel(height, width, CV_8UC1, const_cast<uint8_t*>(data));
+    // Create Mat from Y channel data (make a copy since data will be reused)
+    cv::Mat yChannel(height, width, CV_8UC1);
+    memcpy(yChannel.data, data, width * height);
 
-    // Return a copy (data will be unmapped after this function returns)
-    return yChannel.clone();
+    return yChannel;
 }
 
 void CameraManager::startRecording() {
@@ -346,7 +299,7 @@ void CameraManager::startRecording() {
 
     qDebug() << "Starting recording to:" << filepath;
 
-    // Start rpicam-vid process
+    // Start rpicam-vid process for recording
     m_recordingProcess = new QProcess(this);
 
     QStringList args;
@@ -363,6 +316,7 @@ void CameraManager::startRecording() {
     args << "--intra" << QString::number(frameRate);  // Keyframe interval
     args << "--profile" << "high";
     args << "--level" << "4.2";
+    args << "--nopreview";
 
     m_recordingProcess->start("rpicam-vid", args);
 
@@ -386,7 +340,7 @@ void CameraManager::stopRecording() {
     qDebug() << "Stopping recording...";
 
     // Send SIGINT for graceful shutdown (allows MP4 finalization)
-    m_recordingProcess->terminate();  // Sends SIGTERM, then SIGKILL if needed
+    m_recordingProcess->terminate();
 
     if (!m_recordingProcess->waitForFinished(5000)) {
         qWarning() << "Recording process did not finish, forcing kill";
@@ -429,9 +383,22 @@ void CameraManager::takeSnapshot() {
     QString filename = QString("snapshot_%1.jpg").arg(timestamp);
     QString filepath = snapshotsPath + "/" + filename;
 
-    // TODO: Implement snapshot capture using libcamera still capture
-    qDebug() << "Snapshot not yet implemented";
-    emit errorOccurred("Snapshot feature not yet implemented");
+    // Use rpicam-still for snapshot
+    QProcess stillProcess;
+    QStringList args;
+    args << "--output" << filepath;
+    args << "--timeout" << "1";  // 1ms timeout (immediate capture)
+    args << "--nopreview";
+
+    stillProcess.start("rpicam-still", args);
+
+    if (stillProcess.waitForFinished(5000)) {
+        qDebug() << "Snapshot saved:" << filepath;
+        emit snapshotCaptured(filepath);
+    } else {
+        qWarning() << "Snapshot failed";
+        emit errorOccurred("Snapshot capture failed");
+    }
 
     // Restart preview
     if (previewWasRunning) {

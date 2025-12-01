@@ -7,9 +7,8 @@
 #include "SettingsManager.h"
 #include "KLD2Manager.h"
 #include "FrameProvider.h"
-// TODO: Implement these
-// #include "CameraManager.h"
-// #include "CaptureManager.h"
+#include "CameraManager.h"
+// #include "CaptureManager.h"  // TODO: Implement
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -26,10 +25,8 @@ int main(int argc, char *argv[]) {
     SettingsManager settingsManager;
     KLD2Manager kld2Manager;
     FrameProvider frameProvider;
-
-    // TODO: Create CameraManager and CaptureManager when implemented
-    // CameraManager cameraManager(&frameProvider, &settingsManager);
-    // CaptureManager captureManager(&kld2Manager, &settingsManager);
+    CameraManager cameraManager(&frameProvider, &settingsManager);
+    // CaptureManager captureManager(&kld2Manager, &settingsManager);  // TODO: Implement
 
     // Create QML engine
     QQmlApplicationEngine engine;
@@ -40,9 +37,8 @@ int main(int argc, char *argv[]) {
     // Expose managers to QML
     engine.rootContext()->setContextProperty("settingsManager", &settingsManager);
     engine.rootContext()->setContextProperty("kld2Manager", &kld2Manager);
-    // TODO: Expose camera and capture managers
-    // engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
-    // engine.rootContext()->setContextProperty("captureManager", &captureManager);
+    engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
+    // engine.rootContext()->setContextProperty("captureManager", &captureManager);  // TODO: Implement
 
     // Load main QML file
     const QUrl url(QStringLiteral("qrc:/screens/AppWindow.qml"));
@@ -62,8 +58,10 @@ int main(int argc, char *argv[]) {
 
     qDebug() << "PRGR Launch Monitor started";
     qDebug() << "Qt version:" << qVersion();
-    qDebug() << "Settings initialized";
-    qDebug() << "K-LD2 manager initialized";
+    qDebug() << "✓ SettingsManager initialized";
+    qDebug() << "✓ KLD2Manager initialized";
+    qDebug() << "✓ CameraManager initialized (rpicam-vid with named pipes)";
+    qDebug() << "⚠ CaptureManager not yet implemented";
 
     return app.exec();
 }
