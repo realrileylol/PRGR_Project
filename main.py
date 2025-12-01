@@ -966,21 +966,32 @@ class CaptureManager(QObject):
         self._stopping = False  # Flag to track if we're in the process of stopping
 
         # K-LD2 detection trigger state
-        self.kld2_triggered = False
+        self.kld2_triggered = False  # Legacy flag - set when club approaches
+        self.kld2_impact_detected = False  # NEW flag - set when radar confirms impact (speed drop)
         self.use_kld2_trigger = True  # Set to True to use K-LD2, False for camera-based
+        self.waiting_for_impact = False  # True when club detected, waiting to confirm ball moved
 
         # Edge velocity tracking state
         self.prev_gray = None  # Previous frame for optical flow
         self.ball_motion_history = deque(maxlen=10)  # Track ball velocity over time
 
-        # Connect K-LD2 signal if available
+        # Connect K-LD2 signals if available
         if self.kld2_manager:
-            self.kld2_manager.detectionTriggered.connect(self._on_kld2_detection)
+            # Legacy signal (club approaching)
+            self.kld2_manager.detectionTriggered.connect(self._on_kld2_club_detected)
+            # NEW signal (impact confirmed by radar)
+            self.kld2_manager.impactDetected.connect(self._on_kld2_impact)
 
-    def _on_kld2_detection(self):
-        """Handle K-LD2 detection signal (ball was hit)"""
-        print("K-LD2 DETECTION TRIGGERED")
+    def _on_kld2_club_detected(self):
+        """Handle K-LD2 club detection signal (club approaching - swing starting)"""
+        print("⛳ K-LD2: Club approaching - monitoring for impact...")
         self.kld2_triggered = True
+        self.waiting_for_impact = True  # Start monitoring camera for ball movement
+
+    def _on_kld2_impact(self):
+        """Handle K-LD2 impact detection signal (club passed through - speed dropped)"""
+        print("🏌️ K-LD2: Impact timing detected - verifying ball movement with camera...")
+        self.kld2_impact_detected = True
 
     def _capture_frame(self):
         """Capture frame from correct stream (lores for RAW, main for YUV) and convert to grayscale"""
@@ -2100,38 +2111,63 @@ class CaptureManager(QObject):
                     elif original_ball is not None and self._is_same_ball(original_ball, current_ball):
                         # Ball is still visible and locked - check for impact
 
-                        # === K-LD2 RADAR DETECTION MODE ===
-                        if self.use_kld2_trigger:
-                            # Use K-LD2 radar sensor to detect impact
-                            impact_detected = self.kld2_triggered
-
-                            if frames_since_lock % 30 == 0:  # Print every 30 frames
-                                print(f"Waiting for K-LD2 detection... (ball locked {frames_since_lock} frames)")
-
-                        # === CAMERA-BASED MOTION DETECTION MODE ===
+                        # Calculate ball movement (used by both modes)
+                        if impact_axis == 0:
+                            directional_movement = (x - original_ball[0]) * impact_direction
                         else:
-                            # Use camera-based ball motion detection
-                            # Calculate movement for debugging
-                            if impact_axis == 0:
-                                directional_movement = (x - original_ball[0]) * impact_direction
+                            directional_movement = (y - original_ball[1]) * impact_direction
+
+                        # Check if camera detected ball motion
+                        if FAST_DETECTION_AVAILABLE:
+                            camera_detected_motion = fast_detection.detect_impact(
+                                int(original_ball[0]), int(original_ball[1]),  # Previous position
+                                int(x), int(y),  # Current position
+                                impact_threshold,  # Distance threshold
+                                impact_axis,       # Which axis is down range (0=X, 1=Y)
+                                impact_direction   # Which direction is down range (1=pos, -1=neg)
+                            )
+                        else:
+                            # Fallback Python directional motion detection
+                            camera_detected_motion = directional_movement > impact_threshold
+
+                        # === HYBRID MODE: K-LD2 RADAR + CAMERA CONFIRMATION ===
+                        if self.use_kld2_trigger:
+                            # BEST approach: Radar tells us WHEN, camera confirms ball MOVED
+                            # This eliminates false triggers from practice swings!
+
+                            if frames_since_lock % 30 == 0:  # Print status every 30 frames
+                                radar_status = "IMPACT!" if self.kld2_impact_detected else "waiting..."
+                                ball_status = "MOVED" if camera_detected_motion else "stationary"
+                                print(f"K-LD2: {radar_status} | Camera: {ball_status} | Ball locked {frames_since_lock} frames")
+
+                            # Check if radar detected impact timing (club passed through)
+                            if self.kld2_impact_detected:
+                                # Radar says impact happened - now verify ball actually moved!
+                                if camera_detected_motion:
+                                    # CONFIRMED IMPACT: Radar + Camera both agree!
+                                    print(f"✅ CONFIRMED IMPACT: Radar detected club impact + Camera confirmed ball moved {directional_movement:.1f}px!")
+                                    impact_detected = True
+                                else:
+                                    # Practice swing: Radar detected club but ball didn't move
+                                    print(f"⚠️ PRACTICE SWING: Radar detected club but ball didn't move (movement: {directional_movement:.1f}px < threshold: {impact_threshold}px)")
+                                    print(f"   Resetting for next shot...")
+                                    # Reset radar flags and wait for next swing
+                                    self.kld2_triggered = False
+                                    self.kld2_impact_detected = False
+                                    self.waiting_for_impact = False
+                                    impact_detected = False
                             else:
-                                directional_movement = (y - original_ball[1]) * impact_direction
+                                # Still waiting for radar to detect impact timing
+                                impact_detected = False
+
+                        # === CAMERA-ONLY MOTION DETECTION MODE ===
+                        else:
+                            # Pure camera-based detection (no radar)
+                            impact_detected = camera_detected_motion
 
                             # DEBUG: Print movement every 10 frames when ball is locked
                             if frames_since_lock % 10 == 0:
                                 print(f"DEBUG: Ball ({int(original_ball[0])},{int(original_ball[1])}) → ({x},{y}) | Y-movement: {y - original_ball[1]:.1f} | Directional: {directional_movement:.1f} | Threshold: {impact_threshold}")
-
-                            if FAST_DETECTION_AVAILABLE:
-                                impact_detected = fast_detection.detect_impact(
-                                    int(original_ball[0]), int(original_ball[1]),  # Previous position
-                                    int(x), int(y),  # Current position
-                                    impact_threshold,  # Distance threshold
-                                    impact_axis,       # Which axis is down range (0=X, 1=Y)
-                                    impact_direction   # Which direction is down range (1=pos, -1=neg)
-                                )
-                            else:
-                                # Fallback Python directional motion detection
-                                impact_detected = directional_movement > impact_threshold
 
                         if impact_detected:
                             # IMPACT! Ball moved suddenly - it was HIT!

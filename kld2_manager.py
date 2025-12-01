@@ -24,7 +24,9 @@ class KLD2Manager(QObject):
     clubSpeedUpdated = Signal(float)  # Club head speed (approaching)
     ballSpeedUpdated = Signal(float)  # Ball speed (receding)
     statusChanged = Signal(str, str)  # (message, color)
-    detectionTriggered = Signal()  # Emitted when trigger condition met
+    detectionTriggered = Signal()  # Emitted when trigger condition met (legacy - club approach only)
+    clubApproaching = Signal(float)  # Emitted when club detected approaching (speed in mph)
+    impactDetected = Signal()  # Emitted when club passes through (speed drop after approach)
     isRunningChanged = Signal()  # Notify when is_running changes
 
     def __init__(self, min_trigger_speed=10.0, debug_mode=False, trigger_mode="club"):
@@ -35,6 +37,11 @@ class KLD2Manager(QObject):
         self.min_trigger_speed = min_trigger_speed  # Minimum speed to trigger detection
         self.debug_mode = debug_mode
         self.trigger_mode = trigger_mode  # "club" or "ball" - what triggers camera
+
+        # Speed history tracking for impact detection
+        self.club_speed_history = []  # Track last N club speeds to detect impact
+        self.max_club_speed = 0.0  # Peak club speed during current swing
+        self.in_swing = False  # True when club is approaching (above threshold)
 
     @Property(bool, notify=isRunningChanged)
     def is_running(self):
@@ -161,21 +168,36 @@ class KLD2Manager(QObject):
                                     if receding_speed > 0:
                                         self.ballSpeedUpdated.emit(float(receding_speed))
 
-                                    # Trigger based on mode (for camera capture timing)
-                                    if self.trigger_mode == "club":
-                                        # Trigger on CLUB HEAD (approaching) - catches swing BEFORE impact
-                                        # This allows camera to capture pre-impact frames!
-                                        if approaching_speed >= self.min_trigger_speed:
-                                            print(f"CAMERA TRIGGER: Club {approaching_speed} mph (before impact)")
-                                            self.speedUpdated.emit(float(approaching_speed))
-                                            self.detectionTriggered.emit()
-                                    else:  # trigger_mode == "ball"
-                                        # Trigger on BALL (receding) - happens AFTER impact
-                                        # Too late for pre-impact camera frames!
-                                        if receding_speed >= self.min_trigger_speed:
-                                            print(f"CAMERA TRIGGER: Ball {receding_speed} mph (after impact)")
-                                            self.speedUpdated.emit(float(receding_speed))
-                                            self.detectionTriggered.emit()
+                                    # === SWING STATE MACHINE ===
+                                    # Track club speed to detect: approach → peak → impact (speed drop)
+
+                                    # Check if club is approaching (above threshold)
+                                    if approaching_speed >= self.min_trigger_speed:
+                                        # Club detected approaching!
+                                        if not self.in_swing:
+                                            # NEW swing starting
+                                            self.in_swing = True
+                                            self.max_club_speed = approaching_speed
+                                            print(f"⛳ SWING START: Club {approaching_speed} mph (approaching)")
+                                            self.clubApproaching.emit(float(approaching_speed))
+                                            self.detectionTriggered.emit()  # Legacy signal for backward compatibility
+                                        else:
+                                            # Continue tracking swing - update peak if higher
+                                            if approaching_speed > self.max_club_speed:
+                                                self.max_club_speed = approaching_speed
+                                                if self.debug_mode:
+                                                    print(f"   Club speed: {approaching_speed} mph (peak: {self.max_club_speed} mph)")
+
+                                    # If we're in a swing, check if club passed through (speed dropped)
+                                    elif self.in_swing:
+                                        # Club speed dropped below threshold - club passed through ball!
+                                        # This happens ~5-10ms after impact
+                                        print(f"🏌️ IMPACT DETECTED: Club speed dropped from {self.max_club_speed} mph → {approaching_speed} mph")
+                                        self.impactDetected.emit()  # Signal that impact likely occurred
+
+                                        # Reset swing state for next shot
+                                        self.in_swing = False
+                                        self.max_club_speed = 0.0
 
                             except (ValueError, IndexError) as e:
                                 # Invalid data format, skip
