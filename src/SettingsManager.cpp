@@ -36,7 +36,7 @@ void SettingsManager::loadDefaults() {
     m_settings->setValue("detection/impactDirection", 1);   // Positive direction
 
     // K-LD2 radar defaults
-    m_settings->setValue("kld2/minTriggerSpeed", 40.0);     // 40 mph minimum
+    m_settings->setValue("kld2/minTriggerSpeed", 20.0);     // 20 mph minimum
     m_settings->setValue("kld2/debugMode", false);
 
     m_settings->sync();

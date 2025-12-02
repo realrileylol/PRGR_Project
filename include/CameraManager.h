@@ -40,6 +40,7 @@ public slots:
     void startRecording();
     void stopRecording();
     void takeSnapshot();
+    void takeSnapshotBurst(int count);
 
 signals:
     void previewActiveChanged();

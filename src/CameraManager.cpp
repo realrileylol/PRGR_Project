@@ -470,3 +470,74 @@ void CameraManager::takeSnapshot() {
         startPreview();
     }
 }
+void CameraManager::takeSnapshotBurst(int count) {
+    qDebug() << "Taking" << count << "burst snapshots with GIF creation...";
+
+    if (!m_frameProvider) {
+        qWarning() << "No frame provider available";
+        return;
+    }
+
+    // Generate folder name with timestamp
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    QString burstPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
+                        + "/PRGR_Snapshots/burst_" + timestamp;
+    QDir().mkpath(burstPath);
+
+    std::vector<cv::Mat> frames;
+
+    qDebug() << "Capturing" << count << "frames at ~120 FPS...";
+
+    // Capture frames from live preview
+    for (int i = 0; i < count; i++) {
+        // Get current frame from frame provider
+        QImage qimg = m_frameProvider->requestImage("", nullptr, QSize());
+
+        if (!qimg.isNull()) {
+            // Convert QImage to cv::Mat
+            cv::Mat frame(qimg.height(), qimg.width(), CV_8UC1);
+            memcpy(frame.data, qimg.bits(), qimg.width() * qimg.height());
+
+            frames.push_back(frame.clone());
+
+            // Save individual frame as JPEG
+            QString framePath = QString("%1/frame_%2.jpg").arg(burstPath).arg(i, 3, 10, QChar('0'));
+            cv::imwrite(framePath.toStdString(), frame);
+        }
+
+        // Small delay for frame rate control (~120 FPS = 8ms)
+        QThread::msleep(8);
+    }
+
+    qDebug() << "Captured" << frames.size() << "frames, creating GIF...";
+
+    // Create GIF from captured frames
+    QString gifPath = burstPath + "/burst_animation.gif";
+
+    if (!frames.empty()) {
+        // Use ffmpeg to create GIF from JPEG sequence
+        QProcess ffmpeg;
+        QStringList args;
+        args << "-framerate" << "30";  // 30 FPS for smooth playback
+        args << "-pattern_type" << "glob";
+        args << "-i" << burstPath + "/frame_*.jpg";
+        args << "-vf" << "scale=320:-1:flags=lanczos";
+        args << "-y";  // Overwrite
+        args << gifPath;
+
+        ffmpeg.start("ffmpeg", args);
+        if (ffmpeg.waitForFinished(10000)) {
+            qDebug() << "✓ GIF created:" << gifPath;
+        } else {
+            qDebug() << "Note: ffmpeg not available or failed. Frames saved as JPEGs.";
+        }
+    }
+
+    qDebug() << "✓ Burst snapshot complete!";
+    qDebug() << "  " << frames.size() << "frames saved to:" << burstPath;
+    if (QFile::exists(gifPath)) {
+        qDebug() << "  GIF created:" << gifPath;
+    }
+
+    emit snapshotCaptured(burstPath);
+}

@@ -10,6 +10,8 @@ Item {
     property var win
     property bool cameraActive: false
     property bool recordingActive: false
+    property bool snapshotCountdownActive: false
+    property int snapshotCountdown: 10
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -305,14 +307,15 @@ Item {
 
                 // Snapshot button
                 Button {
-                    text: "📸 Snapshot"
+                    text: snapshotCountdownActive ? ("⏱️ " + snapshotCountdown) : "📸 Snapshot"
                     implicitHeight: 50
                     implicitWidth: 120
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
+                    enabled: !snapshotCountdownActive
 
                     background: Rectangle {
-                        color: parent.pressed ? "#2D9A4F" : success
+                        color: snapshotCountdownActive ? danger : (parent.pressed ? "#2D9A4F" : success)
                         radius: 8
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
@@ -328,9 +331,10 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        cameraManager.takeSnapshot()
-                        snapshotMessage.visible = true
-                        snapshotTimer.start()
+                        // Start 10-second countdown
+                        snapshotCountdownActive = true
+                        snapshotCountdown = 10
+                        snapshotCountdownTimer.start()
                     }
                 }
 
@@ -417,6 +421,24 @@ Item {
         id: snapshotTimer
         interval: 2000
         onTriggered: snapshotMessage.visible = false
+    }
+
+    // Snapshot countdown timer (10 seconds)
+    Timer {
+        id: snapshotCountdownTimer
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            snapshotCountdown--
+            if (snapshotCountdown <= 0) {
+                stop()
+                snapshotCountdownActive = false
+                // Take 40 snapshots and create GIF
+                cameraManager.takeSnapshotBurst(40)
+                snapshotMessage.visible = true
+                snapshotTimer.start()
+            }
+        }
     }
 
     // Recording confirmation message
