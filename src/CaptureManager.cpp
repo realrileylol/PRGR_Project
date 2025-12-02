@@ -115,6 +115,9 @@ void CaptureManager::stopCapture() {
 void CaptureManager::captureLoop() {
     qDebug() << "Capture loop starting...";
 
+    // Reload settings from disk to get latest Camera Settings values
+    m_settings->load();
+
     // Load settings
     QString resolutionStr = m_settings->cameraResolution();
     QStringList resParts = resolutionStr.split('x');
