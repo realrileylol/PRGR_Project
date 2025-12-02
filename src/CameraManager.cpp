@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QDir>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -328,36 +329,45 @@ void CameraManager::startRecording() {
 
     qDebug() << "Starting recording to:" << filepath;
 
+    // Ensure directory exists
+    QDir().mkpath(videosPath);
+
     // Start rpicam-vid process for recording
     m_recordingProcess = new QProcess(this);
 
+    // Capture process output for debugging
+    m_recordingProcess->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_recordingProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+        QString output = m_recordingProcess->readAllStandardOutput();
+        qDebug() << "rpicam-vid output:" << output.trimmed();
+    });
+
     QStringList args;
-    args << "--timeout" << "0";  // No timeout (manual stop)
+    args << "-t" << "0";  // No timeout (manual stop)
     args << "--width" << "640";
     args << "--height" << "480";
     args << "--framerate" << QString::number(frameRate);
-    args << "--shutter" << QString::number(shutterSpeed);
-    args << "--gain" << QString::number(gain);
-    args << "--codec" << "libav";
-    args << "--libav-format" << "mp4";
-    args << "--libav-video-codec" << "h264_v4l2m2m";
     args << "-o" << filepath;
-    args << "--nopreview";
+    args << "-n";  // No preview
 
-    qDebug() << "rpicam-vid args:" << args.join(" ");
+    qDebug() << "rpicam-vid recording args:" << args.join(" ");
 
     m_recordingProcess->start("rpicam-vid", args);
 
     if (!m_recordingProcess->waitForStarted(5000)) {
-        emit errorOccurred("Failed to start recording process");
+        QString error = m_recordingProcess->errorString();
+        qCritical() << "Failed to start recording process:" << error;
+        qCritical() << "Process error:" << m_recordingProcess->readAllStandardError();
+        emit errorOccurred("Failed to start recording: " + error);
         delete m_recordingProcess;
         m_recordingProcess = nullptr;
         return;
     }
 
+    m_currentRecordingPath = filepath;
     m_recordingActive = true;
     emit recordingActiveChanged();
-    qDebug() << "Recording started";
+    qDebug() << "Recording started - PID:" << m_recordingProcess->processId();
 }
 
 void CameraManager::stopRecording() {
@@ -379,6 +389,7 @@ void CameraManager::stopRecording() {
     }
 
     qDebug() << "Recording process exit code:" << m_recordingProcess->exitCode();
+    qDebug() << "Recording process output:" << m_recordingProcess->readAll();
 
     delete m_recordingProcess;
     m_recordingProcess = nullptr;
@@ -387,7 +398,24 @@ void CameraManager::stopRecording() {
     emit recordingActiveChanged();
 
     // Wait for file system flush
-    QThread::msleep(500);
+    QThread::msleep(1000);
+
+    // Check if file was created and has content
+    QFileInfo fileInfo(m_currentRecordingPath);
+    if (fileInfo.exists()) {
+        qint64 fileSize = fileInfo.size();
+        qDebug() << "Recording saved:" << m_currentRecordingPath << "Size:" << fileSize << "bytes";
+
+        if (fileSize > 0) {
+            emit recordingSaved(m_currentRecordingPath);
+        } else {
+            qWarning() << "Recording file is empty (0 bytes)!";
+            emit errorOccurred("Recording failed - file is empty");
+        }
+    } else {
+        qWarning() << "Recording file was not created!";
+        emit errorOccurred("Recording failed - file not created");
+    }
 
     // Restart preview
     qDebug() << "Restarting preview after recording...";

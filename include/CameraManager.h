@@ -46,6 +46,7 @@ signals:
     void recordingActiveChanged();
     void frameReady();
     void snapshotCaptured(const QString &filePath);
+    void recordingSaved(const QString &filePath);
     void errorOccurred(const QString &error);
 
 private:
@@ -70,6 +71,7 @@ private:
     // Recording
     QProcess *m_recordingProcess;
     bool m_recordingActive;
+    QString m_currentRecordingPath;
 
     // Frame dimensions
     int m_previewWidth;
