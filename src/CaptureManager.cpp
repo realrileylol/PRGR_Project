@@ -244,6 +244,7 @@ void CaptureManager::captureLoop() {
             if (m_useKLD2Trigger) {
                 // Check if radar detected impact
                 if (m_kld2ImpactDetected.load()) {
+                    qDebug() << "🔍 K-LD2 impact flag detected, verifying ball movement...";
                     // Verify ball actually moved
                     bool ballMoved = detectImpact(originalBall, currentBall,
                                                   impactThreshold, impactAxis, impactDirection);

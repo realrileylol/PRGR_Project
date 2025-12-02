@@ -71,11 +71,6 @@ void CameraManager::startPreview() {
     QString resolutionStr = m_settings->cameraResolution();
     QString format = m_settings->cameraFormat();
 
-    // Override with fast shutter for motion freeze (same as recording)
-    // This ensures preview matches what will be recorded
-    shutterSpeed = 1500;  // Fast shutter eliminates motion blur
-    gain = 8.0;           // Higher gain for brightness
-
     // Parse resolution
     QStringList resParts = resolutionStr.split('x');
     m_previewWidth = 320;
@@ -318,16 +313,10 @@ void CameraManager::startRecording() {
         QThread::msleep(500);
     }
 
-    // Load settings
+    // Load settings from Camera Settings screen
     int frameRate = m_settings->cameraFrameRate();
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
-
-    // For high-speed recording, use fast shutter to eliminate motion blur
-    // At 120 FPS, max shutter is ~8333µs (1/120s)
-    // For golf swing freeze, use 1500µs (very fast) to eliminate blur
-    int recordingShutter = 1500;  // Fast shutter for motion freeze
-    double recordingGain = 8.0;   // Higher gain to compensate for fast shutter
 
     // Generate filename
     QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
@@ -358,13 +347,13 @@ void CameraManager::startRecording() {
     args << "--width" << "640";
     args << "--height" << "480";
     args << "--framerate" << QString::number(frameRate);
-    args << "--shutter" << QString::number(recordingShutter);  // Fast shutter = no motion blur
-    args << "--gain" << QString::number(recordingGain);        // Higher gain for brightness
+    args << "--shutter" << QString::number(shutterSpeed);
+    args << "--gain" << QString::number(gain);
     args << "--codec" << "h264";
     args << "-o" << filepath;
     args << "-n";  // No preview
 
-    qDebug() << "Recording at" << frameRate << "FPS with shutter" << recordingShutter << "µs (fast = no blur)";
+    qDebug() << "Recording at" << frameRate << "FPS with shutter" << shutterSpeed << "µs gain" << gain;
     qDebug() << "rpicam-vid recording args:" << args.join(" ");
 
     m_recordingProcess->start("rpicam-vid", args);
