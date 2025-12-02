@@ -347,6 +347,7 @@ void CameraManager::startRecording() {
     args << "--width" << "640";
     args << "--height" << "480";
     args << "--framerate" << QString::number(frameRate);
+    args << "--codec" << "h264";
     args << "-o" << filepath;
     args << "-n";  // No preview
 
