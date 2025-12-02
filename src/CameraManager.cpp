@@ -191,6 +191,10 @@ void CameraManager::previewLoop() {
     int fpsCounter = 0;
     auto fpsStart = std::chrono::steady_clock::now();
 
+    // Throttle display updates to 30 FPS to reduce QML overhead
+    auto lastDisplayUpdate = std::chrono::steady_clock::now();
+    const int displayUpdateIntervalMs = 33; // ~30 FPS for display
+
     while (m_previewActive.load()) {
         // Read one complete frame from pipe
         ssize_t bytesRead = 0;
@@ -234,19 +238,27 @@ void CameraManager::previewLoop() {
         frameCount++;
 
         // Update frame provider (thread-safe)
+        // Always update the frame buffer for CaptureManager (120 FPS)
         if (m_frameProvider) {
             m_frameProvider->updateFrame(frame);
-            emit frameReady();  // Notify QML to refresh
+
+            // Only signal QML display updates at 30 FPS to reduce overhead
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastDisplayUpdate).count();
+            if (elapsed >= displayUpdateIntervalMs) {
+                emit frameReady();  // Notify QML to refresh
+                lastDisplayUpdate = now;
+            }
         }
 
         // FPS tracking
         fpsCounter++;
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - fpsStart).count();
-        if (elapsed >= 1000) {
+        auto fpsNow = std::chrono::steady_clock::now();
+        auto fpsElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(fpsNow - fpsStart).count();
+        if (fpsElapsed >= 1000) {
             qDebug() << "Preview FPS:" << fpsCounter;
             fpsCounter = 0;
-            fpsStart = now;
+            fpsStart = fpsNow;
         }
     }
 
