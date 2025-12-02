@@ -321,12 +321,7 @@ void CameraManager::startRecording() {
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
     args << "--output" << filepath;
-    args << "--codec" << "libav";
-    args << "--libav-format" << "mp4";
-    args << "--bitrate" << QString::number(bitrate);
-    args << "--intra" << QString::number(frameRate);  // Keyframe interval
-    args << "--profile" << "high";
-    args << "--level" << "4.2";
+    args << "--codec" << "h264";  // Use h264 instead of libav
     args << "--nopreview";
 
     m_recordingProcess->start("rpicam-vid", args);
@@ -350,12 +345,14 @@ void CameraManager::stopRecording() {
 
     qDebug() << "Stopping recording...";
 
-    // Send SIGINT for graceful shutdown (allows MP4 finalization)
-    m_recordingProcess->terminate();
+    // Send SIGINT (Ctrl+C) for graceful shutdown (allows MP4 finalization)
+    // terminate() sends SIGTERM which might not finalize properly
+    m_recordingProcess->write("q");  // Send 'q' to quit gracefully
+    m_recordingProcess->closeWriteChannel();
 
-    if (!m_recordingProcess->waitForFinished(5000)) {
-        qWarning() << "Recording process did not finish, forcing kill";
-        m_recordingProcess->kill();
+    if (!m_recordingProcess->waitForFinished(3000)) {
+        qDebug() << "Sending SIGINT to recording process";
+        m_recordingProcess->kill();  // SIGKILL as last resort
         m_recordingProcess->waitForFinished(2000);
     }
 
