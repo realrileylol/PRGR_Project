@@ -113,6 +113,24 @@ void CameraManager::startPreview() {
 
     qDebug() << "Starting rpicam-vid with args:" << args.join(" ");
 
+    // Monitor process errors
+    connect(m_previewProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        qWarning() << "Preview process error:" << error;
+        if (m_previewActive.load()) {
+            m_previewActive.store(false);
+            emit errorOccurred("Camera preview process crashed");
+        }
+    });
+
+    connect(m_previewProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+        qWarning() << "Preview process finished unexpectedly - exit code:" << exitCode << "status:" << exitStatus;
+        if (m_previewActive.load()) {
+            m_previewActive.store(false);
+            emit errorOccurred("Camera preview stopped unexpectedly");
+        }
+    });
+
     m_previewProcess->start("rpicam-vid", args);
 
     if (!m_previewProcess->waitForStarted(5000)) {
@@ -320,9 +338,13 @@ void CameraManager::startRecording() {
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
-    args << "--output" << filepath;
-    args << "--codec" << "h264";  // Use h264 instead of libav
+    args << "--codec" << "libav";
+    args << "--libav-format" << "mp4";
+    args << "--libav-video-codec" << "h264_v4l2m2m";
+    args << "-o" << filepath;
     args << "--nopreview";
+
+    qDebug() << "rpicam-vid args:" << args.join(" ");
 
     m_recordingProcess->start("rpicam-vid", args);
 
@@ -345,16 +367,18 @@ void CameraManager::stopRecording() {
 
     qDebug() << "Stopping recording...";
 
-    // Send SIGINT (Ctrl+C) for graceful shutdown (allows MP4 finalization)
-    // terminate() sends SIGTERM which might not finalize properly
-    m_recordingProcess->write("q");  // Send 'q' to quit gracefully
-    m_recordingProcess->closeWriteChannel();
+    // Send SIGINT (Ctrl+C) for graceful shutdown to finalize MP4 properly
+    // Using terminate() which sends SIGTERM - rpicam-vid handles this gracefully
+    m_recordingProcess->terminate();
 
-    if (!m_recordingProcess->waitForFinished(3000)) {
-        qDebug() << "Sending SIGINT to recording process";
-        m_recordingProcess->kill();  // SIGKILL as last resort
+    // Wait up to 5 seconds for graceful shutdown
+    if (!m_recordingProcess->waitForFinished(5000)) {
+        qWarning() << "Recording process didn't stop gracefully, forcing kill";
+        m_recordingProcess->kill();
         m_recordingProcess->waitForFinished(2000);
     }
+
+    qDebug() << "Recording process exit code:" << m_recordingProcess->exitCode();
 
     delete m_recordingProcess;
     m_recordingProcess = nullptr;
