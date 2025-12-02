@@ -185,7 +185,6 @@ void CameraManager::previewLoop() {
     // YUV420: Y (width*height) + U (width/2*height/2) + V (width/2*height/2)
     // Total = width*height*1.5
     const int frameSize = m_previewWidth * m_previewHeight * 3 / 2;
-    const int ySize = m_previewWidth * m_previewHeight;
 
     std::vector<uint8_t> frameBuffer(frameSize);
     int frameCount = 0;
