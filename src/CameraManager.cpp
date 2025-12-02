@@ -71,6 +71,11 @@ void CameraManager::startPreview() {
     QString resolutionStr = m_settings->cameraResolution();
     QString format = m_settings->cameraFormat();
 
+    // Override with fast shutter for motion freeze (same as recording)
+    // This ensures preview matches what will be recorded
+    shutterSpeed = 1500;  // Fast shutter eliminates motion blur
+    gain = 8.0;           // Higher gain for brightness
+
     // Parse resolution
     QStringList resParts = resolutionStr.split('x');
     m_previewWidth = 320;
