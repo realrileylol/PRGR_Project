@@ -28,6 +28,7 @@ set(SOURCES
     src/CaptureManager.cpp
     src/FrameProvider.cpp
     src/SoundManager.cpp
+    src/CalibrationManager.cpp
 )
 
 # Header files
@@ -38,6 +39,7 @@ set(HEADERS
     include/CaptureManager.h
     include/FrameProvider.h
     include/SoundManager.h
+    include/CalibrationManager.h
 )
 
 # QML resources

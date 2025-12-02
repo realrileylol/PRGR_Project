@@ -10,6 +10,7 @@
 #include "CameraManager.h"
 #include "CaptureManager.h"
 #include "SoundManager.h"
+#include "CalibrationManager.h"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -26,6 +27,7 @@ int main(int argc, char *argv[]) {
     SettingsManager settingsManager;
     KLD2Manager kld2Manager;
     SoundManager soundManager;
+    CalibrationManager calibrationManager;
     FrameProvider frameProvider;
     CameraManager cameraManager(&frameProvider, &settingsManager);
     CaptureManager captureManager(&kld2Manager, &settingsManager);
@@ -40,6 +42,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("settingsManager", &settingsManager);
     engine.rootContext()->setContextProperty("kld2Manager", &kld2Manager);
     engine.rootContext()->setContextProperty("soundManager", &soundManager);
+    engine.rootContext()->setContextProperty("calibrationManager", &calibrationManager);
     engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
     engine.rootContext()->setContextProperty("captureManager", &captureManager);
 
