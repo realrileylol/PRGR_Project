@@ -32,6 +32,10 @@ int main(int argc, char *argv[]) {
     CameraManager cameraManager(&frameProvider, &settingsManager);
     CaptureManager captureManager(&kld2Manager, &settingsManager);
 
+    // Connect calibration manager to frame provider and settings
+    calibrationManager.setFrameProvider(&frameProvider);
+    calibrationManager.setSettings(&settingsManager);
+
     // Create QML engine
     QQmlApplicationEngine engine;
 
