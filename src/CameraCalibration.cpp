@@ -150,7 +150,9 @@ void CameraCalibration::finishIntrinsicCalibration() {
     qDebug() << "Camera calibration complete:";
     qDebug() << "  Focal length: fx=" << m_fx << "fy=" << m_fy;
     qDebug() << "  Principal point:" << m_cx << "x" << m_cy;
-    qDebug() << "  Distortion:" << m_distCoeffs;
+    qDebug() << "  Distortion: k1=" << m_distCoeffs.at<double>(0, 0)
+             << "k2=" << m_distCoeffs.at<double>(1, 0)
+             << "k3=" << m_distCoeffs.at<double>(4, 0);
     qDebug() << "  RMS error:" << rms << "pixels";
 
     // Validate against sensor specs
@@ -410,7 +412,8 @@ void CameraCalibration::loadCalibration() {
     // Load distortion coefficients
     QJsonArray distortion = json["distortion"].toArray();
     m_distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
-    for (int i = 0; i < std::min(5, distortion.size()); i++) {
+    int distSize = std::min(5, static_cast<int>(distortion.size()));
+    for (int i = 0; i < distSize; i++) {
         m_distCoeffs.at<double>(i, 0) = distortion[i].toDouble();
     }
 
