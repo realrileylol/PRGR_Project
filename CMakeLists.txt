@@ -30,6 +30,8 @@ set(SOURCES
     src/SoundManager.cpp
     src/CalibrationManager.cpp
     src/CameraCalibration.cpp
+    src/BallDetector.cpp
+    src/TrajectoryTracker.cpp
 )
 
 # Header files
@@ -42,6 +44,8 @@ set(HEADERS
     include/SoundManager.h
     include/CalibrationManager.h
     include/CameraCalibration.h
+    include/BallDetector.h
+    include/TrajectoryTracker.h
 )
 
 # QML resources
