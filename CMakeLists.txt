@@ -29,6 +29,7 @@ set(SOURCES
     src/FrameProvider.cpp
     src/SoundManager.cpp
     src/CalibrationManager.cpp
+    src/CameraCalibration.cpp
 )
 
 # Header files
@@ -40,6 +41,7 @@ set(HEADERS
     include/FrameProvider.h
     include/SoundManager.h
     include/CalibrationManager.h
+    include/CameraCalibration.h
 )
 
 # QML resources

@@ -80,12 +80,18 @@ void CameraManager::startPreview() {
         m_previewHeight = resParts[1].toInt();
     }
 
-    // Determine frame rate based on resolution and format
-    int frameRate = 120;  // Default high-speed
-    if (format == "RAW") {
-        frameRate = (m_previewWidth == 320 && m_previewHeight == 240) ? 120 : 60;
+    // Determine frame rate based on OV9281 resolution capabilities
+    int frameRate = 120;  // Safe default
+    if (m_previewWidth == 640 && m_previewHeight == 480) {
+        frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
+    } else if (m_previewWidth == 640 && m_previewHeight == 400) {
+        frameRate = 240;  // Wide VGA @ 240 FPS - maximum performance
+    } else if (m_previewWidth == 1280 && m_previewHeight == 800) {
+        frameRate = 120;  // Full resolution @ 120 FPS
+    } else if (m_previewWidth == 320 && m_previewHeight == 240) {
+        frameRate = 120;  // Low res high speed
     } else {
-        frameRate = (m_previewWidth == 320 && m_previewHeight == 240) ? 60 : 30;
+        frameRate = 60;   // Conservative fallback for unknown resolutions
     }
 
     qDebug() << "Starting preview: Resolution=" << m_previewWidth << "x" << m_previewHeight
@@ -317,6 +323,16 @@ void CameraManager::startRecording() {
     int frameRate = m_settings->cameraFrameRate();
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
+    QString resolutionStr = m_settings->cameraResolution();
+
+    // Parse resolution
+    QStringList resParts = resolutionStr.split('x');
+    int width = 640;
+    int height = 480;
+    if (resParts.size() == 2) {
+        width = resParts[0].toInt();
+        height = resParts[1].toInt();
+    }
 
     // Generate filename
     QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
@@ -344,8 +360,8 @@ void CameraManager::startRecording() {
 
     QStringList args;
     args << "-t" << "0";  // No timeout (manual stop)
-    args << "--width" << "640";
-    args << "--height" << "480";
+    args << "--width" << QString::number(width);
+    args << "--height" << QString::number(height);
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);

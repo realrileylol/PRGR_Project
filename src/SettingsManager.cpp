@@ -4,11 +4,11 @@
 
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
-    , m_cameraShutterSpeed(8500)
-    , m_cameraGain(5.0)
-    , m_cameraFrameRate(120)
-    , m_cameraResolution("320x240")
-    , m_cameraFormat("RAW")
+    , m_cameraShutterSpeed(1500)
+    , m_cameraGain(6.0)
+    , m_cameraFrameRate(180)
+    , m_cameraResolution("640x480")
+    , m_cameraFormat("YUV420")
 {
     // Use JSON format for human-readable settings
     QString settingsPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -21,16 +21,16 @@ SettingsManager::SettingsManager(QObject *parent)
 }
 
 void SettingsManager::loadDefaults() {
-    // Camera defaults optimized for OV9281 monochrome + 120 FPS
-    m_settings->setValue("camera/shutterSpeed", 8500);      // 8.5ms for indoor
-    m_settings->setValue("camera/gain", 5.0);               // Good indoor gain
-    m_settings->setValue("camera/frameRate", 120);          // High-speed capture
-    m_settings->setValue("camera/resolution", "320x240");   // 120+ FPS mode
-    m_settings->setValue("camera/format", "RAW");           // Bypass ISP
+    // Camera defaults optimized for OV9281 golf ball tracking @ 180 FPS
+    m_settings->setValue("camera/shutterSpeed", 1500);      // 1.5ms for crisp ball edges
+    m_settings->setValue("camera/gain", 6.0);               // Balanced gain for fast shutter
+    m_settings->setValue("camera/frameRate", 180);          // 180 FPS @ 640×480 (OV9281 max)
+    m_settings->setValue("camera/resolution", "640x480");   // VGA - optimal for golf tracking
+    m_settings->setValue("camera/format", "YUV420");        // Standard format
 
-    // Ball detection defaults
-    m_settings->setValue("detection/minRadius", 5);
-    m_settings->setValue("detection/maxRadius", 50);
+    // Ball detection defaults (for 640×480: ball is 8-12 pixels diameter)
+    m_settings->setValue("detection/minRadius", 4);     // Minimum 4 pixel radius (8px diameter)
+    m_settings->setValue("detection/maxRadius", 15);    // Maximum 15 pixel radius (30px diameter)
     m_settings->setValue("detection/impactThreshold", 10);
     m_settings->setValue("detection/impactAxis", 1);        // Y-axis
     m_settings->setValue("detection/impactDirection", 1);   // Positive direction
@@ -43,11 +43,11 @@ void SettingsManager::loadDefaults() {
 }
 
 void SettingsManager::load() {
-    m_cameraShutterSpeed = m_settings->value("camera/shutterSpeed", 8500).toInt();
-    m_cameraGain = m_settings->value("camera/gain", 5.0).toDouble();
-    m_cameraFrameRate = m_settings->value("camera/frameRate", 120).toInt();
-    m_cameraResolution = m_settings->value("camera/resolution", "320x240").toString();
-    m_cameraFormat = m_settings->value("camera/format", "RAW").toString();
+    m_cameraShutterSpeed = m_settings->value("camera/shutterSpeed", 1500).toInt();
+    m_cameraGain = m_settings->value("camera/gain", 6.0).toDouble();
+    m_cameraFrameRate = m_settings->value("camera/frameRate", 180).toInt();
+    m_cameraResolution = m_settings->value("camera/resolution", "640x480").toString();
+    m_cameraFormat = m_settings->value("camera/format", "YUV420").toString();
 
     emit settingsChanged();
 }

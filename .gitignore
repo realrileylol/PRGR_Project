@@ -39,3 +39,4 @@ cpp_module/*.egg-info/
 # OS files
 .DS_Store
 Thumbs.db
+build/
