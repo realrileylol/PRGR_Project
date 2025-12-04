@@ -17,12 +17,18 @@ SettingsManager::SettingsManager(QObject *parent)
     QDir().mkpath(settingsPath);
 
     QString fullPath = settingsPath + "/settings.json";
+    bool settingsExist = QFile::exists(fullPath);
     m_settings = new QSettings(fullPath, QSettings::IniFormat, this);
 
     qDebug() << "Settings file location:" << fullPath;
-    qDebug() << "Settings file exists:" << QFile::exists(fullPath);
+    qDebug() << "Settings file exists:" << settingsExist;
 
-    loadDefaults();
+    // Only write defaults if settings don't exist yet
+    if (!settingsExist || !m_settings->contains("camera/shutterSpeed")) {
+        qDebug() << "Creating default settings...";
+        loadDefaults();
+    }
+
     load();
 
     // Debug: Print loaded settings
