@@ -230,7 +230,7 @@ Item {
 
                             TextField {
                                 id: squareSize
-                                text: "30"
+                                text: "35"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 50
                                 font.pixelSize: 18
