@@ -1,6 +1,8 @@
 #include "SettingsManager.h"
 #include <QStandardPaths>
 #include <QDir>
+#include <QFile>
+#include <QDebug>
 
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
@@ -14,10 +16,21 @@ SettingsManager::SettingsManager(QObject *parent)
     QString settingsPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(settingsPath);
 
-    m_settings = new QSettings(settingsPath + "/settings.json", QSettings::IniFormat, this);
+    QString fullPath = settingsPath + "/settings.json";
+    m_settings = new QSettings(fullPath, QSettings::IniFormat, this);
+
+    qDebug() << "Settings file location:" << fullPath;
+    qDebug() << "Settings file exists:" << QFile::exists(fullPath);
 
     loadDefaults();
     load();
+
+    // Debug: Print loaded settings
+    qDebug() << "Loaded camera settings:";
+    qDebug() << "  FPS:" << m_cameraFrameRate;
+    qDebug() << "  Gain:" << m_cameraGain;
+    qDebug() << "  Shutter:" << m_cameraShutterSpeed;
+    qDebug() << "  Format:" << m_cameraFormat;
 }
 
 void SettingsManager::loadDefaults() {
