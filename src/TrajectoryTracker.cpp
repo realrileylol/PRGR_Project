@@ -421,7 +421,7 @@ double TrajectoryTracker::timeDeltaSeconds(int64_t t1, int64_t t2) const {
     return std::abs(t2 - t1) / 1000000.0;  // Convert microseconds to seconds
 }
 
-QString TrajectoryTracker::getTrajectory Summary() const {
+QString TrajectoryTracker::getTrajectorySummary() const {
     QString summary;
     summary += QString("Tracked frames: %1\n").arg(m_trajectoryPoints.size());
     summary += QString("Launch angle (V): %1°\n").arg(m_launchAngleVertical, 0, 'f', 1);

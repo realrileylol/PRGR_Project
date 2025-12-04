@@ -340,9 +340,6 @@ void CameraManager::startRecording() {
     QString filename = QString("video_%1.mp4").arg(timestamp);
     QString filepath = videosPath + "/" + filename;
 
-    // Calculate bitrate (5 Mbps for Pi 4B)
-    int bitrate = 5000000;
-
     qDebug() << "Starting recording to:" << filepath;
 
     // Ensure directory exists

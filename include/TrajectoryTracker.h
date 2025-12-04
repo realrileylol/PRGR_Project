@@ -68,7 +68,7 @@ public:
     /**
      * Get trajectory summary for display
      */
-    QString getTrajectorySum mary() const;
+    QString getTrajectorySummary() const;
 
 public slots:
     /**
