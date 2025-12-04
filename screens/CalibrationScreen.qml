@@ -23,6 +23,7 @@ Item {
     property int framesNeeded: 20
     property int framesCaptured: 0
     property bool isComplete: false
+    property bool cameraInitialized: false
 
     Rectangle {
         anchors.fill: parent
@@ -30,15 +31,14 @@ Item {
     }
 
     Component.onCompleted: {
-        console.log("Calibration screen loaded")
         // Ensure camera preview is running for calibration
         if (cameraManager) {
-            if (!cameraManager.previewActive) {
-                cameraManager.startPreview()
-                console.log("Camera preview started for calibration")
-            } else {
-                console.log("Camera preview already active")
-            }
+            // Small delay to ensure everything is initialized
+            Qt.callLater(function() {
+                if (!cameraManager.previewActive) {
+                    cameraManager.startPreview()
+                }
+            })
         }
     }
 
@@ -333,31 +333,29 @@ Item {
                                 cache: false
                                 asynchronous: true
 
-                                Timer {
-                                    interval: 33  // ~30 FPS refresh for preview
-                                    running: true  // Always running when on calibration screen
-                                    repeat: true
-                                    onTriggered: {
-                                        cameraPreview.source = ""
-                                        cameraPreview.source = "image://frameprovider/camera?" + Date.now()
+                                onStatusChanged: {
+                                    if (status === Image.Ready && !cameraInitialized) {
+                                        cameraInitialized = true
                                     }
                                 }
 
-                                onStatusChanged: {
-                                    if (status === Image.Error) {
-                                        console.log("Camera preview error")
-                                    } else if (status === Image.Ready) {
-                                        console.log("Camera preview ready")
+                                Timer {
+                                    interval: 100  // 10 FPS refresh for preview (lighter on system)
+                                    running: cameraInitialized  // Only run after first successful load
+                                    repeat: true
+                                    onTriggered: {
+                                        // Just update the query parameter to force refresh
+                                        cameraPreview.source = "image://frameprovider/camera?" + Date.now()
                                     }
                                 }
                             }
 
                             Label {
                                 anchors.centerIn: parent
-                                text: cameraPreview.status === Image.Error ? "Camera not available" : "Loading camera..."
+                                text: "Waiting for camera..."
                                 color: "#5F6B7A"
                                 font.pixelSize: 14
-                                visible: cameraPreview.status !== Image.Ready
+                                visible: !cameraInitialized
                             }
                         }
 
