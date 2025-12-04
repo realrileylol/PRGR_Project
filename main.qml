@@ -266,6 +266,11 @@ ApplicationWindow {
             stack.push(Qt.resolvedUrl("screens/HistoryScreen.qml"), { win: win })
         }
 
+        function openCalibration() {
+            console.log("Opening:", Qt.resolvedUrl("screens/CalibrationScreen.qml"))
+            stack.push(Qt.resolvedUrl("screens/CalibrationScreen.qml"), { win: win })
+        }
+
         function goBack() {
             if (stack.depth > 1) {
                 stack.pop()

@@ -399,6 +399,41 @@ Item {
                     }
                 }
 
+                // Calibration button row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Button {
+                        text: "🧪 Calibration"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#2D9A4F" : success
+                            radius: 12
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            font.pixelSize: 18
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            soundManager.playClick()
+                            stack.openCalibration()
+                        }
+                    }
+                }
+
                 // Start Capture Button with Status Indicator
                 Rectangle {
                     Layout.fillWidth: true
