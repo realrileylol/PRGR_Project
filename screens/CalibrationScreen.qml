@@ -292,6 +292,192 @@ Item {
                     }
                 }
 
+                // Camera Settings Card (Always visible)
+                Rectangle {
+                    Layout.fillWidth: true
+                    radius: 12
+                    color: card
+                    border.color: edge
+                    border.width: 2
+                    implicitHeight: cameraSettingsCol.implicitHeight + 32
+
+                    ColumnLayout {
+                        id: cameraSettingsCol
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 12
+
+                        Label {
+                            text: "📷 Camera Settings"
+                            color: text
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+
+                        // Shutter Speed
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Label {
+                                    text: "Shutter Speed"
+                                    color: hint
+                                    font.pixelSize: 13
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Label {
+                                    text: shutterSlider.value + " μs"
+                                    color: text
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                }
+                            }
+
+                            Slider {
+                                id: shutterSlider
+                                Layout.fillWidth: true
+                                from: 1000
+                                to: 10000
+                                value: settingsManager ? settingsManager.cameraShutterSpeed : 1500
+                                stepSize: 100
+
+                                onValueChanged: {
+                                    if (settingsManager) {
+                                        settingsManager.setCameraShutterSpeed(value)
+                                        // Restart camera preview to apply settings
+                                        if (cameraManager && cameraManager.previewActive) {
+                                            cameraManager.stopPreview()
+                                            Qt.callLater(function() {
+                                                cameraManager.startPreview()
+                                            })
+                                        }
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    x: shutterSlider.leftPadding
+                                    y: shutterSlider.topPadding + shutterSlider.availableHeight / 2 - height / 2
+                                    width: shutterSlider.availableWidth
+                                    height: 4
+                                    radius: 2
+                                    color: "#E5E7EB"
+
+                                    Rectangle {
+                                        width: shutterSlider.visualPosition * parent.width
+                                        height: parent.height
+                                        color: accent
+                                        radius: 2
+                                    }
+                                }
+
+                                handle: Rectangle {
+                                    x: shutterSlider.leftPadding + shutterSlider.visualPosition * (shutterSlider.availableWidth - width)
+                                    y: shutterSlider.topPadding + shutterSlider.availableHeight / 2 - height / 2
+                                    width: 20
+                                    height: 20
+                                    radius: 10
+                                    color: shutterSlider.pressed ? "#2563EB" : accent
+                                    border.color: "white"
+                                    border.width: 2
+                                }
+                            }
+
+                            Label {
+                                text: "Higher = brighter image (slower shutter)"
+                                color: hint
+                                font.pixelSize: 11
+                                font.italic: true
+                            }
+                        }
+
+                        // Gain
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Label {
+                                    text: "Gain"
+                                    color: hint
+                                    font.pixelSize: 13
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Label {
+                                    text: gainSlider.value.toFixed(1)
+                                    color: text
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                }
+                            }
+
+                            Slider {
+                                id: gainSlider
+                                Layout.fillWidth: true
+                                from: 1.0
+                                to: 16.0
+                                value: settingsManager ? settingsManager.cameraGain : 6.0
+                                stepSize: 0.5
+
+                                onValueChanged: {
+                                    if (settingsManager) {
+                                        settingsManager.setCameraGain(value)
+                                        // Restart camera preview to apply settings
+                                        if (cameraManager && cameraManager.previewActive) {
+                                            cameraManager.stopPreview()
+                                            Qt.callLater(function() {
+                                                cameraManager.startPreview()
+                                            })
+                                        }
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    x: gainSlider.leftPadding
+                                    y: gainSlider.topPadding + gainSlider.availableHeight / 2 - height / 2
+                                    width: gainSlider.availableWidth
+                                    height: 4
+                                    radius: 2
+                                    color: "#E5E7EB"
+
+                                    Rectangle {
+                                        width: gainSlider.visualPosition * parent.width
+                                        height: parent.height
+                                        color: accent
+                                        radius: 2
+                                    }
+                                }
+
+                                handle: Rectangle {
+                                    x: gainSlider.leftPadding + gainSlider.visualPosition * (gainSlider.availableWidth - width)
+                                    y: gainSlider.topPadding + gainSlider.availableHeight / 2 - height / 2
+                                    width: 20
+                                    height: 20
+                                    radius: 10
+                                    color: gainSlider.pressed ? "#2563EB" : accent
+                                    border.color: "white"
+                                    border.width: 2
+                                }
+                            }
+
+                            Label {
+                                text: "Higher = brighter image (more noise)"
+                                color: hint
+                                font.pixelSize: 11
+                                font.italic: true
+                            }
+                        }
+                    }
+                }
+
                 // Calibration in Progress Card
                 Rectangle {
                     Layout.fillWidth: true
