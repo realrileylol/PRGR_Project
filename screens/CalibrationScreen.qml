@@ -348,8 +348,13 @@ Item {
 
                                 onValueChanged: {
                                     if (settingsManager) {
-                                        settingsManager.setCameraShutterSpeed(value)
-                                        // Restart camera preview to apply settings
+                                        settingsManager.setCameraShutterSpeed(Math.round(value))
+                                    }
+                                }
+
+                                onPressedChanged: {
+                                    if (!pressed && settingsManager) {
+                                        // User released slider - restart camera to apply settings
                                         if (cameraManager && cameraManager.previewActive) {
                                             cameraManager.stopPreview()
                                             Qt.callLater(function() {
@@ -430,7 +435,12 @@ Item {
                                 onValueChanged: {
                                     if (settingsManager) {
                                         settingsManager.setCameraGain(value)
-                                        // Restart camera preview to apply settings
+                                    }
+                                }
+
+                                onPressedChanged: {
+                                    if (!pressed && settingsManager) {
+                                        // User released slider - restart camera to apply settings
                                         if (cameraManager && cameraManager.previewActive) {
                                             cameraManager.stopPreview()
                                             Qt.callLater(function() {
