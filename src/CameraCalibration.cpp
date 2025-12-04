@@ -104,16 +104,25 @@ void CameraCalibration::captureCalibrationFrame() {
 bool CameraCalibration::detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners) {
     cv::Size boardSize(m_boardWidth, m_boardHeight);
 
+    qDebug() << "Detecting checkerboard:" << m_boardWidth << "x" << m_boardHeight
+             << "Image size:" << image.cols << "x" << image.rows
+             << "Channels:" << image.channels();
+
     // Find checkerboard corners
     bool found = cv::findChessboardCorners(image, boardSize, corners,
                                            cv::CALIB_CB_ADAPTIVE_THRESH |
                                            cv::CALIB_CB_NORMALIZE_IMAGE |
                                            cv::CALIB_CB_FAST_CHECK);
 
+    qDebug() << "Checkerboard detection result:" << (found ? "SUCCESS" : "FAILED")
+             << "Expected corners:" << (m_boardWidth * m_boardHeight)
+             << "Found:" << corners.size();
+
     if (found) {
         // Refine corner positions to sub-pixel accuracy
         cv::cornerSubPix(image, corners, cv::Size(11, 11), cv::Size(-1, -1),
                         cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
+        qDebug() << "Corner refinement complete";
     }
 
     return found;
