@@ -29,6 +29,19 @@ Item {
         color: bg
     }
 
+    Component.onCompleted: {
+        console.log("Calibration screen loaded")
+        // Ensure camera preview is running for calibration
+        if (cameraManager) {
+            if (!cameraManager.previewActive) {
+                cameraManager.startPreview()
+                console.log("Camera preview started for calibration")
+            } else {
+                console.log("Camera preview already active")
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
@@ -157,19 +170,20 @@ Item {
                                 font.pixelSize: 13
                             }
 
-                            SpinBox {
+                            TextField {
                                 id: boardWidth
-                                from: 3
-                                to: 20
-                                value: 5
+                                text: "5"
                                 Layout.fillWidth: true
-                                font.pixelSize: 16
+                                Layout.preferredHeight: 50
+                                font.pixelSize: 18
+                                horizontalAlignment: Text.AlignHCenter
+                                validator: IntValidator { bottom: 3; top: 20 }
 
                                 background: Rectangle {
                                     color: "#F5F7FA"
                                     radius: 8
-                                    border.color: edge
-                                    border.width: 1
+                                    border.color: boardWidth.activeFocus ? accent : edge
+                                    border.width: 2
                                 }
                             }
                         }
@@ -185,19 +199,20 @@ Item {
                                 font.pixelSize: 13
                             }
 
-                            SpinBox {
+                            TextField {
                                 id: boardHeight
-                                from: 3
-                                to: 20
-                                value: 7
+                                text: "7"
                                 Layout.fillWidth: true
-                                font.pixelSize: 16
+                                Layout.preferredHeight: 50
+                                font.pixelSize: 18
+                                horizontalAlignment: Text.AlignHCenter
+                                validator: IntValidator { bottom: 3; top: 20 }
 
                                 background: Rectangle {
                                     color: "#F5F7FA"
                                     radius: 8
-                                    border.color: edge
-                                    border.width: 1
+                                    border.color: boardHeight.activeFocus ? accent : edge
+                                    border.width: 2
                                 }
                             }
                         }
@@ -213,19 +228,20 @@ Item {
                                 font.pixelSize: 13
                             }
 
-                            SpinBox {
+                            TextField {
                                 id: squareSize
-                                from: 10
-                                to: 100
-                                value: 30
+                                text: "30"
                                 Layout.fillWidth: true
-                                font.pixelSize: 16
+                                Layout.preferredHeight: 50
+                                font.pixelSize: 18
+                                horizontalAlignment: Text.AlignHCenter
+                                validator: IntValidator { bottom: 10; top: 100 }
 
                                 background: Rectangle {
                                     color: "#F5F7FA"
                                     radius: 8
-                                    border.color: edge
-                                    border.width: 1
+                                    border.color: squareSize.activeFocus ? accent : edge
+                                    border.width: 2
                                 }
                             }
                         }
@@ -265,9 +281,9 @@ Item {
                             onClicked: {
                                 soundManager.playClick()
                                 cameraCalibration.startIntrinsicCalibration(
-                                    boardWidth.value,
-                                    boardHeight.value,
-                                    squareSize.value
+                                    parseInt(boardWidth.text),
+                                    parseInt(boardHeight.text),
+                                    parseInt(squareSize.text)
                                 )
                                 isCalibrating = true
                                 framesCaptured = 0
@@ -318,19 +334,27 @@ Item {
                                 asynchronous: true
 
                                 Timer {
-                                    interval: 100
-                                    running: isCalibrating
+                                    interval: 33  // ~30 FPS refresh for preview
+                                    running: true  // Always running when on calibration screen
                                     repeat: true
                                     onTriggered: {
                                         cameraPreview.source = ""
                                         cameraPreview.source = "image://frameprovider/camera?" + Date.now()
                                     }
                                 }
+
+                                onStatusChanged: {
+                                    if (status === Image.Error) {
+                                        console.log("Camera preview error")
+                                    } else if (status === Image.Ready) {
+                                        console.log("Camera preview ready")
+                                    }
+                                }
                             }
 
                             Label {
                                 anchors.centerIn: parent
-                                text: "Camera feed"
+                                text: cameraPreview.status === Image.Error ? "Camera not available" : "Loading camera..."
                                 color: "#5F6B7A"
                                 font.pixelSize: 14
                                 visible: cameraPreview.status !== Image.Ready
