@@ -60,6 +60,9 @@ public:
     double cameraTiltAngle() const { return m_cameraTilt; }
     double cameraDistance() const { return m_cameraDistance; }
 
+    // Scale factor (pixels per mm at image plane)
+    double pixelsPerMm() const;
+
     // Calibration matrices
     cv::Mat getCameraMatrix() const { return m_cameraMatrix.clone(); }
     cv::Mat getDistortionCoeffs() const { return m_distCoeffs.clone(); }

@@ -224,7 +224,7 @@ cv::Point3f TrajectoryTracker::predictNextPosition() const {
     return cv::Point3f(predicted.x, predicted.y, 0);
 }
 
-cv::Point3f TrajectoryTracker::imageToWorld(const cv::Point2f &imagePoint, int64_t timestamp) {
+cv::Point3f TrajectoryTracker::imageToWorld(const cv::Point2f &imagePoint, int64_t /*timestamp*/) {
     if (m_calibration && m_calibration->isExtrinsicCalibrated()) {
         // Use calibration to convert pixel to world coordinates
         return m_calibration->pixelToWorld(imagePoint, 0.021335);  // Golf ball radius

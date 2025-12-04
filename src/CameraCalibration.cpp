@@ -269,6 +269,26 @@ void CameraCalibration::finishExtrinsicCalibration() {
 }
 
 // ============================================================================
+// SCALE FACTOR
+// ============================================================================
+
+double CameraCalibration::pixelsPerMm() const {
+    if (!m_isIntrinsicCalibrated) {
+        return 0.0;
+    }
+
+    // Calculate pixels per mm based on focal length and sensor size
+    // For VGA resolution (640×480):
+    // pixels_per_mm = image_width / sensor_width
+    // Using 640×480 as reference resolution
+    double pixelsPerMmX = 640.0 / SENSOR_WIDTH_MM;
+    double pixelsPerMmY = 480.0 / SENSOR_HEIGHT_MM;
+
+    // Return average of X and Y
+    return (pixelsPerMmX + pixelsPerMmY) / 2.0;
+}
+
+// ============================================================================
 // DISTORTION CORRECTION
 // ============================================================================
 
