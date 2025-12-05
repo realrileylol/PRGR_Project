@@ -1041,14 +1041,14 @@ Item {
                                     soundManager.playSuccess()
 
                                     // Define world coordinates for 12"×12" square (ball at center)
-                                    // Convert from inches to millimeters (1 inch = 25.4 mm)
-                                    // 6 inches = 152.4 mm
+                                    // Convert from inches to METERS (1 inch = 0.0254 m)
+                                    // 6 inches = 0.1524 meters
                                     // Coordinate system: +X right, +Y away from camera, Z up
                                     var worldPoints = [
-                                        Qt.point(-152.4,  152.4),   // Front-Left (close to camera)
-                                        Qt.point( 152.4,  152.4),   // Front-Right (close to camera)
-                                        Qt.point( 152.4, -152.4),   // Back-Right (far from camera)
-                                        Qt.point(-152.4, -152.4)    // Back-Left (far from camera)
+                                        Qt.point(-0.1524,  0.1524),   // Front-Left (close to camera)
+                                        Qt.point( 0.1524,  0.1524),   // Front-Right (close to camera)
+                                        Qt.point( 0.1524, -0.1524),   // Back-Right (far from camera)
+                                        Qt.point(-0.1524, -0.1524)    // Back-Left (far from camera)
                                     ]
 
                                     // Call C++ function to calculate camera pose
