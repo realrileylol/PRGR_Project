@@ -348,7 +348,7 @@ Item {
 
                                 onValueChanged: {
                                     if (settingsManager) {
-                                        settingsManager.setCameraShutterSpeed(Math.round(value))
+                                        settingsManager.cameraShutterSpeed = Math.round(value)
                                     }
                                 }
 
@@ -434,7 +434,7 @@ Item {
 
                                 onValueChanged: {
                                     if (settingsManager) {
-                                        settingsManager.setCameraGain(value)
+                                        settingsManager.cameraGain = value
                                     }
                                 }
 
