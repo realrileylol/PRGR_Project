@@ -875,9 +875,42 @@ Item {
 
                                     onClicked: function(mouse) {
                                         if (markersClicked < 4) {
-                                            // Add clicked point to array
+                                            // Transform click coordinates from display space to camera frame space (640x480)
+                                            // Image is PreserveAspectFit, so need to account for scaling and centering
+
+                                            var cameraWidth = 640
+                                            var cameraHeight = 480
+                                            var cameraAspect = cameraWidth / cameraHeight
+
+                                            var displayWidth = extrinsicPreview.width
+                                            var displayHeight = extrinsicPreview.height
+                                            var displayAspect = displayWidth / displayHeight
+
+                                            var scaledWidth, scaledHeight, offsetX, offsetY
+
+                                            if (displayAspect > cameraAspect) {
+                                                // Display is wider - black bars on sides
+                                                scaledHeight = displayHeight
+                                                scaledWidth = scaledHeight * cameraAspect
+                                                offsetX = (displayWidth - scaledWidth) / 2
+                                                offsetY = 0
+                                            } else {
+                                                // Display is taller - black bars on top/bottom
+                                                scaledWidth = displayWidth
+                                                scaledHeight = scaledWidth / cameraAspect
+                                                offsetX = 0
+                                                offsetY = (displayHeight - scaledHeight) / 2
+                                            }
+
+                                            // Convert click to camera coordinates
+                                            var cameraX = ((mouse.x - offsetX) / scaledWidth) * cameraWidth
+                                            var cameraY = ((mouse.y - offsetY) / scaledHeight) * cameraHeight
+
+                                            console.log("Click: display(" + mouse.x + "," + mouse.y + ") -> camera(" + cameraX.toFixed(1) + "," + cameraY.toFixed(1) + ")")
+
+                                            // Add clicked point to array (in camera frame coordinates)
                                             var newPoints = markerPoints.slice()
-                                            newPoints.push(Qt.point(mouse.x, mouse.y))
+                                            newPoints.push(Qt.point(cameraX, cameraY))
                                             markerPoints = newPoints
                                             markersClicked++
                                             soundManager.playClick()
@@ -885,14 +918,48 @@ Item {
                                     }
                                 }
 
-                                // Draw markers
+                                // Draw markers (convert from camera coords back to display coords)
                                 Repeater {
                                     model: markerPoints.length
 
                                     Rectangle {
                                         property var pt: markerPoints[index]
-                                        x: pt.x - 10
-                                        y: pt.y - 10
+                                        property real displayX: {
+                                            var cameraWidth = 640
+                                            var cameraHeight = 480
+                                            var cameraAspect = cameraWidth / cameraHeight
+                                            var displayWidth = extrinsicPreview.width
+                                            var displayHeight = extrinsicPreview.height
+                                            var displayAspect = displayWidth / displayHeight
+                                            var scaledWidth, offsetX
+                                            if (displayAspect > cameraAspect) {
+                                                scaledWidth = displayHeight * cameraAspect
+                                                offsetX = (displayWidth - scaledWidth) / 2
+                                            } else {
+                                                scaledWidth = displayWidth
+                                                offsetX = 0
+                                            }
+                                            return offsetX + (pt.x / cameraWidth) * scaledWidth
+                                        }
+                                        property real displayY: {
+                                            var cameraWidth = 640
+                                            var cameraHeight = 480
+                                            var cameraAspect = cameraWidth / cameraHeight
+                                            var displayWidth = extrinsicPreview.width
+                                            var displayHeight = extrinsicPreview.height
+                                            var displayAspect = displayWidth / displayHeight
+                                            var scaledHeight, offsetY
+                                            if (displayAspect > cameraAspect) {
+                                                scaledHeight = displayHeight
+                                                offsetY = 0
+                                            } else {
+                                                scaledHeight = displayWidth / cameraAspect
+                                                offsetY = (displayHeight - scaledHeight) / 2
+                                            }
+                                            return offsetY + (pt.y / cameraHeight) * scaledHeight
+                                        }
+                                        x: displayX - 10
+                                        y: displayY - 10
                                         width: 20
                                         height: 20
                                         radius: 10
