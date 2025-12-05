@@ -45,6 +45,12 @@ Item {
                 }
             })
         }
+
+        // Check if intrinsic calibration is already done
+        if (cameraCalibration && cameraCalibration.isIntrinsicCalibrated) {
+            isComplete = true
+            framesCaptured = framesNeeded
+        }
     }
 
     ColumnLayout {
