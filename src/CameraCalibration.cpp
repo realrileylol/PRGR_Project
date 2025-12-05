@@ -267,29 +267,43 @@ void CameraCalibration::calculateCameraPose() {
         double tz = translations[i].at<double>(2, 0);
         double nz = normals[i].at<double>(2, 0);
 
-        // Camera should be above ground (positive Z)
-        // Normal should point upward (positive Z component)
-        if (tz > 0 && nz > 0) {
-            // Calculate tilt angle
-            double tiltRad = std::atan2(rotations[i].at<double>(2, 0),
-                                        rotations[i].at<double>(2, 2));
-            double tiltDeg = tiltRad * 180.0 / M_PI;
+        // Use absolute value of tz (camera height above ground)
+        double height = std::abs(tz);
 
-            // Prefer reasonable height (0.1 to 3 meters) and downward tilt (-45 to 0 degrees)
-            double score = 0;
-            if (tz > 0.1 && tz < 3.0) score += 100;  // Height is reasonable
-            if (tiltDeg < 0 && tiltDeg > -45) score += 100;  // Tilt is downward and reasonable
-            score -= std::abs(tiltDeg + 10);  // Prefer tilt near -10 degrees
+        // Calculate tilt angle
+        double tiltRad = std::atan2(rotations[i].at<double>(2, 0),
+                                    rotations[i].at<double>(2, 2));
+        double tiltDeg = tiltRad * 180.0 / M_PI;
 
-            qDebug() << "  Solution" << i << ": height=" << tz << "m, tilt=" << tiltDeg
-                     << "°, normal_z=" << nz << ", score=" << score;
+        // Scoring system to find best solution
+        double score = 0;
 
-            if (score > bestScore) {
-                bestScore = score;
-                bestIdx = i;
-            }
-        } else {
-            qDebug() << "  Solution" << i << ": REJECTED (tz=" << tz << ", nz=" << nz << ")";
+        // Prefer reasonable height (0.2 to 2 meters = 8 to 80 inches)
+        if (height > 0.2 && height < 2.0) {
+            score += 100;
+        } else if (height > 0.05 && height < 5.0) {
+            score += 50;  // Acceptable range
+        }
+
+        // Prefer downward tilt (-5 to -20 degrees)
+        if (tiltDeg < -5 && tiltDeg > -20) {
+            score += 100;
+        } else if (tiltDeg > 160 && tiltDeg < 175) {
+            // Flipped solution (180 - angle gives actual downward tilt)
+            score += 80;
+        } else if (tiltDeg < 0 && tiltDeg > -45) {
+            score += 50;  // Any downward tilt
+        }
+
+        // Prefer solutions where camera is above ground (positive tz)
+        if (tz > 0) score += 30;
+
+        qDebug() << "  Solution" << i << ": height=" << height << "m, tilt=" << tiltDeg
+                 << "°, tz=" << tz << ", nz=" << nz << ", score=" << score;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
         }
     }
 
@@ -303,8 +317,8 @@ void CameraCalibration::calculateCameraPose() {
     m_rotationMatrix = rotations[bestIdx];
     m_translationVector = translations[bestIdx];
 
-    // Extract camera height (Z component of translation)
-    m_cameraHeight = m_translationVector.at<double>(2, 0);
+    // Extract camera height (Z component of translation, use absolute value)
+    m_cameraHeight = std::abs(m_translationVector.at<double>(2, 0));
 
     // Calculate tilt angle from rotation matrix
     double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
