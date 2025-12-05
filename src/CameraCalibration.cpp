@@ -367,8 +367,17 @@ void CameraCalibration::saveCalibration() {
         return;
     }
 
-    QString calibPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/calibration.json";
-    QDir().mkpath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+    QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString calibPath = appDataPath + "/calibration.json";
+
+    // Create directory if it doesn't exist
+    QDir dir;
+    if (!dir.mkpath(appDataPath)) {
+        qWarning() << "Failed to create directory:" << appDataPath;
+        return;
+    }
+
+    qDebug() << "Saving calibration to:" << calibPath;
 
     QJsonObject json;
 
@@ -394,13 +403,29 @@ void CameraCalibration::saveCalibration() {
 
     // Save to file
     QFile file(calibPath);
-    if (file.open(QIODevice::WriteOnly)) {
-        QJsonDocument doc(json);
-        file.write(doc.toJson());
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Failed to open file for writing:" << calibPath;
+        qWarning() << "Error:" << file.errorString();
+        return;
+    }
+
+    QJsonDocument doc(json);
+    qint64 bytesWritten = file.write(doc.toJson());
+    if (bytesWritten == -1) {
+        qWarning() << "Failed to write calibration data:" << file.errorString();
         file.close();
-        qDebug() << "Calibration saved to" << calibPath;
+        return;
+    }
+
+    file.flush();  // Ensure data is written to disk
+    file.close();
+
+    // Verify file was created
+    if (QFile::exists(calibPath)) {
+        qDebug() << "✓ Calibration saved successfully to" << calibPath;
+        qDebug() << "✓ File size:" << bytesWritten << "bytes";
     } else {
-        qWarning() << "Failed to save calibration to" << calibPath;
+        qWarning() << "✗ Calibration file does not exist after save!";
     }
 }
 
