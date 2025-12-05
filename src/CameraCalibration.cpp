@@ -318,18 +318,25 @@ void CameraCalibration::calculateCameraPose() {
     m_translationVector = translations[bestIdx];
 
     // Extract camera height (Z component of translation, use absolute value)
-    m_cameraHeight = std::abs(m_translationVector.at<double>(2, 0));
+    // World coordinates are in mm, so convert to meters
+    m_cameraHeight = std::abs(m_translationVector.at<double>(2, 0)) / 1000.0;
 
     // Calculate tilt angle from rotation matrix
     double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
                                 m_rotationMatrix.at<double>(2, 2));
     m_cameraTilt = tiltRad * 180.0 / M_PI;
 
+    // Handle flipped solution (tilt near 180° means camera pointing down)
+    if (m_cameraTilt > 90) {
+        m_cameraTilt = m_cameraTilt - 180.0;  // Convert 167° to -13°
+    }
+
     // Calculate distance to origin (ball position)
+    // World coordinates are in mm, so convert to meters
     m_cameraDistance = std::sqrt(
         m_translationVector.at<double>(0, 0) * m_translationVector.at<double>(0, 0) +
         m_translationVector.at<double>(1, 0) * m_translationVector.at<double>(1, 0)
-    );
+    ) / 1000.0;
 }
 
 void CameraCalibration::finishExtrinsicCalibration() {
