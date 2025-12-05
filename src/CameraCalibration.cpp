@@ -244,8 +244,13 @@ void CameraCalibration::setGroundPlanePoints(const QList<QPointF> &imagePoints,
              << "ty=" << m_translationVector.at<double>(1)
              << "tz=" << m_translationVector.at<double>(2);
 
-    // Extract camera pose parameters
-    m_cameraHeight = std::abs(m_translationVector.at<double>(2)) / 1000.0;  // mm to meters
+    // Extract camera pose parameters from translation vector
+    // In OpenCV camera coordinates: X=right, Y=down, Z=forward
+    // Ball (world origin) position in camera frame:
+    //   ty = vertical offset (negative means ball is below camera)
+    //   tz = forward distance (distance from camera to ball)
+    m_cameraHeight = std::abs(m_translationVector.at<double>(1)) / 1000.0;  // |ty| mm to meters
+    m_cameraDistance = std::abs(m_translationVector.at<double>(2)) / 1000.0;  // |tz| mm to meters
 
     // Calculate tilt angle from rotation matrix
     double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
@@ -256,12 +261,6 @@ void CameraCalibration::setGroundPlanePoints(const QList<QPointF> &imagePoints,
     if (m_cameraTilt > 90) {
         m_cameraTilt = m_cameraTilt - 180.0;
     }
-
-    // Calculate distance to origin (ball position)
-    m_cameraDistance = std::sqrt(
-        m_translationVector.at<double>(0) * m_translationVector.at<double>(0) +
-        m_translationVector.at<double>(1) * m_translationVector.at<double>(1)
-    ) / 1000.0;  // mm to meters
 
     m_isExtrinsicCalibrated = true;
     m_status = "Extrinsic calibration complete";
