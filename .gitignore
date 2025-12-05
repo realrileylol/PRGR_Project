@@ -40,3 +40,4 @@ cpp_module/*.egg-info/
 .DS_Store
 Thumbs.db
 build/
+settings.json
