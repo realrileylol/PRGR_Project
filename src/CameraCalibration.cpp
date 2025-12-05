@@ -485,17 +485,17 @@ void CameraCalibration::resetCalibration() {
 
 QString CameraCalibration::formatCalibrationSummary() const {
     QString summary;
-    summary += QString("Focal Length: fx=%.1f fy=%.1f pixels\n").arg(m_fx).arg(m_fy);
-    summary += QString("Principal Point: (%.1f, %.1f)\n").arg(m_cx).arg(m_cy);
-    summary += QString("Distortion: k1=%.4f k2=%.4f k3=%.4f\n")
-                   .arg(m_distCoeffs.at<double>(0, 0))
-                   .arg(m_distCoeffs.at<double>(1, 0))
-                   .arg(m_distCoeffs.at<double>(4, 0));
+    summary += QString("Focal Length: fx=%1 fy=%2 pixels\n").arg(m_fx, 0, 'f', 1).arg(m_fy, 0, 'f', 1);
+    summary += QString("Principal Point: (%1, %2)\n").arg(m_cx, 0, 'f', 1).arg(m_cy, 0, 'f', 1);
+    summary += QString("Distortion: k1=%1 k2=%2 k3=%3\n")
+                   .arg(m_distCoeffs.at<double>(0, 0), 0, 'f', 4)
+                   .arg(m_distCoeffs.at<double>(1, 0), 0, 'f', 4)
+                   .arg(m_distCoeffs.at<double>(4, 0), 0, 'f', 4);
 
     if (m_isExtrinsicCalibrated) {
-        summary += QString("\nCamera Height: %.2f m\n").arg(m_cameraHeight);
-        summary += QString("Camera Tilt: %.1f°\n").arg(m_cameraTilt);
-        summary += QString("Camera Distance: %.2f m\n").arg(m_cameraDistance);
+        summary += QString("\nCamera Height: %1 m\n").arg(m_cameraHeight, 0, 'f', 2);
+        summary += QString("Camera Tilt: %1°\n").arg(m_cameraTilt, 0, 'f', 1);
+        summary += QString("Camera Distance: %1 m\n").arg(m_cameraDistance, 0, 'f', 2);
     }
 
     return summary;

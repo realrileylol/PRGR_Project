@@ -75,7 +75,7 @@ Item {
 
                 onClicked: {
                     soundManager.playClick()
-                    StackView.view.pop()
+                    stack.goBack()
                 }
             }
 
@@ -741,7 +741,7 @@ Item {
                             onClicked: {
                                 soundManager.playSuccess()
                                 cameraCalibration.saveCalibration()
-                                StackView.view.pop()
+                                stack.goBack()
                             }
                         }
                     }
