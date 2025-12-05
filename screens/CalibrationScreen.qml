@@ -25,6 +25,11 @@ Item {
     property bool isComplete: false
     property bool cameraInitialized: false
 
+    // Extrinsic calibration state
+    property bool showExtrinsic: false
+    property var markerPoints: []  // Clicked points on image
+    property int markersClicked: 0
+
     Rectangle {
         anchors.fill: parent
         color: bg
@@ -733,32 +738,250 @@ Item {
                             }
                         }
 
-                        Button {
-                            text: "Save & Exit"
+                        RowLayout {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 56
+                            spacing: 10
 
-                            scale: pressed ? 0.97 : 1.0
-                            Behavior on scale { NumberAnimation { duration: 100 } }
+                            Button {
+                                text: "Continue to Extrinsic"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 56
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#2D9A4F" : success
-                                radius: 10
+                                scale: pressed ? 0.97 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2563EB" : accent
+                                    radius: 10
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    showExtrinsic = true
+                                    isComplete = false
+                                }
                             }
 
-                            contentItem: Text {
-                                text: parent.text
-                                color: "white"
-                                font.pixelSize: 18
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            Button {
+                                text: "Save & Exit"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 56
+
+                                scale: pressed ? 0.97 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#2D9A4F" : success
+                                    radius: 10
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playSuccess()
+                                    cameraCalibration.saveCalibration()
+                                    stack.goBack()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Extrinsic Calibration Card (Ground Markers)
+                Rectangle {
+                    Layout.fillWidth: true
+                    radius: 12
+                    color: card
+                    border.color: accent
+                    border.width: 3
+                    visible: showExtrinsic
+                    implicitHeight: extrinsicCol.implicitHeight + 32
+
+                    ColumnLayout {
+                        id: extrinsicCol
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 14
+
+                        Label {
+                            text: "📍 Extrinsic Calibration (Ground Markers)"
+                            color: text
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+
+                        Label {
+                            text: "Click on the 4 ground markers in this order:\n" +
+                                  "1️⃣ Front-Left → 2️⃣ Front-Right → 3️⃣ Back-Right → 4️⃣ Back-Left\n\n" +
+                                  "You set up a 12\"×12\" square with the ball in the center."
+                            color: hint
+                            font.pixelSize: 13
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        // Camera Preview with clickable overlay
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 300
+                            color: "#000000"
+                            radius: 8
+                            border.color: edge
+                            border.width: 2
+
+                            Image {
+                                id: extrinsicPreview
+                                anchors.fill: parent
+                                anchors.margins: 2
+                                fillMode: Image.PreserveAspectFit
+                                source: "image://frameprovider/camera"
+                                cache: false
+
+                                Timer {
+                                    interval: 100
+                                    running: showExtrinsic
+                                    repeat: true
+                                    onTriggered: {
+                                        extrinsicPreview.source = "image://frameprovider/camera?" + Date.now()
+                                    }
+                                }
+
+                                // Click handler
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: markersClicked < 4
+
+                                    onClicked: function(mouse) {
+                                        if (markersClicked < 4) {
+                                            // Add clicked point to array
+                                            var newPoints = markerPoints.slice()
+                                            newPoints.push(Qt.point(mouse.x, mouse.y))
+                                            markerPoints = newPoints
+                                            markersClicked++
+                                            soundManager.playClick()
+                                        }
+                                    }
+                                }
+
+                                // Draw markers
+                                Repeater {
+                                    model: markerPoints.length
+
+                                    Rectangle {
+                                        property var pt: markerPoints[index]
+                                        x: pt.x - 10
+                                        y: pt.y - 10
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        color: success
+                                        border.color: "white"
+                                        border.width: 3
+
+                                        Label {
+                                            anchors.centerIn: parent
+                                            text: (index + 1)
+                                            color: "white"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Progress indicator
+                        Label {
+                            text: "Markers clicked: " + markersClicked + " / 4"
+                            color: text
+                            font.pixelSize: 14
+                            font.bold: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Button {
+                                text: "Clear Markers"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+
+                                background: Rectangle {
+                                    color: parent.pressed ? "#C84034" : danger
+                                    radius: 8
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playClick()
+                                    markerPoints = []
+                                    markersClicked = 0
+                                }
                             }
 
-                            onClicked: {
-                                soundManager.playSuccess()
-                                cameraCalibration.saveCalibration()
-                                stack.goBack()
+                            Button {
+                                text: "Calculate Camera Pose"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                enabled: markersClicked === 4
+
+                                background: Rectangle {
+                                    color: parent.enabled ? (parent.pressed ? "#2D9A4F" : success) : "#C8CCD4"
+                                    radius: 8
+                                }
+
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: parent.enabled ? "white" : "#5F6B7A"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    soundManager.playSuccess()
+
+                                    // Define world coordinates for 12"×12" square (in inches, ball at center)
+                                    var worldPoints = [
+                                        Qt.point(-6, -6),   // Front-Left
+                                        Qt.point( 6, -6),   // Front-Right
+                                        Qt.point( 6,  6),   // Back-Right
+                                        Qt.point(-6,  6)    // Back-Left
+                                    ]
+
+                                    // Call C++ function to calculate camera pose
+                                    cameraCalibration.setGroundPlanePoints(markerPoints, worldPoints)
+
+                                    // Show completion
+                                    showExtrinsic = false
+                                    isComplete = true
+                                }
                             }
                         }
                     }
