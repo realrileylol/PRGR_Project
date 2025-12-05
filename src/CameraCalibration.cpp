@@ -212,24 +212,56 @@ void CameraCalibration::setGroundPlanePoints(const QList<QPointF> &imagePoints,
         return;
     }
 
-    // Convert QList to std::vector
-    std::vector<cv::Point2f> srcPoints, dstPoints;
-    for (int i = 0; i < imagePoints.size(); i++) {
-        srcPoints.push_back(cv::Point2f(imagePoints[i].x(), imagePoints[i].y()));
-        dstPoints.push_back(cv::Point2f(worldPoints[i].x(), worldPoints[i].y()));
+    // Convert to OpenCV format with Z=0 (ground plane)
+    std::vector<cv::Point3f> objectPoints;  // 3D world points
+    std::vector<cv::Point2f> imagePoints2D; // 2D image points
+
+    for (int i = 0; i < worldPoints.size(); i++) {
+        // World points are in mm on ground plane (Z=0)
+        objectPoints.push_back(cv::Point3f(worldPoints[i].x(), worldPoints[i].y(), 0.0f));
+        imagePoints2D.push_back(cv::Point2f(imagePoints[i].x(), imagePoints[i].y()));
     }
 
-    // Compute homography from image plane to ground plane
-    m_homography = cv::findHomography(srcPoints, dstPoints, cv::RANSAC);
+    // Solve for camera pose using Perspective-n-Point
+    cv::Mat rvec, tvec;  // Rotation vector and translation vector
+    bool success = cv::solvePnP(objectPoints, imagePoints2D, m_cameraMatrix, m_distCoeffs,
+                                rvec, tvec, false, cv::SOLVEPNP_ITERATIVE);
 
-    if (m_homography.empty()) {
-        m_status = "Failed to compute homography";
+    if (!success) {
+        m_status = "Failed to solve camera pose";
         emit calibrationFailed(m_status);
         emit statusChanged();
         return;
     }
 
-    calculateCameraPose();
+    // Convert rotation vector to rotation matrix
+    cv::Rodrigues(rvec, m_rotationMatrix);
+    m_translationVector = tvec;
+
+    qDebug() << "solvePnP successful";
+    qDebug() << "Raw translation vector:"
+             << "tx=" << m_translationVector.at<double>(0)
+             << "ty=" << m_translationVector.at<double>(1)
+             << "tz=" << m_translationVector.at<double>(2);
+
+    // Extract camera pose parameters
+    m_cameraHeight = std::abs(m_translationVector.at<double>(2)) / 1000.0;  // mm to meters
+
+    // Calculate tilt angle from rotation matrix
+    double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
+                                m_rotationMatrix.at<double>(2, 2));
+    m_cameraTilt = tiltRad * 180.0 / M_PI;
+
+    // Handle flipped solution
+    if (m_cameraTilt > 90) {
+        m_cameraTilt = m_cameraTilt - 180.0;
+    }
+
+    // Calculate distance to origin (ball position)
+    m_cameraDistance = std::sqrt(
+        m_translationVector.at<double>(0) * m_translationVector.at<double>(0) +
+        m_translationVector.at<double>(1) * m_translationVector.at<double>(1)
+    ) / 1000.0;  // mm to meters
 
     m_isExtrinsicCalibrated = true;
     m_status = "Extrinsic calibration complete";
