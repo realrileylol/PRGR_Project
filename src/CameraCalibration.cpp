@@ -317,8 +317,13 @@ void CameraCalibration::calculateCameraPose() {
     m_rotationMatrix = rotations[bestIdx];
     m_translationVector = translations[bestIdx];
 
+    qDebug() << "Raw translation vector:"
+             << "tx=" << m_translationVector.at<double>(0, 0)
+             << "ty=" << m_translationVector.at<double>(1, 0)
+             << "tz=" << m_translationVector.at<double>(2, 0);
+
     // Extract camera height (Z component of translation, use absolute value)
-    // World coordinates are in mm, so convert to meters
+    // Translation is in same units as world coordinates (mm)
     m_cameraHeight = std::abs(m_translationVector.at<double>(2, 0)) / 1000.0;
 
     // Calculate tilt angle from rotation matrix
