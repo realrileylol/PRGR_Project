@@ -280,11 +280,28 @@ Item {
 
                             onClicked: {
                                 soundManager.playClick()
-                                cameraCalibration.startIntrinsicCalibration(
-                                    parseInt(boardWidth.text),
-                                    parseInt(boardHeight.text),
-                                    parseInt(squareSize.text)
-                                )
+
+                                // Validate inputs
+                                var width = parseInt(boardWidth.text)
+                                var height = parseInt(boardHeight.text)
+                                var size = parseInt(squareSize.text)
+
+                                if (isNaN(width) || width < 3 || width > 20) {
+                                    console.error("Invalid board width:", boardWidth.text)
+                                    return
+                                }
+                                if (isNaN(height) || height < 3 || height > 20) {
+                                    console.error("Invalid board height:", boardHeight.text)
+                                    return
+                                }
+                                if (isNaN(size) || size < 10 || size > 100) {
+                                    console.error("Invalid square size:", squareSize.text)
+                                    return
+                                }
+
+                                console.log("Starting calibration with:", width, "x", height, "size:", size)
+
+                                cameraCalibration.startIntrinsicCalibration(width, height, size)
                                 isCalibrating = true
                                 framesCaptured = 0
                             }
