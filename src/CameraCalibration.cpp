@@ -252,24 +252,70 @@ void CameraCalibration::calculateCameraPose() {
     std::vector<cv::Mat> rotations, translations, normals;
     cv::decomposeHomographyMat(m_homography, m_cameraMatrix, rotations, translations, normals);
 
-    if (!rotations.empty()) {
-        m_rotationMatrix = rotations[0];
-        m_translationVector = translations[0];
-
-        // Extract camera height (Z component of translation)
-        m_cameraHeight = std::abs(m_translationVector.at<double>(2, 0));
-
-        // Calculate tilt angle from rotation matrix
-        double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
-                                    m_rotationMatrix.at<double>(2, 2));
-        m_cameraTilt = tiltRad * 180.0 / M_PI;
-
-        // Calculate distance to origin (ball position)
-        m_cameraDistance = std::sqrt(
-            m_translationVector.at<double>(0, 0) * m_translationVector.at<double>(0, 0) +
-            m_translationVector.at<double>(1, 0) * m_translationVector.at<double>(1, 0)
-        );
+    if (rotations.empty()) {
+        qWarning() << "Failed to decompose homography";
+        return;
     }
+
+    qDebug() << "Homography decomposition returned" << rotations.size() << "solutions";
+
+    // Select the best solution (camera above ground, pointing down)
+    int bestIdx = -1;
+    double bestScore = -1e9;
+
+    for (size_t i = 0; i < rotations.size(); i++) {
+        double tz = translations[i].at<double>(2, 0);
+        double nz = normals[i].at<double>(2, 0);
+
+        // Camera should be above ground (positive Z)
+        // Normal should point upward (positive Z component)
+        if (tz > 0 && nz > 0) {
+            // Calculate tilt angle
+            double tiltRad = std::atan2(rotations[i].at<double>(2, 0),
+                                        rotations[i].at<double>(2, 2));
+            double tiltDeg = tiltRad * 180.0 / M_PI;
+
+            // Prefer reasonable height (0.1 to 3 meters) and downward tilt (-45 to 0 degrees)
+            double score = 0;
+            if (tz > 0.1 && tz < 3.0) score += 100;  // Height is reasonable
+            if (tiltDeg < 0 && tiltDeg > -45) score += 100;  // Tilt is downward and reasonable
+            score -= std::abs(tiltDeg + 10);  // Prefer tilt near -10 degrees
+
+            qDebug() << "  Solution" << i << ": height=" << tz << "m, tilt=" << tiltDeg
+                     << "°, normal_z=" << nz << ", score=" << score;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestIdx = i;
+            }
+        } else {
+            qDebug() << "  Solution" << i << ": REJECTED (tz=" << tz << ", nz=" << nz << ")";
+        }
+    }
+
+    if (bestIdx < 0) {
+        qWarning() << "No valid solution found! Using first solution as fallback.";
+        bestIdx = 0;
+    }
+
+    qDebug() << "Selected solution" << bestIdx << "as best";
+
+    m_rotationMatrix = rotations[bestIdx];
+    m_translationVector = translations[bestIdx];
+
+    // Extract camera height (Z component of translation)
+    m_cameraHeight = m_translationVector.at<double>(2, 0);
+
+    // Calculate tilt angle from rotation matrix
+    double tiltRad = std::atan2(m_rotationMatrix.at<double>(2, 0),
+                                m_rotationMatrix.at<double>(2, 2));
+    m_cameraTilt = tiltRad * 180.0 / M_PI;
+
+    // Calculate distance to origin (ball position)
+    m_cameraDistance = std::sqrt(
+        m_translationVector.at<double>(0, 0) * m_translationVector.at<double>(0, 0) +
+        m_translationVector.at<double>(1, 0) * m_translationVector.at<double>(1, 0)
+    );
 }
 
 void CameraCalibration::finishExtrinsicCalibration() {
