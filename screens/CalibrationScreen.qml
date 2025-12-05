@@ -1043,11 +1043,12 @@ Item {
                                     // Define world coordinates for 12"×12" square (ball at center)
                                     // Convert from inches to millimeters (1 inch = 25.4 mm)
                                     // 6 inches = 152.4 mm
+                                    // Coordinate system: +X right, +Y away from camera, Z up
                                     var worldPoints = [
-                                        Qt.point(-152.4, -152.4),   // Front-Left (mm)
-                                        Qt.point( 152.4, -152.4),   // Front-Right (mm)
-                                        Qt.point( 152.4,  152.4),   // Back-Right (mm)
-                                        Qt.point(-152.4,  152.4)    // Back-Left (mm)
+                                        Qt.point(-152.4,  152.4),   // Front-Left (close to camera)
+                                        Qt.point( 152.4,  152.4),   // Front-Right (close to camera)
+                                        Qt.point( 152.4, -152.4),   // Back-Right (far from camera)
+                                        Qt.point(-152.4, -152.4)    // Back-Left (far from camera)
                                     ]
 
                                     // Call C++ function to calculate camera pose
