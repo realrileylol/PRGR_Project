@@ -1041,14 +1041,14 @@ Item {
                                     soundManager.playSuccess()
 
                                     // Define world coordinates for 12"×12" square (ball at center)
-                                    // Must use MILLIMETERS to match intrinsic calibration units (35mm squares)
+                                    // Must use MILLIMETERS to match intrinsic calibration units
                                     // 6 inches = 152.4mm
-                                    // Coordinate system: +X right, +Y away from camera, Z up
+                                    // Coordinate system: Origin at ball, +X right, +Y away from camera, +Z up
                                     var worldPoints = [
-                                        Qt.point(-152.4,  152.4),   // Front-Left (close to camera) in mm
-                                        Qt.point( 152.4,  152.4),   // Front-Right (close to camera) in mm
-                                        Qt.point( 152.4, -152.4),   // Back-Right (far from camera) in mm
-                                        Qt.point(-152.4, -152.4)    // Back-Left (far from camera) in mm
+                                        Qt.point(-152.4, -152.4),   // Front-Left (close to camera, left side)
+                                        Qt.point( 152.4, -152.4),   // Front-Right (close to camera, right side)
+                                        Qt.point( 152.4,  152.4),   // Back-Right (far from camera, right side)
+                                        Qt.point(-152.4,  152.4)    // Back-Left (far from camera, left side)
                                     ]
 
                                     // Call C++ function to calculate camera pose
