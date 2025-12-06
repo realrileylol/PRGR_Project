@@ -212,6 +212,10 @@ void CameraCalibration::setGroundPlanePoints(const QList<QPointF> &imagePoints,
         return;
     }
 
+    // Store marker corners for later use as zone boundaries
+    m_markerCorners = imagePoints;
+    qDebug() << "Stored marker corners for zone calibration:" << m_markerCorners.size() << "points";
+
     // Convert to OpenCV format with Z=0 (ground plane)
     std::vector<cv::Point3f> objectPoints;  // 3D world points
     std::vector<cv::Point2f> imagePoints2D; // 2D image points
@@ -522,6 +526,16 @@ void CameraCalibration::saveCalibration() {
     }
     json["zone_corners"] = zoneCorners;
 
+    // Marker corners (from extrinsic calibration)
+    QJsonArray markerCorners;
+    for (const auto &corner : m_markerCorners) {
+        QJsonObject cornerObj;
+        cornerObj["x"] = corner.x();
+        cornerObj["y"] = corner.y();
+        markerCorners.append(cornerObj);
+    }
+    json["marker_corners"] = markerCorners;
+
     // Save to file
     QFile file(calibPath);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -613,6 +627,14 @@ void CameraCalibration::loadCalibration() {
         m_zoneCorners.append(QPointF(cornerObj["x"].toDouble(), cornerObj["y"].toDouble()));
     }
 
+    // Load marker corners (from extrinsic calibration)
+    m_markerCorners.clear();
+    QJsonArray markerCorners = json["marker_corners"].toArray();
+    for (const auto &cornerVal : markerCorners) {
+        QJsonObject cornerObj = cornerVal.toObject();
+        m_markerCorners.append(QPointF(cornerObj["x"].toDouble(), cornerObj["y"].toDouble()));
+    }
+
     if (m_isIntrinsicCalibrated) {
         m_status = "Calibration loaded";
         qDebug() << "Camera calibration loaded from" << calibPath;
@@ -641,6 +663,7 @@ void CameraCalibration::resetCalibration() {
     m_cameraHeight = m_cameraTilt = m_cameraDistance = 0.0;
     m_ballCenterX = m_ballCenterY = m_ballRadius = 0.0;
     m_zoneCorners.clear();
+    m_markerCorners.clear();
     m_progress = 0;
     m_status = "Calibration reset";
 
@@ -842,6 +865,22 @@ void CameraCalibration::setZoneCorners(const QList<QPointF> &corners) {
 
     emit zoneDefinedChanged();
     emit calibrationComplete("Zone boundary defined successfully");
+}
+
+void CameraCalibration::useMarkerCornersForZone() {
+    if (!m_isExtrinsicCalibrated || m_markerCorners.size() != 4) {
+        qWarning() << "Extrinsic calibration markers not available";
+        emit calibrationFailed("Complete extrinsic calibration first");
+        return;
+    }
+
+    qDebug() << "Using extrinsic calibration marker corners for zone:";
+    for (int i = 0; i < 4; i++) {
+        qDebug() << "  Marker" << i << ":" << m_markerCorners[i];
+    }
+
+    // Use marker corners directly as zone corners
+    setZoneCorners(m_markerCorners);
 }
 
 QString CameraCalibration::formatCalibrationSummary() const {

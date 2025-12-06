@@ -47,6 +47,7 @@ class CameraCalibration : public QObject {
     // Zone boundaries (4 corners of 12"×12" zone)
     Q_PROPERTY(bool isZoneDefined READ isZoneDefined NOTIFY zoneDefinedChanged)
     Q_PROPERTY(QList<QPointF> zoneCorners READ zoneCorners NOTIFY zoneDefinedChanged)
+    Q_PROPERTY(QList<QPointF> markerCorners READ markerCorners NOTIFY extrinsicCalibrationChanged)
 
 public:
     explicit CameraCalibration(QObject *parent = nullptr);
@@ -77,6 +78,7 @@ public:
 
     bool isZoneDefined() const { return m_isZoneDefined; }
     QList<QPointF> zoneCorners() const { return m_zoneCorners; }
+    QList<QPointF> markerCorners() const { return m_markerCorners; }  // Extrinsic calibration marker corners
 
     // Scale factor (pixels per mm at image plane)
     double pixelsPerMm() const;
@@ -111,6 +113,7 @@ public slots:
     Q_INVOKABLE void detectBallForZoneCalibration();
     Q_INVOKABLE void setBallEdgePoints(const QList<QPointF> &edgePoints);
     Q_INVOKABLE void setZoneCorners(const QList<QPointF> &corners);
+    Q_INVOKABLE void useMarkerCornersForZone();  // Use extrinsic calibration markers as zone
     void setBallZone(double centerX, double centerY, double radius);
 
     // Load/save calibration
@@ -166,6 +169,7 @@ private:
     // Zone boundaries (4 corners of 12"×12" zone)
     bool m_isZoneDefined = false;
     QList<QPointF> m_zoneCorners;  // 4 corner points in pixels
+    QList<QPointF> m_markerCorners;  // Extrinsic calibration marker corners (4 points in pixels)
 
     // Intrinsic calibration state
     int m_boardWidth = 0;

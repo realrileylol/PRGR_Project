@@ -206,13 +206,19 @@ Rectangle {
 
                             if (clickMode === "ball_edge") {
                                 if (ballEdgePoints.length < 6) {  // Max 6 points
-                                    ballEdgePoints.push(camPoint)
+                                    var temp = ballEdgePoints.slice()  // Copy array
+                                    temp.push(camPoint)
+                                    ballEdgePoints = temp  // Reassign to trigger binding
+                                    console.log("Ball edge points count:", ballEdgePoints.length)
                                     clickOverlay.requestPaint()
                                     soundManager.playClick()
                                 }
                             } else if (clickMode === "zone_corners") {
                                 if (zoneCornerPoints.length < 4) {
-                                    zoneCornerPoints.push(camPoint)
+                                    var temp = zoneCornerPoints.slice()  // Copy array
+                                    temp.push(camPoint)
+                                    zoneCornerPoints = temp  // Reassign to trigger binding
+                                    console.log("Zone corner points count:", zoneCornerPoints.length)
                                     clickOverlay.requestPaint()
                                     soundManager.playClick()
                                 }
@@ -586,10 +592,54 @@ Rectangle {
                         spacing: 10
 
                         Button {
-                            text: clickMode === "zone_corners" ? "Clicking..." : "Click Zone Corners"
-                            Layout.preferredWidth: 180
+                            text: "Use Calibration Markers"
+                            Layout.preferredWidth: 200
                             Layout.preferredHeight: 45
+                            font.pixelSize: 13
+                            font.bold: true
+                            enabled: cameraCalibration.isBallZoneCalibrated && cameraCalibration.markerCorners.length === 4
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: parent.enabled
+                                       ? (parent.pressed ? "#388e3c" : "#4caf50")
+                                       : "#3d3d3d"
+                                radius: 6
+                                border.color: parent.enabled ? "#388e3c" : "#666666"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                console.log("Using extrinsic calibration markers as zone")
+                                cameraCalibration.useMarkerCornersForZone()
+                                soundManager.playClick()
+                            }
+
+                            ToolTip.visible: hovered
+                            ToolTip.text: enabled
+                                          ? "Use the 4 markers from extrinsic calibration"
+                                          : "Complete ball calibration and extrinsic calibration first"
+                        }
+
+                        Text {
+                            text: "OR"
                             font.pixelSize: 14
+                            font.bold: true
+                            color: "#888888"
+                        }
+
+                        Button {
+                            text: clickMode === "zone_corners" ? "Clicking..." : "Click Zone Corners"
+                            Layout.preferredWidth: 160
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 13
                             font.bold: true
                             enabled: (clickMode === "" || clickMode === "zone_corners") && cameraCalibration.isBallZoneCalibrated
 
@@ -695,8 +745,12 @@ Rectangle {
                         }
 
                         Text {
-                            text: cameraCalibration.isZoneDefined ? "✓ Complete" : "Click FL→FR→BR→BL corners"
-                            font.pixelSize: 13
+                            text: cameraCalibration.isZoneDefined
+                                  ? "✓ Complete"
+                                  : (cameraCalibration.markerCorners.length === 4
+                                     ? "Use markers or click manually"
+                                     : "Click FL→FR→BR→BL corners")
+                            font.pixelSize: 12
                             color: cameraCalibration.isZoneDefined ? "#4caf50" : "#888888"
                             Layout.fillWidth: true
                         }
