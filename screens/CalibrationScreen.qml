@@ -97,6 +97,39 @@ Item {
                 font.bold: true
                 Layout.fillWidth: true
             }
+
+            Button {
+                text: "🎯 Ball Zone"
+                implicitWidth: 140
+                implicitHeight: 44
+                enabled: cameraCalibration.isExtrinsicCalibrated
+
+                background: Rectangle {
+                    color: parent.enabled
+                           ? (parent.pressed ? "#2563EB" : accent)
+                           : "#E5E7EB"
+                    radius: 8
+                    border.color: parent.enabled ? "#2563EB" : edge
+                    border.width: 2
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: parent.enabled ? "white" : hint
+                    font.pixelSize: 16
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    stack.openBallZoneCalibration()
+                }
+
+                ToolTip.visible: !enabled && hovered
+                ToolTip.text: "Complete extrinsic calibration first"
+            }
         }
 
         Rectangle { Layout.fillWidth: true; height: 2; color: edge }
