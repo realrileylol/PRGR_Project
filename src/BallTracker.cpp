@@ -1,6 +1,7 @@
 #include "BallTracker.h"
 #include "CameraManager.h"
 #include "CameraCalibration.h"
+#include "KLD2Manager.h"
 #include <QDebug>
 
 BallTracker::BallTracker(CameraManager *cameraManager,
@@ -9,6 +10,7 @@ BallTracker::BallTracker(CameraManager *cameraManager,
     : QObject(parent)
     , m_cameraManager(cameraManager)
     , m_calibration(calibration)
+    , m_radar(nullptr)
     , m_state(TrackingState::IDLE)
     , m_status("Ready to track")
     , m_framesSinceArmed(0)
@@ -161,8 +163,24 @@ void BallTracker::processFrame() {
                 m_referenceFrame = processed.clone();
                 qDebug() << "Reference frame captured";
             } else {
-                // Monitor for motion
-                if (detectMotion(processed, m_referenceFrame)) {
+                // Monitor for motion (camera-based)
+                bool cameraMotionDetected = detectMotion(processed, m_referenceFrame);
+
+                // If radar available, use it for confirmation (much more reliable)
+                bool radarConfirmed = false;
+                if (m_radar && m_radar->isConnected()) {
+                    double speed = m_radar->getSpeed();
+                    radarConfirmed = (speed > 5.0);  // Ball moving > 5 mph = real hit
+
+                    if (radarConfirmed) {
+                        qDebug() << "Radar confirmed ball speed:" << speed << "mph";
+                    }
+                }
+
+                // Trigger if: (camera motion + radar confirms) OR (camera motion + no radar available)
+                bool shouldTrigger = cameraMotionDetected && (radarConfirmed || m_radar == nullptr || !m_radar->isConnected());
+
+                if (shouldTrigger) {
                     // Motion detected - ball hit!
                     m_hitTime = timestamp;
                     m_lastBallPos = m_stationaryBallPos;
@@ -171,7 +189,8 @@ void BallTracker::processFrame() {
                     setStatus("Hit detected - tracking");
                     emit hitDetected(m_stationaryBallPos);
 
-                    qDebug() << "Ball motion detected at frame" << m_frameNumber;
+                    qDebug() << "Ball hit confirmed at frame" << m_frameNumber
+                             << (m_radar ? "(radar + camera)" : "(camera only)");
 
                     // Add pre-trigger frames from buffer
                     int preTriggerFrames = std::min(5, (int)m_frameBuffer.size());
@@ -322,22 +341,57 @@ bool BallTracker::detectMotion(const cv::Mat &currentFrame, const cv::Mat &refer
         return false;
     }
 
-    // Create mask for ball zone
+    // Create tight mask for ball zone only (1.5x radius to avoid club)
     cv::Mat mask = cv::Mat::zeros(currentFrame.size(), CV_8UC1);
-    cv::circle(mask, m_ballZoneCenter, m_ballZoneRadius * 2.0, cv::Scalar(255), -1);
+    cv::circle(mask, m_ballZoneCenter, m_ballZoneRadius * 1.5, cv::Scalar(255), -1);
 
     // Frame difference
     cv::Mat diff;
     cv::absdiff(currentFrame, referenceFrame, diff);
 
-    // Apply mask
+    // Apply mask to only check ball zone
     diff.setTo(0, ~mask);
 
-    // Calculate mean difference in ball zone
-    cv::Scalar meanDiff = cv::mean(diff, mask);
-    double motion = meanDiff[0];
+    // Threshold the difference to find changed regions
+    cv::Mat thresh;
+    cv::threshold(diff, thresh, m_motionThreshold, 255, cv::THRESH_BINARY);
 
-    return motion > m_motionThreshold;
+    // Find connected components (blobs) in the difference
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(thresh, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    // Filter blobs - look for small, ball-sized motion, not large club motion
+    for (const auto &contour : contours) {
+        double area = cv::contourArea(contour);
+
+        // Club creates large blobs (1000+ pixels), ball creates small motion (50-400 pixels)
+        if (area < m_minBallArea * 0.5 || area > m_maxBallArea * 1.5) {
+            continue;  // Too small (noise) or too large (club)
+        }
+
+        // Check if blob is roughly circular (ball), not elongated (club shaft)
+        double perimeter = cv::arcLength(contour, true);
+        double circularity = 4 * M_PI * area / (perimeter * perimeter);
+
+        if (circularity > 0.4) {  // Reasonably circular = ball motion
+            // Check if motion is near ball center
+            cv::Moments moments = cv::moments(contour);
+            if (moments.m00 > 0) {
+                cv::Point2f motionCenter(moments.m10 / moments.m00, moments.m01 / moments.m00);
+                double distFromBall = cv::norm(motionCenter - m_ballZoneCenter);
+
+                // Motion must be within ball zone
+                if (distFromBall < m_ballZoneRadius * 1.2) {
+                    qDebug() << "Ball motion detected: area=" << area << "circularity=" << circularity
+                             << "distFromBall=" << distFromBall;
+                    return true;  // Valid ball motion detected
+                }
+            }
+        }
+    }
+
+    // No valid ball motion found (likely club or noise)
+    return false;
 }
 
 bool BallTracker::detectBall(const cv::Mat &frame, const cv::Rect &searchRegion, cv::Point2f &ballPos) {

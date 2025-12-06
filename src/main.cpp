@@ -55,6 +55,9 @@ int main(int argc, char *argv[]) {
     trajectoryTracker.setCalibration(&cameraCalibration);
     trajectoryTracker.setBallDetector(&ballDetector);
 
+    // Connect ball tracker to radar for hybrid triggering (prevents false triggers from club)
+    ballTracker.setRadar(&kld2Manager);
+
     // Create QML engine
     QQmlApplicationEngine engine;
 
