@@ -8,17 +8,49 @@ Rectangle {
 
     property var win  // Main window reference passed from navigation
 
-    property bool ballDetected: false
-    property double detectedX: 0
-    property double detectedY: 0
-    property double detectedRadius: 0
-    property double detectedConfidence: 0
+    // Manual clicking state
+    property string clickMode: ""  // "", "ball_edge", "zone_corners"
+    property var ballEdgePoints: []
+    property var zoneCornerPoints: []
 
     // Ensure camera preview is active when screen loads
     Component.onCompleted: {
         if (!cameraManager.previewActive) {
             cameraManager.startPreview()
         }
+    }
+
+    // Helper function to transform display coordinates to camera coordinates
+    function transformToCamera(displayX, displayY, imageWidth, imageHeight) {
+        var cameraWidth = 640
+        var cameraHeight = 480
+        var cameraAspect = cameraWidth / cameraHeight
+        var displayAspect = imageWidth / imageHeight
+
+        var scaledWidth, scaledHeight, offsetX, offsetY
+        if (displayAspect > cameraAspect) {
+            scaledHeight = imageHeight
+            scaledWidth = scaledHeight * cameraAspect
+            offsetX = (imageWidth - scaledWidth) / 2
+            offsetY = 0
+        } else {
+            scaledWidth = imageWidth
+            scaledHeight = scaledWidth / cameraAspect
+            offsetX = 0
+            offsetY = (imageHeight - scaledHeight) / 2
+        }
+
+        var scaleX = scaledWidth / cameraWidth
+        var scaleY = scaledHeight / cameraHeight
+
+        var cameraX = (displayX - offsetX) / scaleX
+        var cameraY = (displayY - offsetY) / scaleY
+
+        // Clamp to valid camera coordinates
+        cameraX = Math.max(0, Math.min(cameraWidth, cameraX))
+        cameraY = Math.max(0, Math.min(cameraHeight, cameraY))
+
+        return Qt.point(cameraX, cameraY)
     }
 
     // Scrollable content
@@ -30,13 +62,13 @@ Rectangle {
 
         ColumnLayout {
             width: parent.parent.width
-            spacing: 20
+            spacing: 15
 
             // Header
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 70
-                Layout.topMargin: 20
+                Layout.preferredHeight: 60
+                Layout.topMargin: 15
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
 
@@ -46,16 +78,20 @@ Rectangle {
 
                     Text {
                         text: "Ball Zone Calibration"
-                        font.pixelSize: 32
+                        font.pixelSize: 28
                         font.bold: true
                         color: "#ffffff"
                         Layout.alignment: Qt.AlignHCenter
                     }
 
                     Text {
-                        text: "Place the golf ball anywhere within the 12\"×12\" zone"
-                        font.pixelSize: 14
-                        color: "#cccccc"
+                        text: clickMode === "ball_edge"
+                              ? "Click 3-4 points around ball edge"
+                              : clickMode === "zone_corners"
+                              ? "Click 4 corners of the 12\"×12\" zone"
+                              : "Manual calibration workflow"
+                        font.pixelSize: 13
+                        color: clickMode !== "" ? "#ff9800" : "#cccccc"
                         Layout.alignment: Qt.AlignHCenter
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
@@ -66,28 +102,32 @@ Rectangle {
             // Status indicator
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 70
+                Layout.preferredHeight: 65
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
-                color: cameraCalibration.isBallZoneCalibrated ? "#2d5016" : "#3d3d3d"
+                color: (cameraCalibration.isBallZoneCalibrated && cameraCalibration.isZoneDefined)
+                       ? "#2d5016" : "#3d3d3d"
                 radius: 8
-                border.color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
+                border.color: (cameraCalibration.isBallZoneCalibrated && cameraCalibration.isZoneDefined)
+                              ? "#4caf50" : "#666666"
                 border.width: 2
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 15
+                    anchors.margins: 12
+                    spacing: 12
 
                     Rectangle {
                         width: 40
                         height: 40
                         radius: 20
-                        color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
+                        color: (cameraCalibration.isBallZoneCalibrated && cameraCalibration.isZoneDefined)
+                               ? "#4caf50" : "#666666"
 
                         Text {
                             anchors.centerIn: parent
-                            text: cameraCalibration.isBallZoneCalibrated ? "✓" : ""
+                            text: (cameraCalibration.isBallZoneCalibrated && cameraCalibration.isZoneDefined)
+                                  ? "✓" : ""
                             color: "#ffffff"
                             font.pixelSize: 24
                             font.bold: true
@@ -96,40 +136,48 @@ Rectangle {
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 5
+                        spacing: 4
 
                         Text {
-                            text: cameraCalibration.isBallZoneCalibrated
-                                  ? "Ball Zone Calibrated ✓"
-                                  : "Ball Zone Not Calibrated"
-                            font.pixelSize: 18
+                            text: {
+                                if (cameraCalibration.isBallZoneCalibrated && cameraCalibration.isZoneDefined) {
+                                    return "Ball & Zone Calibrated ✓"
+                                } else if (cameraCalibration.isBallZoneCalibrated) {
+                                    return "Ball Calibrated • Zone Pending"
+                                } else if (cameraCalibration.isZoneDefined) {
+                                    return "Zone Defined • Ball Pending"
+                                } else {
+                                    return "Not Calibrated"
+                                }
+                            }
+                            font.pixelSize: 16
                             font.bold: true
                             color: "#ffffff"
                         }
 
                         Text {
                             text: cameraCalibration.isBallZoneCalibrated
-                                  ? "Position: (" + cameraCalibration.ballCenterX.toFixed(1) + ", "
-                                    + cameraCalibration.ballCenterY.toFixed(1) + ") • Radius: "
+                                  ? "Ball: (" + cameraCalibration.ballCenterX.toFixed(1) + ", "
+                                    + cameraCalibration.ballCenterY.toFixed(1) + ") • R: "
                                     + cameraCalibration.ballRadius.toFixed(1) + "px"
-                                  : "Place ball in zone and detect"
-                            font.pixelSize: 13
+                                  : "Click ball edge points to calibrate"
+                            font.pixelSize: 12
                             color: "#cccccc"
                         }
                     }
                 }
             }
 
-            // Camera preview with ball visualization
+            // Camera preview with manual clicking
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 300
+                Layout.preferredHeight: 320
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
                 color: "#000000"
                 radius: 8
-                border.color: "#666666"
-                border.width: 2
+                border.color: clickMode !== "" ? "#ff9800" : "#666666"
+                border.width: clickMode !== "" ? 3 : 2
 
                 Image {
                     id: cameraPreview
@@ -146,19 +194,41 @@ Rectangle {
                         onTriggered: cameraPreview.source = "image://frameprovider/preview?" + Date.now()
                     }
 
-                    // Overlay for ball detection visualization
-                    Canvas {
-                        id: ballOverlay
+                    // MouseArea for manual clicking
+                    MouseArea {
                         anchors.fill: parent
-                        visible: ballDetected || cameraCalibration.isBallZoneCalibrated
+                        enabled: clickMode !== ""
+                        cursorShape: enabled ? Qt.CrossCursor : Qt.ArrowCursor
+
+                        onClicked: function(mouse) {
+                            var camPoint = root.transformToCamera(mouse.x, mouse.y, width, height)
+                            console.log("Clicked at display:", mouse.x, mouse.y, "-> camera:", camPoint.x.toFixed(1), camPoint.y.toFixed(1))
+
+                            if (clickMode === "ball_edge") {
+                                if (ballEdgePoints.length < 6) {  // Max 6 points
+                                    ballEdgePoints.push(camPoint)
+                                    clickOverlay.requestPaint()
+                                    soundManager.playClick()
+                                }
+                            } else if (clickMode === "zone_corners") {
+                                if (zoneCornerPoints.length < 4) {
+                                    zoneCornerPoints.push(camPoint)
+                                    clickOverlay.requestPaint()
+                                    soundManager.playClick()
+                                }
+                            }
+                        }
+                    }
+
+                    // Overlay for clicked points
+                    Canvas {
+                        id: clickOverlay
+                        anchors.fill: parent
+                        visible: clickMode !== "" || cameraCalibration.isBallZoneCalibrated || cameraCalibration.isZoneDefined
 
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.clearRect(0, 0, width, height)
-
-                            if (!cameraCalibration.isBallZoneCalibrated && !ballDetected) {
-                                return
-                            }
 
                             // Calculate scaling to match Image PreserveAspectFit
                             var cameraWidth = 640
@@ -184,69 +254,128 @@ Rectangle {
                             var scaleX = scaledWidth / cameraWidth
                             var scaleY = scaledHeight / cameraHeight
 
-                            // Draw ball circle
-                            var ballX = cameraCalibration.isBallZoneCalibrated
-                                        ? cameraCalibration.ballCenterX
-                                        : detectedX
-                            var ballY = cameraCalibration.isBallZoneCalibrated
-                                        ? cameraCalibration.ballCenterY
-                                        : detectedY
-                            var ballR = cameraCalibration.isBallZoneCalibrated
-                                        ? cameraCalibration.ballRadius
-                                        : detectedRadius
+                            // Draw ball edge points (during clicking)
+                            if (clickMode === "ball_edge" && ballEdgePoints.length > 0) {
+                                ctx.fillStyle = "#ff9800"
+                                for (var i = 0; i < ballEdgePoints.length; i++) {
+                                    var pt = ballEdgePoints[i]
+                                    var dispX = pt.x * scaleX + offsetX
+                                    var dispY = pt.y * scaleY + offsetY
 
-                            var displayX = ballX * scaleX + offsetX
-                            var displayY = ballY * scaleY + offsetY
-                            var displayR = ballR * Math.min(scaleX, scaleY)
+                                    ctx.beginPath()
+                                    ctx.arc(dispX, dispY, 5, 0, 2 * Math.PI)
+                                    ctx.fill()
 
-                            // Draw ball detection
-                            ctx.strokeStyle = cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#ff9800"
-                            ctx.lineWidth = 3
-                            ctx.beginPath()
-                            ctx.arc(displayX, displayY, displayR, 0, 2 * Math.PI)
-                            ctx.stroke()
+                                    // Draw number
+                                    ctx.fillStyle = "#ffffff"
+                                    ctx.font = "bold 14px sans-serif"
+                                    ctx.fillText((i + 1).toString(), dispX + 8, dispY - 8)
+                                    ctx.fillStyle = "#ff9800"
+                                }
+                            }
 
-                            // Draw crosshair at center
-                            ctx.strokeStyle = cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#ff9800"
-                            ctx.lineWidth = 2
-                            ctx.beginPath()
-                            ctx.moveTo(displayX - 15, displayY)
-                            ctx.lineTo(displayX + 15, displayY)
-                            ctx.moveTo(displayX, displayY - 15)
-                            ctx.lineTo(displayX, displayY + 15)
-                            ctx.stroke()
-
-                            // Draw 12"×12" zone (if extrinsic calibration is done)
-                            if (cameraCalibration.isExtrinsicCalibrated) {
+                            // Draw zone corner points (during clicking)
+                            if (clickMode === "zone_corners" && zoneCornerPoints.length > 0) {
+                                ctx.fillStyle = "#2196f3"
                                 ctx.strokeStyle = "#2196f3"
                                 ctx.lineWidth = 2
-                                ctx.setLineDash([5, 5])
 
-                                var zoneSize = 80  // pixels (approximate)
-                                ctx.strokeRect(
-                                    displayX - zoneSize,
-                                    displayY - zoneSize,
-                                    zoneSize * 2,
-                                    zoneSize * 2
-                                )
+                                var labels = ["FL", "FR", "BR", "BL"]
+                                for (var j = 0; j < zoneCornerPoints.length; j++) {
+                                    var corner = zoneCornerPoints[j]
+                                    var cDispX = corner.x * scaleX + offsetX
+                                    var cDispY = corner.y * scaleY + offsetY
 
-                                // Draw 6"×6" hit box
-                                ctx.strokeStyle = "#f44336"
-                                var hitBoxSize = 40  // pixels (approximate)
-                                ctx.strokeRect(
-                                    displayX - hitBoxSize,
-                                    displayY - hitBoxSize,
-                                    hitBoxSize * 2,
-                                    hitBoxSize * 2
-                                )
-                                ctx.setLineDash([])
+                                    // Draw square marker
+                                    ctx.strokeRect(cDispX - 6, cDispY - 6, 12, 12)
+
+                                    // Draw label
+                                    ctx.fillStyle = "#ffffff"
+                                    ctx.font = "bold 12px sans-serif"
+                                    ctx.fillText(labels[j], cDispX + 10, cDispY - 10)
+                                    ctx.fillStyle = "#2196f3"
+                                }
+
+                                // Connect points with lines
+                                if (zoneCornerPoints.length > 1) {
+                                    ctx.setLineDash([5, 3])
+                                    ctx.beginPath()
+                                    for (var k = 0; k < zoneCornerPoints.length; k++) {
+                                        var pt2 = zoneCornerPoints[k]
+                                        var x = pt2.x * scaleX + offsetX
+                                        var y = pt2.y * scaleY + offsetY
+                                        if (k === 0) {
+                                            ctx.moveTo(x, y)
+                                        } else {
+                                            ctx.lineTo(x, y)
+                                        }
+                                    }
+                                    if (zoneCornerPoints.length === 4) {
+                                        ctx.closePath()
+                                    }
+                                    ctx.stroke()
+                                    ctx.setLineDash([])
+                                }
+                            }
+
+                            // Draw calibrated ball (green circle)
+                            if (cameraCalibration.isBallZoneCalibrated && clickMode !== "ball_edge") {
+                                var ballX = cameraCalibration.ballCenterX
+                                var ballY = cameraCalibration.ballCenterY
+                                var ballR = cameraCalibration.ballRadius
+
+                                var displayX = ballX * scaleX + offsetX
+                                var displayY = ballY * scaleY + offsetY
+                                var displayR = ballR * Math.min(scaleX, scaleY)
+
+                                ctx.strokeStyle = "#4caf50"
+                                ctx.lineWidth = 3
+                                ctx.beginPath()
+                                ctx.arc(displayX, displayY, displayR, 0, 2 * Math.PI)
+                                ctx.stroke()
+
+                                // Draw crosshair at center
+                                ctx.lineWidth = 2
+                                ctx.beginPath()
+                                ctx.moveTo(displayX - 15, displayY)
+                                ctx.lineTo(displayX + 15, displayY)
+                                ctx.moveTo(displayX, displayY - 15)
+                                ctx.lineTo(displayX, displayY + 15)
+                                ctx.stroke()
+                            }
+
+                            // Draw calibrated zone boundary
+                            if (cameraCalibration.isZoneDefined && clickMode !== "zone_corners") {
+                                var corners = cameraCalibration.zoneCorners
+                                if (corners.length === 4) {
+                                    ctx.strokeStyle = "#2196f3"
+                                    ctx.lineWidth = 2
+                                    ctx.setLineDash([5, 5])
+
+                                    ctx.beginPath()
+                                    for (var m = 0; m < 4; m++) {
+                                        var zx = corners[m].x * scaleX + offsetX
+                                        var zy = corners[m].y * scaleY + offsetY
+                                        if (m === 0) {
+                                            ctx.moveTo(zx, zy)
+                                        } else {
+                                            ctx.lineTo(zx, zy)
+                                        }
+                                    }
+                                    ctx.closePath()
+                                    ctx.stroke()
+                                    ctx.setLineDash([])
+                                }
                             }
                         }
 
                         Connections {
                             target: cameraCalibration
                             function onBallZoneCalibrationChanged() {
-                                ballOverlay.requestPaint()
+                                clickOverlay.requestPaint()
+                            }
+                            function onZoneDefinedChanged() {
+                                clickOverlay.requestPaint()
                             }
                         }
                     }
@@ -261,134 +390,353 @@ Rectangle {
                         style: Text.Outline
                         styleColor: "#000000"
                     }
+
+                    // Click mode indicator
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        width: 200
+                        height: 35
+                        color: "#dd000000"
+                        radius: 6
+                        visible: clickMode !== ""
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: clickMode === "ball_edge"
+                                  ? "Ball: " + ballEdgePoints.length + "/3-4 points"
+                                  : "Zone: " + zoneCornerPoints.length + "/4 corners"
+                            font.pixelSize: 13
+                            font.bold: true
+                            color: "#ff9800"
+                        }
+                    }
                 }
             }
 
-            // Instructions
+            // Step 1: Ball Edge Calibration
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 120
+                Layout.preferredHeight: 90
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
                 color: "#2d2d2d"
                 radius: 8
+                border.color: clickMode === "ball_edge" ? "#ff9800" : "#444444"
+                border.width: clickMode === "ball_edge" ? 2 : 1
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 15
-                    spacing: 8
+                    anchors.margins: 12
+                    spacing: 10
 
                     Text {
-                        text: "Instructions:"
+                        text: "Step 1: Define Ball Position"
                         font.pixelSize: 16
                         font.bold: true
-                        color: "#ffffff"
+                        color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#ffffff"
                     }
 
-                    Text {
-                        text: "1. Place golf ball on ground within 12\"×12\" zone (marked on carpet)"
-                        font.pixelSize: 13
-                        color: "#cccccc"
-                        wrapMode: Text.WordWrap
+                    RowLayout {
                         Layout.fillWidth: true
-                    }
+                        spacing: 10
 
-                    Text {
-                        text: "2. Ensure ball is well-lit and clearly visible in camera view"
-                        font.pixelSize: 13
-                        color: "#cccccc"
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
-                    }
+                        Button {
+                            text: clickMode === "ball_edge" ? "Clicking..." : "Click Ball Edge"
+                            Layout.preferredWidth: 180
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            font.bold: true
+                            enabled: clickMode === "" || clickMode === "ball_edge"
 
-                    Text {
-                        text: "3. Scroll down and click 'Detect Ball' to automatically locate"
-                        font.pixelSize: 13
-                        color: "#cccccc"
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
-                    }
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
 
-                    Text {
-                        text: "4. Green circle will appear when ball is successfully detected"
-                        font.pixelSize: 13
-                        color: "#cccccc"
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
+                            background: Rectangle {
+                                color: clickMode === "ball_edge"
+                                       ? "#ff9800"
+                                       : (parent.pressed ? "#1976d2" : "#2196f3")
+                                radius: 6
+                                border.color: clickMode === "ball_edge" ? "#f57c00" : "#1976d2"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                if (clickMode === "ball_edge") {
+                                    // Cancel clicking mode
+                                    clickMode = ""
+                                    ballEdgePoints = []
+                                    clickOverlay.requestPaint()
+                                } else {
+                                    // Start clicking mode
+                                    clickMode = "ball_edge"
+                                    ballEdgePoints = []
+                                    clickOverlay.requestPaint()
+                                }
+                                soundManager.playClick()
+                            }
+                        }
+
+                        Button {
+                            text: "Confirm (" + ballEdgePoints.length + " pts)"
+                            Layout.preferredWidth: 160
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            font.bold: true
+                            enabled: ballEdgePoints.length >= 3
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: parent.enabled
+                                       ? (parent.pressed ? "#388e3c" : "#4caf50")
+                                       : "#3d3d3d"
+                                radius: 6
+                                border.color: parent.enabled ? "#388e3c" : "#666666"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                console.log("Confirming ball edge points:", ballEdgePoints.length)
+                                cameraCalibration.setBallEdgePoints(ballEdgePoints)
+                                clickMode = ""
+                                ballEdgePoints = []
+                                soundManager.playClick()
+                            }
+                        }
+
+                        Button {
+                            text: "Retry"
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            enabled: clickMode === "ball_edge" && ballEdgePoints.length > 0
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: parent.enabled
+                                       ? (parent.pressed ? "#d32f2f" : "#f44336")
+                                       : "#3d3d3d"
+                                radius: 6
+                                border.color: parent.enabled ? "#d32f2f" : "#666666"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                ballEdgePoints = []
+                                clickOverlay.requestPaint()
+                                soundManager.playClick()
+                            }
+                        }
+
+                        Text {
+                            text: cameraCalibration.isBallZoneCalibrated ? "✓ Complete" : "Click 3-4 points on ball edge"
+                            font.pixelSize: 13
+                            color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#888888"
+                            Layout.fillWidth: true
+                        }
                     }
                 }
             }
 
-            // Buttons
+            // Step 2: Zone Boundary Calibration
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 90
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                color: "#2d2d2d"
+                radius: 8
+                border.color: clickMode === "zone_corners" ? "#ff9800" : "#444444"
+                border.width: clickMode === "zone_corners" ? 2 : 1
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 10
+
+                    Text {
+                        text: "Step 2: Define Zone Boundaries"
+                        font.pixelSize: 16
+                        font.bold: true
+                        color: cameraCalibration.isZoneDefined ? "#4caf50" : "#ffffff"
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Button {
+                            text: clickMode === "zone_corners" ? "Clicking..." : "Click Zone Corners"
+                            Layout.preferredWidth: 180
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            font.bold: true
+                            enabled: (clickMode === "" || clickMode === "zone_corners") && cameraCalibration.isBallZoneCalibrated
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: clickMode === "zone_corners"
+                                       ? "#ff9800"
+                                       : (parent.pressed ? "#1976d2" : "#2196f3")
+                                radius: 6
+                                border.color: clickMode === "zone_corners" ? "#f57c00" : "#1976d2"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                if (clickMode === "zone_corners") {
+                                    // Cancel clicking mode
+                                    clickMode = ""
+                                    zoneCornerPoints = []
+                                    clickOverlay.requestPaint()
+                                } else {
+                                    // Start clicking mode
+                                    clickMode = "zone_corners"
+                                    zoneCornerPoints = []
+                                    clickOverlay.requestPaint()
+                                }
+                                soundManager.playClick()
+                            }
+
+                            ToolTip.visible: !enabled && hovered
+                            ToolTip.text: "Complete ball calibration first"
+                        }
+
+                        Button {
+                            text: "Confirm (" + zoneCornerPoints.length + "/4)"
+                            Layout.preferredWidth: 160
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            font.bold: true
+                            enabled: zoneCornerPoints.length === 4
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: parent.enabled
+                                       ? (parent.pressed ? "#388e3c" : "#4caf50")
+                                       : "#3d3d3d"
+                                radius: 6
+                                border.color: parent.enabled ? "#388e3c" : "#666666"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                console.log("Confirming zone corners:", zoneCornerPoints.length)
+                                cameraCalibration.setZoneCorners(zoneCornerPoints)
+                                clickMode = ""
+                                zoneCornerPoints = []
+                                soundManager.playClick()
+                            }
+                        }
+
+                        Button {
+                            text: "Retry"
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 45
+                            font.pixelSize: 14
+                            enabled: clickMode === "zone_corners" && zoneCornerPoints.length > 0
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                color: parent.enabled
+                                       ? (parent.pressed ? "#d32f2f" : "#f44336")
+                                       : "#3d3d3d"
+                                radius: 6
+                                border.color: parent.enabled ? "#d32f2f" : "#666666"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                zoneCornerPoints = []
+                                clickOverlay.requestPaint()
+                                soundManager.playClick()
+                            }
+                        }
+
+                        Text {
+                            text: cameraCalibration.isZoneDefined ? "✓ Complete" : "Click FL→FR→BR→BL corners"
+                            font.pixelSize: 13
+                            color: cameraCalibration.isZoneDefined ? "#4caf50" : "#888888"
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+            }
+
+            // Back button
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 70
+                Layout.preferredHeight: 55
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 15
+                Button {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "Back to Calibration"
+                    implicitWidth: 220
+                    implicitHeight: 50
+                    font.pixelSize: 16
+                    font.bold: true
 
-                    Button {
-                        text: "Detect Ball"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 60
-                        font.pixelSize: 18
-                        font.bold: true
-                        enabled: cameraCalibration.isExtrinsicCalibrated
-
-                        contentItem: Text {
-                            text: parent.text
-                            font: parent.font
-                            color: parent.enabled ? "#ffffff" : "#666666"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        background: Rectangle {
-                            color: parent.enabled
-                                   ? (parent.pressed ? "#1976d2" : "#2196f3")
-                                   : "#3d3d3d"
-                            radius: 8
-                            border.color: parent.enabled ? "#1976d2" : "#666666"
-                            border.width: 2
-                        }
-
-                        onClicked: {
-                            console.log("Detecting ball...")
-                            cameraCalibration.detectBallForZoneCalibration()
-                        }
-
-                        ToolTip.visible: !enabled && hovered
-                        ToolTip.text: "Complete extrinsic calibration first"
+                    contentItem: Text {
+                        text: parent.text
+                        font: parent.font
+                        color: "#ffffff"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
 
-                    Button {
-                        text: "Back to Calibration"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 60
-                        font.pixelSize: 18
-                        font.bold: true
+                    background: Rectangle {
+                        color: parent.pressed ? "#333333" : "#424242"
+                        radius: 8
+                        border.color: "#666666"
+                        border.width: 2
+                    }
 
-                        contentItem: Text {
-                            text: parent.text
-                            font: parent.font
-                            color: "#ffffff"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        background: Rectangle {
-                            color: parent.pressed ? "#333333" : "#424242"
-                            radius: 8
-                            border.color: "#666666"
-                            border.width: 2
-                        }
-
-                        onClicked: {
-                            stack.goBack()
-                        }
+                    onClicked: {
+                        stack.goBack()
+                        soundManager.playClick()
                     }
                 }
             }
@@ -399,44 +747,26 @@ Rectangle {
                 font.pixelSize: 12
                 color: "#888888"
                 Layout.alignment: Qt.AlignHCenter
-                Layout.bottomMargin: 20
+                Layout.bottomMargin: 15
             }
         }
     }
 
-    // Connect to ball detection signal
+    // Connect to calibration signals
     Connections {
         target: cameraCalibration
 
         function onBallDetectedForZone(centerX, centerY, radius, confidence) {
-            console.log("Ball detected:", centerX, centerY, radius, confidence)
-            ballDetected = true
-            detectedX = centerX
-            detectedY = centerY
-            detectedRadius = radius
-            detectedConfidence = confidence
-            ballOverlay.requestPaint()
-
-            // Show success message
-            successTimer.start()
+            console.log("Ball fitted from edge points:", centerX, centerY, radius)
+            clickOverlay.requestPaint()
         }
 
         function onCalibrationFailed(reason) {
-            console.log("Ball detection failed:", reason)
-            ballDetected = false
+            console.log("Calibration failed:", reason)
         }
 
         function onCalibrationComplete(summary) {
-            console.log("Ball zone calibration complete:", summary)
-        }
-    }
-
-    Timer {
-        id: successTimer
-        interval: 3000
-        onTriggered: {
-            ballDetected = false
-            ballOverlay.requestPaint()
+            console.log("Calibration complete:", summary)
         }
     }
 }

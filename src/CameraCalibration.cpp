@@ -511,6 +511,17 @@ void CameraCalibration::saveCalibration() {
     json["ball_center_y"] = m_ballCenterY;
     json["ball_radius"] = m_ballRadius;
 
+    // Zone boundaries
+    json["zone_defined"] = m_isZoneDefined;
+    QJsonArray zoneCorners;
+    for (const auto &corner : m_zoneCorners) {
+        QJsonObject cornerObj;
+        cornerObj["x"] = corner.x();
+        cornerObj["y"] = corner.y();
+        zoneCorners.append(cornerObj);
+    }
+    json["zone_corners"] = zoneCorners;
+
     // Save to file
     QFile file(calibPath);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -593,6 +604,15 @@ void CameraCalibration::loadCalibration() {
     m_ballCenterY = json["ball_center_y"].toDouble();
     m_ballRadius = json["ball_radius"].toDouble();
 
+    // Load zone boundaries
+    m_isZoneDefined = json["zone_defined"].toBool();
+    m_zoneCorners.clear();
+    QJsonArray zoneCorners = json["zone_corners"].toArray();
+    for (const auto &cornerVal : zoneCorners) {
+        QJsonObject cornerObj = cornerVal.toObject();
+        m_zoneCorners.append(QPointF(cornerObj["x"].toDouble(), cornerObj["y"].toDouble()));
+    }
+
     if (m_isIntrinsicCalibrated) {
         m_status = "Calibration loaded";
         qDebug() << "Camera calibration loaded from" << calibPath;
@@ -600,11 +620,13 @@ void CameraCalibration::loadCalibration() {
         qDebug() << "  Intrinsic calibrated:" << m_isIntrinsicCalibrated;
         qDebug() << "  Extrinsic calibrated:" << m_isExtrinsicCalibrated;
         qDebug() << "  Ball zone calibrated:" << m_isBallZoneCalibrated;
+        qDebug() << "  Zone defined:" << m_isZoneDefined;
     }
 
     emit intrinsicCalibrationChanged();
     emit extrinsicCalibrationChanged();
     emit ballZoneCalibrationChanged();
+    emit zoneDefinedChanged();
     emit statusChanged();
 }
 
@@ -612,11 +634,13 @@ void CameraCalibration::resetCalibration() {
     m_isIntrinsicCalibrated = false;
     m_isExtrinsicCalibrated = false;
     m_isBallZoneCalibrated = false;
+    m_isZoneDefined = false;
     m_cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     m_distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
     m_fx = m_fy = m_cx = m_cy = 0.0;
     m_cameraHeight = m_cameraTilt = m_cameraDistance = 0.0;
     m_ballCenterX = m_ballCenterY = m_ballRadius = 0.0;
+    m_zoneCorners.clear();
     m_progress = 0;
     m_status = "Calibration reset";
 
@@ -625,6 +649,7 @@ void CameraCalibration::resetCalibration() {
     emit intrinsicCalibrationChanged();
     emit extrinsicCalibrationChanged();
     emit ballZoneCalibrationChanged();
+    emit zoneDefinedChanged();
     emit statusChanged();
     emit progressChanged();
 }
@@ -745,6 +770,78 @@ void CameraCalibration::setBallZone(double centerX, double centerY, double radiu
 
     emit ballZoneCalibrationChanged();
     emit calibrationComplete("Ball zone calibration successful");
+}
+
+void CameraCalibration::setBallEdgePoints(const QList<QPointF> &edgePoints) {
+    if (edgePoints.size() < 3) {
+        qWarning() << "Need at least 3 points to fit circle";
+        emit calibrationFailed("Need at least 3 edge points");
+        return;
+    }
+
+    // Convert to OpenCV format
+    std::vector<cv::Point2f> points;
+    for (const auto &pt : edgePoints) {
+        points.push_back(cv::Point2f(pt.x(), pt.y()));
+    }
+
+    // Fit circle using least squares (algebraic fit)
+    // Method: solving linear system for circle equation (x-cx)^2 + (y-cy)^2 = r^2
+    int n = points.size();
+    cv::Mat A(n, 3, CV_64F);
+    cv::Mat b(n, 1, CV_64F);
+
+    for (int i = 0; i < n; i++) {
+        double x = points[i].x;
+        double y = points[i].y;
+        A.at<double>(i, 0) = 2.0 * x;
+        A.at<double>(i, 1) = 2.0 * y;
+        A.at<double>(i, 2) = 1.0;
+        b.at<double>(i, 0) = x * x + y * y;
+    }
+
+    // Solve least squares: A^T * A * x = A^T * b
+    cv::Mat AtA = A.t() * A;
+    cv::Mat Atb = A.t() * b;
+    cv::Mat solution;
+    cv::solve(AtA, Atb, solution, cv::DECOMP_LU);
+
+    double cx = solution.at<double>(0, 0);
+    double cy = solution.at<double>(1, 0);
+    double c = solution.at<double>(2, 0);
+    double r = std::sqrt(cx * cx + cy * cy + c);
+
+    qDebug() << "Fitted circle from" << n << "points:";
+    qDebug() << "  Center: (" << cx << "," << cy << ")";
+    qDebug() << "  Radius:" << r << "pixels";
+
+    // Set ball zone with fitted circle
+    setBallZone(cx, cy, r);
+
+    // Emit signal with high confidence (manual input)
+    emit ballDetectedForZone(cx, cy, r, 0.99);
+}
+
+void CameraCalibration::setZoneCorners(const QList<QPointF> &corners) {
+    if (corners.size() != 4) {
+        qWarning() << "Need exactly 4 corners for zone definition";
+        emit calibrationFailed("Need exactly 4 corner points");
+        return;
+    }
+
+    m_zoneCorners = corners;
+    m_isZoneDefined = true;
+
+    qDebug() << "Zone corners defined:";
+    for (int i = 0; i < 4; i++) {
+        qDebug() << "  Corner" << i << ":" << corners[i];
+    }
+
+    // Save to settings
+    saveCalibration();
+
+    emit zoneDefinedChanged();
+    emit calibrationComplete("Zone boundary defined successfully");
 }
 
 QString CameraCalibration::formatCalibrationSummary() const {

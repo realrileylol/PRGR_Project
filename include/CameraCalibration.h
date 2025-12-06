@@ -44,6 +44,10 @@ class CameraCalibration : public QObject {
     Q_PROPERTY(double ballCenterY READ ballCenterY NOTIFY ballZoneCalibrationChanged)
     Q_PROPERTY(double ballRadius READ ballRadius NOTIFY ballZoneCalibrationChanged)
 
+    // Zone boundaries (4 corners of 12"×12" zone)
+    Q_PROPERTY(bool isZoneDefined READ isZoneDefined NOTIFY zoneDefinedChanged)
+    Q_PROPERTY(QList<QPointF> zoneCorners READ zoneCorners NOTIFY zoneDefinedChanged)
+
 public:
     explicit CameraCalibration(QObject *parent = nullptr);
     ~CameraCalibration() override;
@@ -70,6 +74,9 @@ public:
     double ballCenterX() const { return m_ballCenterX; }
     double ballCenterY() const { return m_ballCenterY; }
     double ballRadius() const { return m_ballRadius; }
+
+    bool isZoneDefined() const { return m_isZoneDefined; }
+    QList<QPointF> zoneCorners() const { return m_zoneCorners; }
 
     // Scale factor (pixels per mm at image plane)
     double pixelsPerMm() const;
@@ -102,6 +109,8 @@ public slots:
 
     // Ball zone calibration (detect ball for hit box definition)
     Q_INVOKABLE void detectBallForZoneCalibration();
+    Q_INVOKABLE void setBallEdgePoints(const QList<QPointF> &edgePoints);
+    Q_INVOKABLE void setZoneCorners(const QList<QPointF> &corners);
     void setBallZone(double centerX, double centerY, double radius);
 
     // Load/save calibration
@@ -113,6 +122,7 @@ signals:
     void intrinsicCalibrationChanged();
     void extrinsicCalibrationChanged();
     void ballZoneCalibrationChanged();
+    void zoneDefinedChanged();
     void statusChanged();
     void progressChanged();
 
@@ -152,6 +162,10 @@ private:
     double m_ballCenterX = 0.0;    // Ball center X in pixels
     double m_ballCenterY = 0.0;    // Ball center Y in pixels
     double m_ballRadius = 0.0;     // Ball radius in pixels
+
+    // Zone boundaries (4 corners of 12"×12" zone)
+    bool m_isZoneDefined = false;
+    QList<QPointF> m_zoneCorners;  // 4 corner points in pixels
 
     // Intrinsic calibration state
     int m_boardWidth = 0;
