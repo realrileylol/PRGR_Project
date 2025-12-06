@@ -26,9 +26,10 @@ Rectangle {
         anchors.fill: parent
         contentWidth: availableWidth
         clip: true
+        ScrollBar.vertical.policy: ScrollBar.AlwaysOn
 
         ColumnLayout {
-            width: parent.width
+            width: parent.parent.width
             spacing: 20
 
             // Header
@@ -122,7 +123,7 @@ Rectangle {
             // Camera preview with ball visualization
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 450
+                Layout.preferredHeight: 300
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
                 color: "#000000"
@@ -266,7 +267,7 @@ Rectangle {
             // Instructions
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 140
+                Layout.preferredHeight: 120
                 Layout.leftMargin: 20
                 Layout.rightMargin: 20
                 color: "#2d2d2d"
