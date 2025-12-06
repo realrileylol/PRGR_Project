@@ -666,8 +666,8 @@ void CameraCalibration::detectBallForZoneCalibration() {
                      processed.rows / 16,  // Min distance between centers
                      100,  // Canny upper threshold
                      15,   // Accumulator threshold
-                     4,    // Min radius (golf ball at 5ft should be 4-15 pixels)
-                     15);  // Max radius
+                     6,    // Min radius (golf ball at 5ft should be 6-12 pixels)
+                     12);  // Max radius
 
     if (circles.empty()) {
         qWarning() << "No ball detected in frame";
@@ -675,16 +675,52 @@ void CameraCalibration::detectBallForZoneCalibration() {
         return;
     }
 
-    // Use the first (strongest) detection
-    cv::Vec3f bestCircle = circles[0];
+    qDebug() << "HoughCircles found" << circles.size() << "candidates";
+
+    // Score each circle based on proximity to center and reasonable size
+    // Ball should be near center of frame since that's where we expect it
+    double frameCenterX = processed.cols / 2.0;
+    double frameCenterY = processed.rows / 2.0;
+    double idealRadius = 9.0;  // Ideal golf ball radius at this distance
+
+    cv::Vec3f bestCircle;
+    double bestScore = -1.0;
+
+    for (const auto& circle : circles) {
+        double cx = circle[0];
+        double cy = circle[1];
+        double r = circle[2];
+
+        // Distance from center of frame (normalized 0-1)
+        double distFromCenter = std::sqrt(std::pow(cx - frameCenterX, 2) +
+                                         std::pow(cy - frameCenterY, 2));
+        double maxDist = std::sqrt(std::pow(frameCenterX, 2) + std::pow(frameCenterY, 2));
+        double centerScore = 1.0 - (distFromCenter / maxDist);
+
+        // Radius score (how close to ideal ball size)
+        double radiusScore = 1.0 - std::abs(r - idealRadius) / idealRadius;
+
+        // Combined score (weight center proximity heavily)
+        double score = 0.7 * centerScore + 0.3 * radiusScore;
+
+        qDebug() << "  Circle at (" << cx << "," << cy << ") r=" << r
+                 << " centerScore=" << centerScore << " radiusScore=" << radiusScore
+                 << " totalScore=" << score;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestCircle = circle;
+        }
+    }
+
     double centerX = bestCircle[0];
     double centerY = bestCircle[1];
     double radius = bestCircle[2];
 
-    // Calculate confidence based on circularity (simplified)
-    double confidence = 0.85;  // HoughCircles already filters well
+    // Calculate confidence based on score
+    double confidence = std::min(0.95, bestScore);
 
-    qDebug() << "Ball detected at" << centerX << "," << centerY
+    qDebug() << "Best ball candidate at" << centerX << "," << centerY
              << "radius:" << radius << "confidence:" << confidence;
 
     // Save ball zone calibration
