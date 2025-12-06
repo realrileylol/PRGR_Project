@@ -6,11 +6,20 @@ Rectangle {
     id: root
     color: "#1e1e1e"
 
+    property var win  // Main window reference passed from navigation
+
     property bool ballDetected: false
     property double detectedX: 0
     property double detectedY: 0
     property double detectedRadius: 0
     property double detectedConfidence: 0
+
+    // Ensure camera preview is active when screen loads
+    Component.onCompleted: {
+        if (!cameraManager.previewActive) {
+            cameraManager.startPreview()
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent
