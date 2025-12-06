@@ -2,8 +2,9 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-Item {
+Rectangle {
     id: root
+    color: "#1e1e1e"
 
     property var win  // Main window reference passed from navigation
 
@@ -20,35 +21,133 @@ Item {
         }
     }
 
-    SwipeView {
-        id: swipeView
+    // Scrollable content
+    ScrollView {
         anchors.fill: parent
-        currentIndex: 0
+        contentWidth: availableWidth
+        clip: true
 
-        // ========== PAGE 1: FULL CAMERA PREVIEW ==========
-        Item {
-            Rectangle {
-                anchors.fill: parent
-                color: "#000000"
+        ColumnLayout {
+            width: parent.width
+            spacing: 20
 
-                // Full screen camera preview
-                Image {
-                    id: fullCameraPreview
+            // Header
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 70
+                Layout.topMargin: 20
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+
+                ColumnLayout {
                     anchors.fill: parent
+                    spacing: 5
+
+                    Text {
+                        text: "Ball Zone Calibration"
+                        font.pixelSize: 32
+                        font.bold: true
+                        color: "#ffffff"
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Place the golf ball anywhere within the 12\"×12\" zone"
+                        font.pixelSize: 14
+                        color: "#cccccc"
+                        Layout.alignment: Qt.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+            }
+
+            // Status indicator
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 70
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                color: cameraCalibration.isBallZoneCalibrated ? "#2d5016" : "#3d3d3d"
+                radius: 8
+                border.color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
+                border.width: 2
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 15
+
+                    Rectangle {
+                        width: 40
+                        height: 40
+                        radius: 20
+                        color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: cameraCalibration.isBallZoneCalibrated ? "✓" : ""
+                            color: "#ffffff"
+                            font.pixelSize: 24
+                            font.bold: true
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 5
+
+                        Text {
+                            text: cameraCalibration.isBallZoneCalibrated
+                                  ? "Ball Zone Calibrated ✓"
+                                  : "Ball Zone Not Calibrated"
+                            font.pixelSize: 18
+                            font.bold: true
+                            color: "#ffffff"
+                        }
+
+                        Text {
+                            text: cameraCalibration.isBallZoneCalibrated
+                                  ? "Position: (" + cameraCalibration.ballCenterX.toFixed(1) + ", "
+                                    + cameraCalibration.ballCenterY.toFixed(1) + ") • Radius: "
+                                    + cameraCalibration.ballRadius.toFixed(1) + "px"
+                                  : "Place ball in zone and detect"
+                            font.pixelSize: 13
+                            color: "#cccccc"
+                        }
+                    }
+                }
+            }
+
+            // Camera preview with ball visualization
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 450
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                color: "#000000"
+                radius: 8
+                border.color: "#666666"
+                border.width: 2
+
+                Image {
+                    id: cameraPreview
+                    anchors.fill: parent
+                    anchors.margins: 2
                     fillMode: Image.PreserveAspectFit
                     source: "image://frameprovider/preview?" + Date.now()
                     cache: false
 
                     Timer {
                         interval: 33  // ~30 FPS
-                        running: swipeView.currentIndex === 0
+                        running: true
                         repeat: true
-                        onTriggered: fullCameraPreview.source = "image://frameprovider/preview?" + Date.now()
+                        onTriggered: cameraPreview.source = "image://frameprovider/preview?" + Date.now()
                     }
 
                     // Overlay for ball detection visualization
                     Canvas {
-                        id: ballOverlayFull
+                        id: ballOverlay
                         anchors.fill: parent
                         visible: ballDetected || cameraCalibration.isBallZoneCalibrated
 
@@ -146,337 +245,160 @@ Item {
                         Connections {
                             target: cameraCalibration
                             function onBallZoneCalibrationChanged() {
-                                ballOverlayFull.requestPaint()
+                                ballOverlay.requestPaint()
                             }
                         }
                     }
 
-                    // Header overlay
-                    Rectangle {
+                    Text {
                         anchors.top: parent.top
                         anchors.left: parent.left
-                        anchors.right: parent.right
-                        height: 60
-                        color: "#CC000000"
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 10
-
-                            Text {
-                                text: "Ball Zone Calibration"
-                                font.pixelSize: 20
-                                font.bold: true
-                                color: "#ffffff"
-                                Layout.fillWidth: true
-                            }
-
-                            Rectangle {
-                                width: 30
-                                height: 30
-                                radius: 15
-                                color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: cameraCalibration.isBallZoneCalibrated ? "✓" : ""
-                                    color: "#ffffff"
-                                    font.pixelSize: 18
-                                    font.bold: true
-                                }
-                            }
-                        }
-                    }
-
-                    // Swipe hint at bottom
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottomMargin: 20
-                        width: 200
-                        height: 40
-                        color: "#CC000000"
-                        radius: 20
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "← Swipe for controls"
-                            font.pixelSize: 14
-                            color: "#ffffff"
-                            font.italic: true
-                        }
+                        anchors.margins: 10
+                        text: "Live Camera Feed (640×480)"
+                        font.pixelSize: 12
+                        color: "#ffffff"
+                        style: Text.Outline
+                        styleColor: "#000000"
                     }
                 }
             }
-        }
 
-        // ========== PAGE 2: CONTROLS AND INSTRUCTIONS ==========
-        Item {
+            // Instructions
             Rectangle {
-                anchors.fill: parent
-                color: "#1e1e1e"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 140
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                color: "#2d2d2d"
+                radius: 8
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 20
+                    anchors.margins: 15
+                    spacing: 8
 
-                    // Header
                     Text {
-                        text: "Ball Detection Controls"
-                        font.pixelSize: 28
+                        text: "Instructions:"
+                        font.pixelSize: 16
                         font.bold: true
                         color: "#ffffff"
-                        Layout.alignment: Qt.AlignHCenter
                     }
 
-                    // Status indicator
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 70
-                        color: cameraCalibration.isBallZoneCalibrated ? "#2d5016" : "#3d3d3d"
-                        radius: 8
-                        border.color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
-                        border.width: 2
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 15
-                            spacing: 15
-
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                radius: 20
-                                color: cameraCalibration.isBallZoneCalibrated ? "#4caf50" : "#666666"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: cameraCalibration.isBallZoneCalibrated ? "✓" : ""
-                                    color: "#ffffff"
-                                    font.pixelSize: 24
-                                    font.bold: true
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 5
-
-                                Text {
-                                    text: cameraCalibration.isBallZoneCalibrated
-                                          ? "Ball Zone Calibrated ✓"
-                                          : "Ball Zone Not Calibrated"
-                                    font.pixelSize: 18
-                                    font.bold: true
-                                    color: "#ffffff"
-                                }
-
-                                Text {
-                                    text: cameraCalibration.isBallZoneCalibrated
-                                          ? "Position: (" + cameraCalibration.ballCenterX.toFixed(1) + ", "
-                                            + cameraCalibration.ballCenterY.toFixed(1) + ") • Radius: "
-                                            + cameraCalibration.ballRadius.toFixed(1) + "px"
-                                          : "Place ball in zone and detect"
-                                    font.pixelSize: 13
-                                    color: "#cccccc"
-                                }
-                            }
-                        }
-                    }
-
-                    // Camera preview thumbnail
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 200
-                        color: "#000000"
-                        radius: 8
-                        border.color: "#666666"
-                        border.width: 2
-
-                        Image {
-                            id: thumbnailPreview
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            fillMode: Image.PreserveAspectFit
-                            source: "image://frameprovider/preview?" + Date.now()
-                            cache: false
-
-                            Timer {
-                                interval: 100  // 10 FPS for thumbnail
-                                running: swipeView.currentIndex === 1
-                                repeat: true
-                                onTriggered: thumbnailPreview.source = "image://frameprovider/preview?" + Date.now()
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Swipe right for full view →"
-                                font.pixelSize: 14
-                                color: "#ffffff"
-                                style: Text.Outline
-                                styleColor: "#000000"
-                            }
-                        }
-                    }
-
-                    // Instructions
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 140
-                        color: "#2d2d2d"
-                        radius: 8
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 15
-                            spacing: 8
-
-                            Text {
-                                text: "Instructions:"
-                                font.pixelSize: 16
-                                font.bold: true
-                                color: "#ffffff"
-                            }
-
-                            Text {
-                                text: "1. Place golf ball on ground within 12\"×12\" zone"
-                                font.pixelSize: 13
-                                color: "#cccccc"
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            Text {
-                                text: "2. Swipe right to see full camera view"
-                                font.pixelSize: 13
-                                color: "#cccccc"
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            Text {
-                                text: "3. Ensure ball is well-lit and visible"
-                                font.pixelSize: 13
-                                color: "#cccccc"
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            Text {
-                                text: "4. Click 'Detect Ball' to automatically locate"
-                                font.pixelSize: 13
-                                color: "#cccccc"
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-                        }
-                    }
-
-                    Item { Layout.fillHeight: true }
-
-                    // Buttons
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 15
-
-                        Button {
-                            text: "Detect Ball"
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 60
-                            font.pixelSize: 18
-                            font.bold: true
-                            enabled: cameraCalibration.isExtrinsicCalibrated
-
-                            contentItem: Text {
-                                text: parent.text
-                                font: parent.font
-                                color: parent.enabled ? "#ffffff" : "#666666"
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            background: Rectangle {
-                                color: parent.enabled
-                                       ? (parent.pressed ? "#1976d2" : "#2196f3")
-                                       : "#3d3d3d"
-                                radius: 8
-                                border.color: parent.enabled ? "#1976d2" : "#666666"
-                                border.width: 2
-                            }
-
-                            onClicked: {
-                                console.log("Detecting ball...")
-                                cameraCalibration.detectBallForZoneCalibration()
-                            }
-
-                            ToolTip.visible: !enabled && hovered
-                            ToolTip.text: "Complete extrinsic calibration first"
-                        }
-
-                        Button {
-                            text: "Back"
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 60
-                            font.pixelSize: 18
-                            font.bold: true
-
-                            contentItem: Text {
-                                text: parent.text
-                                font: parent.font
-                                color: "#ffffff"
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            background: Rectangle {
-                                color: parent.pressed ? "#333333" : "#424242"
-                                radius: 8
-                                border.color: "#666666"
-                                border.width: 2
-                            }
-
-                            onClicked: {
-                                stack.goBack()
-                            }
-                        }
-                    }
-
-                    // Status text
                     Text {
-                        text: cameraCalibration.status
-                        font.pixelSize: 12
-                        color: "#888888"
-                        Layout.alignment: Qt.AlignHCenter
+                        text: "1. Place golf ball on ground within 12\"×12\" zone (marked on carpet)"
+                        font.pixelSize: 13
+                        color: "#cccccc"
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: "2. Ensure ball is well-lit and clearly visible in camera view"
+                        font.pixelSize: 13
+                        color: "#cccccc"
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: "3. Scroll down and click 'Detect Ball' to automatically locate"
+                        font.pixelSize: 13
+                        color: "#cccccc"
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: "4. Green circle will appear when ball is successfully detected"
+                        font.pixelSize: 13
+                        color: "#cccccc"
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
                     }
                 }
             }
-        }
-    }
 
-    // Page indicator dots
-    Row {
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottomMargin: 10
-        spacing: 10
-        z: 100
+            // Buttons
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 70
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
 
-        Repeater {
-            model: 2
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: 15
 
-            Rectangle {
-                width: 10
-                height: 10
-                radius: 5
-                color: swipeView.currentIndex === index ? "#ffffff" : "#666666"
-                border.color: "#ffffff"
-                border.width: 1
+                    Button {
+                        text: "Detect Ball"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 60
+                        font.pixelSize: 18
+                        font.bold: true
+                        enabled: cameraCalibration.isExtrinsicCalibrated
 
-                Behavior on color {
-                    ColorAnimation { duration: 200 }
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            color: parent.enabled ? "#ffffff" : "#666666"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        background: Rectangle {
+                            color: parent.enabled
+                                   ? (parent.pressed ? "#1976d2" : "#2196f3")
+                                   : "#3d3d3d"
+                            radius: 8
+                            border.color: parent.enabled ? "#1976d2" : "#666666"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            console.log("Detecting ball...")
+                            cameraCalibration.detectBallForZoneCalibration()
+                        }
+
+                        ToolTip.visible: !enabled && hovered
+                        ToolTip.text: "Complete extrinsic calibration first"
+                    }
+
+                    Button {
+                        text: "Back to Calibration"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 60
+                        font.pixelSize: 18
+                        font.bold: true
+
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            color: "#ffffff"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#333333" : "#424242"
+                            radius: 8
+                            border.color: "#666666"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            stack.goBack()
+                        }
+                    }
                 }
+            }
+
+            // Status text
+            Text {
+                text: cameraCalibration.status
+                font.pixelSize: 12
+                color: "#888888"
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: 20
             }
         }
     }
@@ -492,7 +414,7 @@ Item {
             detectedY = centerY
             detectedRadius = radius
             detectedConfidence = confidence
-            ballOverlayFull.requestPaint()
+            ballOverlay.requestPaint()
 
             // Show success message
             successTimer.start()
@@ -513,7 +435,7 @@ Item {
         interval: 3000
         onTriggered: {
             ballDetected = false
-            ballOverlayFull.requestPaint()
+            ballOverlay.requestPaint()
         }
     }
 }
