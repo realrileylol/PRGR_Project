@@ -32,6 +32,7 @@ set(SOURCES
     src/CameraCalibration.cpp
     src/BallDetector.cpp
     src/TrajectoryTracker.cpp
+    src/BallTracker.cpp
 )
 
 # Header files
@@ -46,6 +47,7 @@ set(HEADERS
     include/CameraCalibration.h
     include/BallDetector.h
     include/TrajectoryTracker.h
+    include/BallTracker.h
 )
 
 # QML resources

@@ -14,6 +14,7 @@
 #include "CameraCalibration.h"
 #include "BallDetector.h"
 #include "TrajectoryTracker.h"
+#include "BallTracker.h"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -37,6 +38,7 @@ int main(int argc, char *argv[]) {
     FrameProvider frameProvider;
     CameraManager cameraManager(&frameProvider, &settingsManager);
     CaptureManager captureManager(&kld2Manager, &settingsManager);
+    BallTracker ballTracker(&cameraManager, &cameraCalibration);
 
     // Connect calibration manager to frame provider and settings
     calibrationManager.setFrameProvider(&frameProvider);
@@ -67,6 +69,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("cameraCalibration", &cameraCalibration);
     engine.rootContext()->setContextProperty("ballDetector", &ballDetector);
     engine.rootContext()->setContextProperty("trajectoryTracker", &trajectoryTracker);
+    engine.rootContext()->setContextProperty("ballTracker", &ballTracker);
     engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
     engine.rootContext()->setContextProperty("captureManager", &captureManager);
 
@@ -90,10 +93,11 @@ int main(int argc, char *argv[]) {
     qDebug() << "Qt version:" << qVersion();
     qDebug() << "✓ SettingsManager initialized";
     qDebug() << "✓ KLD2Manager initialized";
-    qDebug() << "✓ CameraManager initialized (rpicam-vid @ 180 FPS)";
+    qDebug() << "✓ CameraManager initialized (rpicam-vid @ 187 FPS)";
     qDebug() << "✓ CaptureManager initialized (hybrid radar + camera detection)";
     qDebug() << "✓ BallDetector initialized (multi-method with background subtraction)";
     qDebug() << "✓ TrajectoryTracker initialized (Kalman filter + launch angle)";
+    qDebug() << "✓ BallTracker initialized (high-speed tracking with adaptive search)";
     qDebug() << "✓ CameraCalibration initialized (intrinsic + extrinsic)";
 
     return app.exec();
