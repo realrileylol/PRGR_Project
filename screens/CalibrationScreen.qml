@@ -749,9 +749,12 @@ Item {
                             spacing: 10
 
                             Button {
-                                text: "Continue to Extrinsic"
+                                text: cameraCalibration.isExtrinsicCalibrated
+                                      ? "Continue to Ball Zone"
+                                      : "Continue to Extrinsic"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 56
+                                visible: !cameraCalibration.isExtrinsicCalibrated || !cameraCalibration.isBallZoneCalibrated
 
                                 scale: pressed ? 0.97 : 1.0
                                 Behavior on scale { NumberAnimation { duration: 100 } }
@@ -772,8 +775,14 @@ Item {
 
                                 onClicked: {
                                     soundManager.playClick()
-                                    showExtrinsic = true
-                                    isComplete = false
+                                    if (cameraCalibration.isExtrinsicCalibrated) {
+                                        // Navigate to ball zone calibration screen
+                                        stack.openBallZoneCalibration()
+                                    } else {
+                                        // Show extrinsic calibration
+                                        showExtrinsic = true
+                                        isComplete = false
+                                    }
                                 }
                             }
 

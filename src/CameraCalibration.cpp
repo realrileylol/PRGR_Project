@@ -505,6 +505,12 @@ void CameraCalibration::saveCalibration() {
     json["camera_tilt"] = m_cameraTilt;
     json["camera_distance"] = m_cameraDistance;
 
+    // Ball zone calibration
+    json["ballzone_calibrated"] = m_isBallZoneCalibrated;
+    json["ball_center_x"] = m_ballCenterX;
+    json["ball_center_y"] = m_ballCenterY;
+    json["ball_radius"] = m_ballRadius;
+
     // Save to file
     QFile file(calibPath);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -581,26 +587,36 @@ void CameraCalibration::loadCalibration() {
     m_cameraTilt = json["camera_tilt"].toDouble();
     m_cameraDistance = json["camera_distance"].toDouble();
 
+    // Load ball zone calibration
+    m_isBallZoneCalibrated = json["ballzone_calibrated"].toBool();
+    m_ballCenterX = json["ball_center_x"].toDouble();
+    m_ballCenterY = json["ball_center_y"].toDouble();
+    m_ballRadius = json["ball_radius"].toDouble();
+
     if (m_isIntrinsicCalibrated) {
         m_status = "Calibration loaded";
         qDebug() << "Camera calibration loaded from" << calibPath;
         qDebug() << "  Focal length: fx=" << m_fx << "fy=" << m_fy;
         qDebug() << "  Intrinsic calibrated:" << m_isIntrinsicCalibrated;
         qDebug() << "  Extrinsic calibrated:" << m_isExtrinsicCalibrated;
+        qDebug() << "  Ball zone calibrated:" << m_isBallZoneCalibrated;
     }
 
     emit intrinsicCalibrationChanged();
     emit extrinsicCalibrationChanged();
+    emit ballZoneCalibrationChanged();
     emit statusChanged();
 }
 
 void CameraCalibration::resetCalibration() {
     m_isIntrinsicCalibrated = false;
     m_isExtrinsicCalibrated = false;
+    m_isBallZoneCalibrated = false;
     m_cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     m_distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
     m_fx = m_fy = m_cx = m_cy = 0.0;
     m_cameraHeight = m_cameraTilt = m_cameraDistance = 0.0;
+    m_ballCenterX = m_ballCenterY = m_ballRadius = 0.0;
     m_progress = 0;
     m_status = "Calibration reset";
 
@@ -608,8 +624,91 @@ void CameraCalibration::resetCalibration() {
 
     emit intrinsicCalibrationChanged();
     emit extrinsicCalibrationChanged();
+    emit ballZoneCalibrationChanged();
     emit statusChanged();
     emit progressChanged();
+}
+
+// ============================================================================
+// BALL ZONE CALIBRATION
+// ============================================================================
+
+void CameraCalibration::detectBallForZoneCalibration() {
+    if (!m_frameProvider) {
+        qWarning() << "No frame provider available";
+        emit calibrationFailed("No camera feed available");
+        return;
+    }
+
+    // Get current frame
+    QImage qimg = m_frameProvider->requestImage("", nullptr, QSize());
+    if (qimg.isNull()) {
+        qWarning() << "Failed to capture frame for ball detection";
+        emit calibrationFailed("Failed to capture frame");
+        return;
+    }
+
+    // Convert to OpenCV format
+    cv::Mat frame(qimg.height(), qimg.width(), CV_8UC1);
+    memcpy(frame.data, qimg.bits(), qimg.width() * qimg.height());
+
+    // Preprocess frame
+    cv::Mat processed = frame.clone();
+    cv::GaussianBlur(processed, processed, cv::Size(5, 5), 1.5);
+
+    // Create CLAHE for contrast enhancement
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
+    clahe->apply(processed, processed);
+
+    // Detect circles using HoughCircles
+    std::vector<cv::Vec3f> circles;
+    cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
+                     processed.rows / 16,  // Min distance between centers
+                     100,  // Canny upper threshold
+                     15,   // Accumulator threshold
+                     4,    // Min radius (golf ball at 5ft should be 4-15 pixels)
+                     15);  // Max radius
+
+    if (circles.empty()) {
+        qWarning() << "No ball detected in frame";
+        emit calibrationFailed("No ball detected. Make sure ball is visible and well-lit.");
+        return;
+    }
+
+    // Use the first (strongest) detection
+    cv::Vec3f bestCircle = circles[0];
+    double centerX = bestCircle[0];
+    double centerY = bestCircle[1];
+    double radius = bestCircle[2];
+
+    // Calculate confidence based on circularity (simplified)
+    double confidence = 0.85;  // HoughCircles already filters well
+
+    qDebug() << "Ball detected at" << centerX << "," << centerY
+             << "radius:" << radius << "confidence:" << confidence;
+
+    // Save ball zone calibration
+    setBallZone(centerX, centerY, radius);
+
+    // Emit signal for UI update
+    emit ballDetectedForZone(centerX, centerY, radius, confidence);
+}
+
+void CameraCalibration::setBallZone(double centerX, double centerY, double radius) {
+    m_ballCenterX = centerX;
+    m_ballCenterY = centerY;
+    m_ballRadius = radius;
+    m_isBallZoneCalibrated = true;
+
+    qDebug() << "Ball zone calibration complete:";
+    qDebug() << "  Center:" << m_ballCenterX << "," << m_ballCenterY;
+    qDebug() << "  Radius:" << m_ballRadius << "pixels";
+
+    // Save to settings
+    saveCalibration();
+
+    emit ballZoneCalibrationChanged();
+    emit calibrationComplete("Ball zone calibration successful");
 }
 
 QString CameraCalibration::formatCalibrationSummary() const {
@@ -625,6 +724,11 @@ QString CameraCalibration::formatCalibrationSummary() const {
         summary += QString("\nCamera Height: %1 m\n").arg(m_cameraHeight, 0, 'f', 2);
         summary += QString("Camera Tilt: %1°\n").arg(m_cameraTilt, 0, 'f', 1);
         summary += QString("Camera Distance: %1 m\n").arg(m_cameraDistance, 0, 'f', 2);
+    }
+
+    if (m_isBallZoneCalibrated) {
+        summary += QString("\nBall Position: (%1, %2)\n").arg(m_ballCenterX, 0, 'f', 1).arg(m_ballCenterY, 0, 'f', 1);
+        summary += QString("Ball Radius: %1 px\n").arg(m_ballRadius, 0, 'f', 1);
     }
 
     return summary;

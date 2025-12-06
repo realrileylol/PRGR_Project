@@ -38,6 +38,12 @@ class CameraCalibration : public QObject {
     Q_PROPERTY(double cameraTiltAngle READ cameraTiltAngle NOTIFY extrinsicCalibrationChanged)
     Q_PROPERTY(double cameraDistance READ cameraDistance NOTIFY extrinsicCalibrationChanged)
 
+    // Ball zone calibration (defines hit box and tracking zones)
+    Q_PROPERTY(bool isBallZoneCalibrated READ isBallZoneCalibrated NOTIFY ballZoneCalibrationChanged)
+    Q_PROPERTY(double ballCenterX READ ballCenterX NOTIFY ballZoneCalibrationChanged)
+    Q_PROPERTY(double ballCenterY READ ballCenterY NOTIFY ballZoneCalibrationChanged)
+    Q_PROPERTY(double ballRadius READ ballRadius NOTIFY ballZoneCalibrationChanged)
+
 public:
     explicit CameraCalibration(QObject *parent = nullptr);
     ~CameraCalibration() override;
@@ -59,6 +65,11 @@ public:
     double cameraHeight() const { return m_cameraHeight; }
     double cameraTiltAngle() const { return m_cameraTilt; }
     double cameraDistance() const { return m_cameraDistance; }
+
+    bool isBallZoneCalibrated() const { return m_isBallZoneCalibrated; }
+    double ballCenterX() const { return m_ballCenterX; }
+    double ballCenterY() const { return m_ballCenterY; }
+    double ballRadius() const { return m_ballRadius; }
 
     // Scale factor (pixels per mm at image plane)
     double pixelsPerMm() const;
@@ -89,6 +100,10 @@ public slots:
     void setGroundPlanePoints(const QList<QPointF> &imagePoints, const QList<QPointF> &worldPoints);
     void finishExtrinsicCalibration();
 
+    // Ball zone calibration (detect ball for hit box definition)
+    Q_INVOKABLE void detectBallForZoneCalibration();
+    void setBallZone(double centerX, double centerY, double radius);
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();
@@ -97,12 +112,14 @@ public slots:
 signals:
     void intrinsicCalibrationChanged();
     void extrinsicCalibrationChanged();
+    void ballZoneCalibrationChanged();
     void statusChanged();
     void progressChanged();
 
     void calibrationFrameCaptured(int frameCount, bool validFrame);
     void calibrationComplete(const QString &summary);
     void calibrationFailed(const QString &reason);
+    void ballDetectedForZone(double centerX, double centerY, double radius, double confidence);
 
 private:
     FrameProvider *m_frameProvider = nullptr;
@@ -129,6 +146,12 @@ private:
     double m_cameraHeight = 0.0;   // Height above ground (meters)
     double m_cameraTilt = 0.0;     // Tilt angle (degrees)
     double m_cameraDistance = 0.0; // Distance to ball (meters)
+
+    // Ball zone calibration data (defines tracking zones)
+    bool m_isBallZoneCalibrated = false;
+    double m_ballCenterX = 0.0;    // Ball center X in pixels
+    double m_ballCenterY = 0.0;    // Ball center Y in pixels
+    double m_ballRadius = 0.0;     // Ball radius in pixels
 
     // Intrinsic calibration state
     int m_boardWidth = 0;

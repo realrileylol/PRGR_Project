@@ -271,6 +271,11 @@ ApplicationWindow {
             stack.push(Qt.resolvedUrl("screens/CalibrationScreen.qml"), { win: win })
         }
 
+        function openBallZoneCalibration() {
+            console.log("Opening:", Qt.resolvedUrl("screens/BallZoneCalibration.qml"))
+            stack.push(Qt.resolvedUrl("screens/BallZoneCalibration.qml"), { win: win })
+        }
+
         function goBack() {
             if (stack.depth > 1) {
                 stack.pop()
