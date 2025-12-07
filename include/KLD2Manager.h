@@ -13,13 +13,15 @@
  * - 38400 baud UART communication
  * - ASCII command protocol ($S0405 for sampling, $C01 for speed)
  * - Separates approaching (club) from receding (ball) targets
- * - Swing state machine for impact detection
+ * - Two trigger modes: club-based (complex state machine) or ball-based (simple threshold)
  */
 class KLD2Manager : public QObject {
     Q_OBJECT
 
     Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
     Q_PROPERTY(double minTriggerSpeed READ minTriggerSpeed WRITE setMinTriggerSpeed NOTIFY minTriggerSpeedChanged)
+    Q_PROPERTY(double minBallTriggerSpeed READ minBallTriggerSpeed WRITE setMinBallTriggerSpeed NOTIFY minBallTriggerSpeedChanged)
+    Q_PROPERTY(QString triggerMode READ triggerMode WRITE setTriggerMode NOTIFY triggerModeChanged)
     Q_PROPERTY(bool debugMode READ debugMode WRITE setDebugMode NOTIFY debugModeChanged)
 
 public:
@@ -28,9 +30,13 @@ public:
 
     bool isRunning() const { return m_isRunning; }
     double minTriggerSpeed() const { return m_minTriggerSpeed; }
+    double minBallTriggerSpeed() const { return m_minBallTriggerSpeed; }
+    QString triggerMode() const { return m_triggerMode; }
     bool debugMode() const { return m_debugMode; }
 
     void setMinTriggerSpeed(double speed);
+    void setMinBallTriggerSpeed(double speed);
+    void setTriggerMode(const QString &mode);  // "club" or "ball"
     void setDebugMode(bool enabled);
 
 public slots:
@@ -44,14 +50,17 @@ signals:
     void ballSpeedUpdated(double speed);       // Ball (receding)
 
     // Detection signals
-    void clubApproaching(double speed);        // Swing starting (club detected)
-    void impactDetected();                     // Impact timing (club passed through)
+    void clubApproaching(double speed);        // Swing starting (club detected) - club mode only
+    void impactDetected();                     // Impact detected (ball speed threshold crossed OR club passed through)
+    void ballDetected(double speed);          // Ball detected (receding speed) - ball mode only
     void detectionTriggered();                 // Legacy - club approach
 
     // Status signals
     void statusChanged(const QString &message, const QString &color);
     void isRunningChanged();
     void minTriggerSpeedChanged();
+    void minBallTriggerSpeedChanged();
+    void triggerModeChanged();
     void debugModeChanged();
 
 private slots:
@@ -67,10 +76,15 @@ private:
     QByteArray m_buffer;
 
     bool m_isRunning;
-    double m_minTriggerSpeed;
+    double m_minTriggerSpeed;      // Club trigger speed (default 50 mph)
+    double m_minBallTriggerSpeed; // Ball trigger speed (default 10-15 mph)
+    QString m_triggerMode;         // "club" or "ball"
     bool m_debugMode;
 
-    // Swing state machine
+    // Club-based swing state machine (only used when triggerMode == "club")
     bool m_inSwing;
     double m_maxClubSpeed;
+
+    // Ball-based detection state (only used when triggerMode == "ball")
+    bool m_ballDetected;  // Prevents multiple triggers for same ball
 };

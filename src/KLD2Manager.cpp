@@ -8,10 +8,13 @@ KLD2Manager::KLD2Manager(QObject *parent)
     , m_serialPort(nullptr)
     , m_pollTimer(new QTimer(this))
     , m_isRunning(false)
-    , m_minTriggerSpeed(20.0)
+    , m_minTriggerSpeed(50.0)        // Club trigger: 50 mph (default)
+    , m_minBallTriggerSpeed(12.0)   // Ball trigger: 12 mph (recommended 10-15 mph)
+    , m_triggerMode("ball")         // Default to ball mode (simpler, more reliable)
     , m_debugMode(false)
     , m_inSwing(false)
     , m_maxClubSpeed(0.0)
+    , m_ballDetected(false)
 {
     // Connect poll timer
     connect(m_pollTimer, &QTimer::timeout, this, &KLD2Manager::pollRadar);
@@ -25,6 +28,25 @@ void KLD2Manager::setMinTriggerSpeed(double speed) {
     if (m_minTriggerSpeed != speed) {
         m_minTriggerSpeed = speed;
         emit minTriggerSpeedChanged();
+    }
+}
+
+void KLD2Manager::setMinBallTriggerSpeed(double speed) {
+    if (m_minBallTriggerSpeed != speed) {
+        m_minBallTriggerSpeed = speed;
+        emit minBallTriggerSpeedChanged();
+    }
+}
+
+void KLD2Manager::setTriggerMode(const QString &mode) {
+    if (m_triggerMode != mode) {
+        m_triggerMode = mode;
+        // Reset state when switching modes
+        m_inSwing = false;
+        m_maxClubSpeed = 0.0;
+        m_ballDetected = false;
+        emit triggerModeChanged();
+        qDebug() << "K-LD2 trigger mode set to:" << mode;
     }
 }
 
@@ -108,9 +130,10 @@ void KLD2Manager::stop() {
         m_serialPort = nullptr;
     }
 
-    // Reset swing state
+    // Reset all state
     m_inSwing = false;
     m_maxClubSpeed = 0.0;
+    m_ballDetected = false;
 
     emit isRunningChanged();
     emit statusChanged("K-LD2 stopped", "gray");
@@ -181,7 +204,7 @@ void KLD2Manager::processSpeed(int approachingSpeed, int recedingSpeed, int appr
     Q_UNUSED(approachingMag);
     Q_UNUSED(recedingMag);
 
-    // Emit individual speed signals
+    // Emit individual speed signals (always emit for display/measurement)
     if (approachingSpeed > 0) {
         emit clubSpeedUpdated(static_cast<double>(approachingSpeed));
     }
@@ -199,38 +222,63 @@ void KLD2Manager::processSpeed(int approachingSpeed, int recedingSpeed, int appr
         }
     }
 
-    // === SWING STATE MACHINE ===
-    // Track club speed to detect: approach → peak → impact (speed drop)
-
-    // Check if club is approaching (above threshold)
-    if (approachingSpeed >= static_cast<int>(m_minTriggerSpeed)) {
-        // Club detected approaching!
-        if (!m_inSwing) {
-            // NEW swing starting
-            m_inSwing = true;
-            m_maxClubSpeed = approachingSpeed;
-            qDebug() << "⛳ SWING START: Club" << approachingSpeed << "mph (approaching)";
-            emit clubApproaching(static_cast<double>(approachingSpeed));
-            emit detectionTriggered();  // Legacy signal for backward compatibility
+    // === TRIGGER MODE: BALL-BASED (RECOMMENDED) ===
+    // Simple threshold detection: when ball speed appears → impact happened
+    if (m_triggerMode == "ball") {
+        if (recedingSpeed >= static_cast<int>(m_minBallTriggerSpeed)) {
+            // Ball detected moving away (impact happened!)
+            if (!m_ballDetected) {
+                // First detection of this ball - trigger impact
+                m_ballDetected = true;
+                qDebug() << "🎯 BALL DETECTED:" << recedingSpeed << "mph (receding) - IMPACT TRIGGERED!";
+                emit ballDetected(static_cast<double>(recedingSpeed));
+                emit impactDetected();  // Main signal for camera capture
+            }
         } else {
-            // Continue tracking swing - update peak if higher
-            if (approachingSpeed > m_maxClubSpeed) {
-                m_maxClubSpeed = approachingSpeed;
+            // Ball speed dropped below threshold - reset for next shot
+            if (m_ballDetected) {
+                m_ballDetected = false;
                 if (m_debugMode) {
-                    qDebug() << "   Club speed:" << approachingSpeed << "mph (peak:" << m_maxClubSpeed << "mph)";
+                    qDebug() << "Ball detection reset (speed:" << recedingSpeed << "mph < threshold:" << m_minBallTriggerSpeed << "mph)";
                 }
             }
         }
+        return;  // Skip club-based detection in ball mode
     }
-    // If we're in a swing, check if club passed through (speed dropped)
-    else if (m_inSwing) {
-        // Club speed dropped below threshold - club passed through ball!
-        // This happens ~5-10ms after impact
-        qDebug() << "🏌️ IMPACT DETECTED: Club speed dropped from" << m_maxClubSpeed << "mph →" << approachingSpeed << "mph";
-        emit impactDetected();  // Signal that impact likely occurred
 
-        // Reset swing state for next shot
-        m_inSwing = false;
-        m_maxClubSpeed = 0.0;
+    // === TRIGGER MODE: CLUB-BASED (LEGACY) ===
+    // Complex state machine: track club approach → peak → impact (speed drop)
+    if (m_triggerMode == "club") {
+        // Check if club is approaching (above threshold)
+        if (approachingSpeed >= static_cast<int>(m_minTriggerSpeed)) {
+            // Club detected approaching!
+            if (!m_inSwing) {
+                // NEW swing starting
+                m_inSwing = true;
+                m_maxClubSpeed = approachingSpeed;
+                qDebug() << "⛳ SWING START: Club" << approachingSpeed << "mph (approaching)";
+                emit clubApproaching(static_cast<double>(approachingSpeed));
+                emit detectionTriggered();  // Legacy signal for backward compatibility
+            } else {
+                // Continue tracking swing - update peak if higher
+                if (approachingSpeed > m_maxClubSpeed) {
+                    m_maxClubSpeed = approachingSpeed;
+                    if (m_debugMode) {
+                        qDebug() << "   Club speed:" << approachingSpeed << "mph (peak:" << m_maxClubSpeed << "mph)";
+                    }
+                }
+            }
+        }
+        // If we're in a swing, check if club passed through (speed dropped)
+        else if (m_inSwing) {
+            // Club speed dropped below threshold - club passed through ball!
+            // This happens ~5-10ms after impact
+            qDebug() << "🏌️ IMPACT DETECTED: Club speed dropped from" << m_maxClubSpeed << "mph →" << approachingSpeed << "mph";
+            emit impactDetected();  // Signal that impact likely occurred
+
+            // Reset swing state for next shot
+            m_inSwing = false;
+            m_maxClubSpeed = 0.0;
+        }
     }
 }
