@@ -942,9 +942,13 @@ QVariantMap CameraCalibration::detectBallLive() {
     double brightness = meanBrightness[0];  // 0-255 range
 
     // Adapt HoughCircles parameters based on lighting
-    // Darker scenes need lower thresholds, brighter scenes can use higher thresholds
-    int cannyThreshold = static_cast<int>(std::max(50.0, std::min(150.0, brightness * 0.7)));
-    int accumulatorThreshold = static_cast<int>(std::max(10.0, std::min(20.0, brightness * 0.08)));
+    // RELAXED parameters for better initial detection
+    int cannyThreshold = static_cast<int>(std::max(40.0, std::min(120.0, brightness * 0.5)));
+    int accumulatorThreshold = static_cast<int>(std::max(8.0, std::min(15.0, brightness * 0.06)));
+
+    qDebug() << "Scene brightness:" << brightness
+             << "Canny:" << cannyThreshold
+             << "Acc:" << accumulatorThreshold;
 
     // Preprocess frame for better ball detection
     cv::Mat processed;
@@ -955,24 +959,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // White ball filtering: boost bright pixels (golf ball should be brighter than background)
-    // This helps reject dark objects like club heads, tees, shadows
-    cv::Mat whiteMask;
-    double whiteThreshold = std::max(100.0, brightness * 0.7);  // Adaptive threshold for "white"
-    cv::threshold(processed, whiteMask, whiteThreshold, 255, cv::THRESH_BINARY);
-
-    // Apply mask to enhance white regions
-    cv::Mat whiteEnhanced;
-    processed.copyTo(whiteEnhanced, whiteMask);
-
-    // Detect circles using HoughCircles with adaptive parameters
+    // Detect circles using HoughCircles with RELAXED parameters
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 16,  // Min distance between centers
+                     processed.rows / 20,  // Min distance between centers (relaxed)
                      cannyThreshold,       // Adaptive Canny threshold
                      accumulatorThreshold, // Adaptive accumulator threshold
-                     6,    // Min radius (golf ball should be 6-12 pixels)
-                     12);  // Max radius
+                     5,    // Min radius (relaxed from 6)
+                     15);  // Max radius (increased from 12)
+
+    qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
 
     if (circles.empty()) {
         // Track missed frames
@@ -1044,6 +1040,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Vec3f bestCircle;
     double bestScore = -1.0;
     double idealRadius = 9.0;
+    int candidatesInRange = 0;
 
     for (const auto& circle : circles) {
         double cx = circle[0];
@@ -1056,8 +1053,10 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         // Reject if outside search radius
         if (distFromSearch > searchRadius) {
+            qDebug() << "  Circle" << cx << "," << cy << "r=" << r << "REJECTED: outside search radius" << searchRadius;
             continue;
         }
+        candidatesInRange++;
 
         double proximityScore = 1.0 - std::min(1.0, distFromSearch / searchRadius);
 
@@ -1073,6 +1072,7 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         // Zone preference (strongly prefer balls inside zone)
         double zoneScore = 1.0;
+        bool inZoneCheck = false;
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto &corner : m_zoneCorners) {
@@ -1081,6 +1081,7 @@ QVariantMap CameraCalibration::detectBallLive() {
             double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), true);
             if (distance >= 0) {
                 zoneScore = 1.5;  // Boost score for balls inside zone
+                inZoneCheck = true;
             } else {
                 zoneScore = 0.3;  // Penalty for balls outside zone
             }
@@ -1089,14 +1090,22 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Combined score with temporal weighting + brightness preference
         double score = 0.4 * proximityScore + 0.2 * radiusScore + 0.15 * zoneScore + 0.25 * brightnessScore;
 
+        qDebug() << "  Circle (" << cx << "," << cy << ") r=" << r
+                 << " prox=" << proximityScore << " rad=" << radiusScore
+                 << " bright=" << brightnessScore << " zone=" << zoneScore
+                 << " inZone=" << inZoneCheck << " TOTAL=" << score;
+
         if (score > bestScore) {
             bestScore = score;
             bestCircle = circle;
         }
     }
 
-    // Reject if score too low (likely false positive)
-    if (bestScore < 0.3) {
+    qDebug() << "Candidates in search range:" << candidatesInRange << "Best score:" << bestScore;
+
+    // RELAXED rejection threshold
+    if (bestScore < 0.2) {
+        qDebug() << "All candidates rejected: best score" << bestScore << "< 0.2";
         m_missedFrames++;
         return result;
     }

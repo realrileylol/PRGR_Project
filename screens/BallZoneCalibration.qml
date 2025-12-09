@@ -451,6 +451,7 @@ Rectangle {
                         }
                     }
 
+                    // Camera label
                     Text {
                         anchors.top: parent.top
                         anchors.left: parent.left
@@ -460,6 +461,52 @@ Rectangle {
                         color: "#ffffff"
                         style: Text.Outline
                         styleColor: "#000000"
+                    }
+
+                    // Tracking status indicator (NEW)
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.margins: 10
+                        width: 200
+                        height: 60
+                        color: "#dd000000"
+                        radius: 6
+                        border.width: 2
+                        border.color: liveBallDetected ? "#4caf50" : "#ff9800"
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 3
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: liveBallDetected ? "● TRACKING" : "○ SEARCHING..."
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: liveBallDetected ? "#4caf50" : "#ff9800"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: liveBallDetected
+                                      ? (liveBallInZone ? "IN ZONE ✓" : "OUT OF ZONE")
+                                      : "Place ball in zone"
+                                font.pixelSize: 11
+                                color: liveBallDetected
+                                       ? (liveBallInZone ? "#4caf50" : "#ff5722")
+                                       : "#cccccc"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: liveBallDetected
+                                      ? "X:" + liveBallX.toFixed(1) + " Y:" + liveBallY.toFixed(1)
+                                      : "No detection"
+                                font.pixelSize: 10
+                                color: "#888888"
+                            }
+                        }
                     }
 
                     // Click mode indicator
