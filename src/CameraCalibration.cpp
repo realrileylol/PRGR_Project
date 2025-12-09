@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QStandardPaths>
+#include <QDateTime>
 #include <QDir>
 #include <cmath>
 
@@ -1261,5 +1262,110 @@ QVariantMap CameraCalibration::detectBallLive() {
     result["radius"] = ballRadius;
     result["inZone"] = inZone;
 
+    // ========== VIDEO RECORDING ==========
+    if (m_isRecording && m_videoWriter.isOpened()) {
+        // Create color version of frame for recording
+        cv::Mat colorFrame;
+        if (frame.channels() == 1) {
+            cv::cvtColor(frame, colorFrame, cv::COLOR_GRAY2BGR);
+        } else {
+            colorFrame = frame.clone();
+        }
+
+        // Draw all overlays on the recorded frame
+        // 1. Draw zone boundary (cyan box)
+        if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+            std::vector<cv::Point> pts;
+            for (const auto &corner : m_zoneCorners) {
+                pts.push_back(cv::Point(corner.x(), corner.y()));
+            }
+            cv::polylines(colorFrame, pts, true, cv::Scalar(212, 188, 0), 2);  // Cyan BGR
+
+            // Draw corner labels
+            QStringList labels = {"FL", "FR", "BR", "BL"};
+            for (int i = 0; i < 4 && i < m_zoneCorners.size(); i++) {
+                cv::putText(colorFrame, labels[i].toStdString(),
+                           cv::Point(m_zoneCorners[i].x() + 5, m_zoneCorners[i].y() - 5),
+                           cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+            }
+        }
+
+        // 2. Draw ball tracking circle (green or red)
+        if (result["detected"].toBool()) {
+            cv::Scalar circleColor = inZone ? cv::Scalar(80, 175, 76) : cv::Scalar(0, 0, 255);  // Green or Red BGR
+            cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+                      ballRadius + 3, circleColor, 3);
+            cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+                      2, circleColor, -1);  // Center dot
+        }
+
+        // 3. Draw tracking status text
+        QString statusText = result["detected"].toBool() ?
+                            (inZone ? "TRACKING - IN ZONE" : "TRACKING - OUT OF ZONE") :
+                            "SEARCHING...";
+        cv::putText(colorFrame, statusText.toStdString(),
+                   cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.7,
+                   cv::Scalar(0, 255, 0), 2);
+
+        // 4. Draw frame counter
+        QString frameText = QString("Frame: %1").arg(m_recordedFrames);
+        cv::putText(colorFrame, frameText.toStdString(),
+                   cv::Point(10, colorFrame.rows - 10), cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                   cv::Scalar(255, 255, 255), 1);
+
+        // Write frame to video
+        m_videoWriter.write(colorFrame);
+        m_recordedFrames++;
+    }
+
     return result;
+}
+
+// ============================================================================
+// VIDEO RECORDING
+// ============================================================================
+
+void CameraCalibration::startRecording() {
+    if (m_isRecording) {
+        qWarning() << "Already recording";
+        return;
+    }
+
+    // Create recordings directory
+    QString recordingsDir = QDir::homePath() + "/prgr/PRGR_Project/recordings";
+    QDir dir;
+    if (!dir.mkpath(recordingsDir)) {
+        qWarning() << "Failed to create recordings directory:" << recordingsDir;
+        return;
+    }
+
+    // Generate filename with timestamp
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+    m_recordingPath = recordingsDir + "/tracking_" + timestamp + ".mp4";
+
+    // Open video writer (640x480 @ 30fps, H264 codec)
+    int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');  // MP4 codec
+    m_videoWriter.open(m_recordingPath.toStdString(), fourcc, 30.0, cv::Size(640, 480));
+
+    if (!m_videoWriter.isOpened()) {
+        qWarning() << "Failed to open video writer:" << m_recordingPath;
+        return;
+    }
+
+    m_isRecording = true;
+    m_recordedFrames = 0;
+    qDebug() << "Started recording to:" << m_recordingPath;
+}
+
+void CameraCalibration::stopRecording() {
+    if (!m_isRecording) {
+        qWarning() << "Not currently recording";
+        return;
+    }
+
+    m_videoWriter.release();
+    m_isRecording = false;
+
+    qDebug() << "Stopped recording. Saved" << m_recordedFrames << "frames to:" << m_recordingPath;
+    qDebug() << "Video location:" << m_recordingPath;
 }

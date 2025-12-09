@@ -463,7 +463,7 @@ Rectangle {
                         styleColor: "#000000"
                     }
 
-                    // Tracking status indicator (NEW)
+                    // Tracking status indicator
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
@@ -506,6 +506,72 @@ Rectangle {
                                 font.pixelSize: 10
                                 color: "#888888"
                             }
+                        }
+                    }
+
+                    // Record button
+                    Button {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        width: 120
+                        height: 50
+
+                        property bool recording: cameraCalibration.isRecording()
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: parent.parent.recording ? "⬛ STOP" : "⏺ REC"
+                                font.pixelSize: 16
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: parent.parent.recording ? "Recording..." : "Start Rec"
+                                font.pixelSize: 9
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.recording
+                                   ? (parent.pressed ? "#c62828" : "#d32f2f")
+                                   : (parent.pressed ? "#c62828" : "#f44336")
+                            radius: 6
+                            border.color: parent.recording ? "#b71c1c" : "#c62828"
+                            border.width: 2
+
+                            // Recording pulse animation
+                            SequentialAnimation on opacity {
+                                running: parent.parent.recording
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.7; duration: 500 }
+                                NumberAnimation { to: 1.0; duration: 500 }
+                            }
+                        }
+
+                        onClicked: {
+                            if (recording) {
+                                cameraCalibration.stopRecording()
+                            } else {
+                                cameraCalibration.startRecording()
+                            }
+                            recording = cameraCalibration.isRecording()
+                            soundManager.playClick()
+                        }
+
+                        // Update recording state
+                        Timer {
+                            interval: 100
+                            running: true
+                            repeat: true
+                            onTriggered: parent.recording = cameraCalibration.isRecording()
                         }
                     }
 

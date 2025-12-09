@@ -119,6 +119,11 @@ public slots:
     // Live ball tracking for real-time overlay
     Q_INVOKABLE QVariantMap detectBallLive();
 
+    // Video recording with overlays
+    Q_INVOKABLE void startRecording();
+    Q_INVOKABLE void stopRecording();
+    Q_INVOKABLE bool isRecording() const { return m_isRecording; }
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();
@@ -194,6 +199,12 @@ private:
     // Kalman filter for professional-grade tracking (same as TrackMan/GCQuad)
     cv::KalmanFilter m_kalmanFilter;
     bool m_kalmanInitialized = false;
+
+    // Video recording
+    bool m_isRecording = false;
+    cv::VideoWriter m_videoWriter;
+    QString m_recordingPath;
+    int m_recordedFrames = 0;
 
     // Helper methods
     bool detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners);
