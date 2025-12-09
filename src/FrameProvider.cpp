@@ -28,8 +28,14 @@ void FrameProvider::updateFrame(const cv::Mat &frame) {
     }
 
     QMutexLocker locker(&m_mutex);
+    m_currentMat = frame.clone();  // Store cv::Mat for processing
     m_currentFrame = cvMatToQImage(frame);
     // Note: QML will poll for updates via requestImage()
+}
+
+cv::Mat FrameProvider::getLatestFrame() {
+    QMutexLocker locker(&m_mutex);
+    return m_currentMat.clone();  // Return copy for thread safety
 }
 
 QImage FrameProvider::cvMatToQImage(const cv::Mat &mat) {

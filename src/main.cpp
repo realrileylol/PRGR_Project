@@ -57,6 +57,7 @@ int main(int argc, char *argv[]) {
 
     // Connect ball tracker to radar for hybrid triggering (prevents false triggers from club)
     ballTracker.setRadar(&kld2Manager);
+    ballTracker.setFrameProvider(&frameProvider);
 
     // Create QML engine
     QQmlApplicationEngine engine;

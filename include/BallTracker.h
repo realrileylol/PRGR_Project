@@ -10,6 +10,7 @@
 class CameraManager;
 class CameraCalibration;
 class KLD2Manager;
+class FrameProvider;
 
 // Tracked ball position with timestamp
 struct BallPosition {
@@ -44,7 +45,8 @@ public:
     ~BallTracker() override;
 
     // Set KLD2 radar for hybrid triggering (optional but recommended)
-    void setRadar(KLD2Manager *radar) { m_radar = radar; }
+    void setRadar(KLD2Manager *radar);
+    void setFrameProvider(FrameProvider *provider) { m_frameProvider = provider; }
 
     bool isTracking() const { return m_state != TrackingState::IDLE; }
     QString status() const { return m_status; }
@@ -79,6 +81,7 @@ signals:
 
 private slots:
     void processFrame();
+    void onRadarSpeedUpdated(double speed);  // Update latest radar speed
 
 private:
     // Core tracking functions
@@ -104,12 +107,14 @@ private:
     CameraManager *m_cameraManager;
     CameraCalibration *m_calibration;
     KLD2Manager *m_radar;  // Optional: use radar for more reliable triggering
+    FrameProvider *m_frameProvider;
 
     // Tracking state
     TrackingState m_state;
     QString m_status;
     QTimer *m_processTimer;
     QMutex m_dataMutex;
+    double m_latestRadarSpeed;  // Latest speed from radar (updated via signal)
 
     // Circular frame buffer (for pre-trigger frames)
     static const int BUFFER_SIZE = 30;  // ~160ms at 187fps

@@ -25,9 +25,13 @@ public:
     // Thread-safe frame update
     void updateFrame(const cv::Mat &frame);
 
+    // Get latest frame for processing
+    cv::Mat getLatestFrame();
+
 private:
     QImage cvMatToQImage(const cv::Mat &mat);
 
     QMutex m_mutex;
     QImage m_currentFrame;
+    cv::Mat m_currentMat;  // Store cv::Mat for processing
 };

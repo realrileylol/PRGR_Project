@@ -2,6 +2,7 @@
 #include "CameraManager.h"
 #include "CameraCalibration.h"
 #include "KLD2Manager.h"
+#include "FrameProvider.h"
 #include <QDebug>
 
 BallTracker::BallTracker(CameraManager *cameraManager,
@@ -11,10 +12,12 @@ BallTracker::BallTracker(CameraManager *cameraManager,
     , m_cameraManager(cameraManager)
     , m_calibration(calibration)
     , m_radar(nullptr)
+    , m_frameProvider(nullptr)
     , m_state(TrackingState::IDLE)
     , m_status("Ready to track")
     , m_framesSinceArmed(0)
     , m_frameNumber(0)
+    , m_latestRadarSpeed(0.0)
 {
     // Default configuration (tuned for golf ball tracking)
     m_motionThreshold = 15.0;           // Pixel intensity difference
@@ -35,6 +38,20 @@ BallTracker::BallTracker(CameraManager *cameraManager,
 
 BallTracker::~BallTracker() {
     disarmTracking();
+}
+
+void BallTracker::setRadar(KLD2Manager *radar) {
+    m_radar = radar;
+    if (m_radar) {
+        // Connect to ball speed signal to track latest speed
+        connect(m_radar, &KLD2Manager::ballSpeedUpdated,
+                this, &BallTracker::onRadarSpeedUpdated);
+        qDebug() << "BallTracker: Radar connected for hybrid triggering";
+    }
+}
+
+void BallTracker::onRadarSpeedUpdated(double speed) {
+    m_latestRadarSpeed = speed;
 }
 
 // ============================================================================
@@ -123,8 +140,12 @@ void BallTracker::setSearchExpansionRate(double rate) {
 // ============================================================================
 
 void BallTracker::processFrame() {
-    // Get latest frame from camera
-    cv::Mat frame = m_cameraManager->getLatestFrame();
+    // Get latest frame from frame provider
+    if (!m_frameProvider) {
+        return;
+    }
+
+    cv::Mat frame = m_frameProvider->getLatestFrame();
     if (frame.empty()) {
         return;
     }
@@ -168,17 +189,16 @@ void BallTracker::processFrame() {
 
                 // If radar available, use it for confirmation (much more reliable)
                 bool radarConfirmed = false;
-                if (m_radar && m_radar->isConnected()) {
-                    double speed = m_radar->getSpeed();
-                    radarConfirmed = (speed > 5.0);  // Ball moving > 5 mph = real hit
+                if (m_radar && m_radar->isRunning()) {
+                    radarConfirmed = (m_latestRadarSpeed > 5.0);  // Ball moving > 5 mph = real hit
 
                     if (radarConfirmed) {
-                        qDebug() << "Radar confirmed ball speed:" << speed << "mph";
+                        qDebug() << "Radar confirmed ball speed:" << m_latestRadarSpeed << "mph";
                     }
                 }
 
                 // Trigger if: (camera motion + radar confirms) OR (camera motion + no radar available)
-                bool shouldTrigger = cameraMotionDetected && (radarConfirmed || m_radar == nullptr || !m_radar->isConnected());
+                bool shouldTrigger = cameraMotionDetected && (radarConfirmed || m_radar == nullptr || !m_radar->isRunning());
 
                 if (shouldTrigger) {
                     // Motion detected - ball hit!
@@ -194,7 +214,7 @@ void BallTracker::processFrame() {
 
                     // Add pre-trigger frames from buffer
                     int preTriggerFrames = std::min(5, (int)m_frameBuffer.size());
-                    for (int i = m_frameBuffer.size() - preTriggerFrames; i < m_frameBuffer.size(); i++) {
+                    for (size_t i = m_frameBuffer.size() - preTriggerFrames; i < m_frameBuffer.size(); i++) {
                         BallPosition pos;
                         pos.pixelPos = m_stationaryBallPos;
                         pos.timestamp = m_timestampBuffer[i];
@@ -235,7 +255,7 @@ void BallTracker::processFrame() {
                     emit capturedFramesChanged();
 
                     // Check if we have enough frames
-                    if (m_trackedPositions.size() >= m_maxTrackingFrames) {
+                    if (m_trackedPositions.size() >= static_cast<size_t>(m_maxTrackingFrames)) {
                         qDebug() << "Max tracking frames reached:" << m_trackedPositions.size();
                         setState(TrackingState::ANALYZING);
                         m_processTimer->stop();
@@ -244,7 +264,7 @@ void BallTracker::processFrame() {
                 } else {
                     qDebug() << "Ball position validation failed (too far from predicted)";
                     // Lost ball - finish tracking if we have minimum frames
-                    if (m_trackedPositions.size() >= m_minTrackingFrames) {
+                    if (m_trackedPositions.size() >= static_cast<size_t>(m_minTrackingFrames)) {
                         qDebug() << "Ball lost, finishing tracking with" << m_trackedPositions.size() << "frames";
                         setState(TrackingState::ANALYZING);
                         m_processTimer->stop();
@@ -258,7 +278,7 @@ void BallTracker::processFrame() {
             } else {
                 // Ball not detected in search region
                 if (framesSinceHit > 5) {  // Allow a few missed frames initially
-                    if (m_trackedPositions.size() >= m_minTrackingFrames) {
+                    if (m_trackedPositions.size() >= static_cast<size_t>(m_minTrackingFrames)) {
                         qDebug() << "Ball left frame, finishing tracking with" << m_trackedPositions.size() << "frames";
                         setState(TrackingState::ANALYZING);
                         m_processTimer->stop();
@@ -475,6 +495,8 @@ cv::Rect BallTracker::getSearchRegion(const cv::Point2f &lastPos, int framesSinc
 }
 
 double BallTracker::calculateConfidence(const cv::Mat &frame, const cv::Point2f &pos) {
+    Q_UNUSED(frame);
+    Q_UNUSED(pos);
     // Simple confidence based on contrast around detected position
     // This is a placeholder - could be more sophisticated
     return 0.8;
@@ -524,7 +546,7 @@ cv::Point2f BallTracker::predictNextPosition(const std::vector<BallPosition> &po
     int n = std::min(3, (int)positions.size());
     cv::Point2f velocity(0, 0);
 
-    for (int i = positions.size() - 1; i >= positions.size() - n + 1; i--) {
+    for (size_t i = positions.size() - 1; i >= positions.size() - n + 1; i--) {
         velocity += positions[i].pixelPos - positions[i-1].pixelPos;
     }
     velocity /= (float)(n - 1);
@@ -557,7 +579,7 @@ void BallTracker::setStatus(const QString &status) {
 // ============================================================================
 
 void BallTracker::analyzeTrajectory() {
-    if (m_trackedPositions.size() < m_minTrackingFrames) {
+    if (m_trackedPositions.size() < static_cast<size_t>(m_minTrackingFrames)) {
         setStatus("Analysis failed - insufficient frames");
         emit trackingFailed("Not enough frames for trajectory analysis");
         return;
