@@ -138,6 +138,47 @@ class RadarConnection:
         """Stop polling"""
         self._running = False
 
+    def send_command(self, cmd: str) -> Optional[str]:
+        """Send a command to the radar and return response"""
+        if not self.serial_port:
+            return None
+        try:
+            # Pause polling briefly
+            was_running = self._running
+            self._running = False
+            time.sleep(0.1)
+
+            # Send command
+            if not cmd.endswith('\r\n'):
+                cmd += '\r\n'
+            self.serial_port.write(cmd.encode('ascii'))
+            time.sleep(0.3)
+
+            # Read response
+            response = ""
+            if self.serial_port.in_waiting > 0:
+                response = self.serial_port.read(self.serial_port.in_waiting).decode('ascii', errors='ignore')
+
+            # Resume polling
+            if was_running:
+                self._running = True
+
+            return response.strip()
+        except Exception as e:
+            return f"Error: {e}"
+
+    def set_sampling_rate(self, rate_code: str):
+        """
+        Set K-LD2 sampling rate.
+        Codes: 0405 = 20480 Hz (fast, for golf)
+               0406 = 10240 Hz
+               0407 = 5120 Hz (slower but more sensitive)
+        """
+        cmd = f"$S{rate_code}"
+        response = self.send_command(cmd)
+        self.signals.status_changed.emit(f"Sampling: {rate_code}", "green")
+        return response
+
     def _poll_loop(self):
         """Background thread: poll radar and emit readings"""
         buffer = ""
@@ -349,6 +390,8 @@ class RadarTestWindow(QMainWindow):
         # Current readings
         self._current_approaching = 0
         self._current_receding = 0
+        self._current_app_mag = 0
+        self._current_rec_mag = 0
 
     def _setup_ui(self):
         """Build the UI"""
@@ -418,6 +461,13 @@ class RadarTestWindow(QMainWindow):
         club_layout.addWidget(self.club_speed_label)
 
         club_layout.addWidget(QLabel("mph", alignment=Qt.AlignCenter))
+
+        # Club magnitude (signal strength)
+        self.club_mag_label = QLabel("Signal: --")
+        self.club_mag_label.setAlignment(Qt.AlignCenter)
+        self.club_mag_label.setStyleSheet("color: #888;")
+        club_layout.addWidget(self.club_mag_label)
+
         speed_layout.addWidget(club_group)
 
         # Receding (Ball) speed
@@ -431,6 +481,13 @@ class RadarTestWindow(QMainWindow):
         ball_layout.addWidget(self.ball_speed_label)
 
         ball_layout.addWidget(QLabel("mph", alignment=Qt.AlignCenter))
+
+        # Ball magnitude (signal strength)
+        self.ball_mag_label = QLabel("Signal: --")
+        self.ball_mag_label.setAlignment(Qt.AlignCenter)
+        self.ball_mag_label.setStyleSheet("color: #888;")
+        ball_layout.addWidget(self.ball_mag_label)
+
         speed_layout.addWidget(ball_group)
 
         middle_splitter.addWidget(speed_widget)
@@ -473,6 +530,42 @@ class RadarTestWindow(QMainWindow):
         thresh_layout.addWidget(self.timeout_spin, 2, 1)
 
         controls_layout.addWidget(thresh_group)
+
+        # Radar Settings
+        radar_group = QGroupBox("Radar Settings")
+        radar_layout = QGridLayout(radar_group)
+
+        # Sampling rate
+        radar_layout.addWidget(QLabel("Sampling Rate:"), 0, 0)
+        self.sampling_combo = QComboBox()
+        self.sampling_combo.addItems([
+            "20480 Hz (Fast - Default)",
+            "10240 Hz (Medium)",
+            "5120 Hz (Slow - More Sensitive)"
+        ])
+        self.sampling_combo.currentIndexChanged.connect(self._on_sampling_changed)
+        radar_layout.addWidget(self.sampling_combo, 0, 1)
+
+        # Custom command
+        radar_layout.addWidget(QLabel("Custom Cmd:"), 1, 0)
+        self.cmd_combo = QComboBox()
+        self.cmd_combo.setEditable(True)
+        self.cmd_combo.addItems([
+            "$C01",      # Get speed with direction
+            "$C00",      # Get speed without direction
+            "$S0405",    # 20480 Hz
+            "$S0406",    # 10240 Hz
+            "$S0407",    # 5120 Hz
+            "$R00",      # Get detection config
+            "$I00",      # Get info
+        ])
+        radar_layout.addWidget(self.cmd_combo, 1, 1)
+
+        self.send_cmd_btn = QPushButton("Send")
+        self.send_cmd_btn.clicked.connect(self._on_send_command)
+        radar_layout.addWidget(self.send_cmd_btn, 1, 2)
+
+        controls_layout.addWidget(radar_group)
 
         # Stats
         stats_group = QGroupBox("Session Stats")
@@ -574,6 +667,8 @@ class RadarTestWindow(QMainWindow):
         """Handle incoming radar reading"""
         self._current_approaching = approaching
         self._current_receding = receding
+        self._current_app_mag = app_mag
+        self._current_rec_mag = rec_mag
 
         # Feed to state machine
         self.state_machine.process_reading(approaching, receding)
@@ -638,6 +733,20 @@ class RadarTestWindow(QMainWindow):
         """Update arm timeout"""
         self.state_machine.set_timeout(value)
 
+    def _on_sampling_changed(self, index: int):
+        """Change radar sampling rate"""
+        rate_codes = ["0405", "0406", "0407"]
+        if 0 <= index < len(rate_codes):
+            response = self.radar.set_sampling_rate(rate_codes[index])
+            self._log_event(f"[{datetime.now().strftime('%H:%M:%S')}] Sampling rate changed: {rate_codes[index]}")
+
+    def _on_send_command(self):
+        """Send custom command to radar"""
+        cmd = self.cmd_combo.currentText().strip()
+        if cmd:
+            response = self.radar.send_command(cmd)
+            self._log_event(f"[{datetime.now().strftime('%H:%M:%S')}] CMD: {cmd} → {response}")
+
     def _log_event(self, message: str):
         """Add event to log"""
         self.log_text.append(message)
@@ -655,6 +764,11 @@ class RadarTestWindow(QMainWindow):
         self.club_speed_label.setText(str(self._current_approaching))
         self.ball_speed_label.setText(str(self._current_receding))
 
+        # Update magnitude displays with signal strength indicator
+        # Magnitude 0-100: weak, 100-200: medium, 200+: strong
+        self._update_mag_label(self.club_mag_label, self._current_app_mag)
+        self._update_mag_label(self.ball_mag_label, self._current_rec_mag)
+
         # Color based on threshold
         if self._current_approaching >= self.state_machine.club_threshold:
             self.club_speed_label.setStyleSheet("color: #FF0000; font-weight: bold;")
@@ -669,6 +783,24 @@ class RadarTestWindow(QMainWindow):
             self.ball_speed_label.setStyleSheet("color: #00AA00;")
         else:
             self.ball_speed_label.setStyleSheet("color: #CCCCCC;")
+
+    def _update_mag_label(self, label: QLabel, mag: int):
+        """Update magnitude label with color-coded signal strength"""
+        if mag == 0:
+            label.setText("Signal: --")
+            label.setStyleSheet("color: #666;")
+        elif mag < 50:
+            label.setText(f"Signal: {mag} (WEAK)")
+            label.setStyleSheet("color: #FF4444;")
+        elif mag < 100:
+            label.setText(f"Signal: {mag} (LOW)")
+            label.setStyleSheet("color: #FFAA00;")
+        elif mag < 150:
+            label.setText(f"Signal: {mag} (OK)")
+            label.setStyleSheet("color: #AAAA00;")
+        else:
+            label.setText(f"Signal: {mag} (GOOD)")
+            label.setStyleSheet("color: #44FF44;")
 
     def closeEvent(self, event):
         """Clean up on close"""
