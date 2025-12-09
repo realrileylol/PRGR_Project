@@ -127,6 +127,9 @@ public slots:
     // Screenshot capture with overlays
     Q_INVOKABLE QString captureScreenshot();
 
+    // Reset tracking when it gets stuck on wrong object
+    Q_INVOKABLE void resetTracking();
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();

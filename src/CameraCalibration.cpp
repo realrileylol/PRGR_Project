@@ -1040,17 +1040,20 @@ QVariantMap CameraCalibration::detectBallLive() {
 
             // Base radius 30px, add 3x velocity to account for motion
             searchRadius = 30.0 + std::min(100.0, speed * 3.0);
-            qDebug() << "Adaptive search radius:" << searchRadius << "px (speed:" << speed << ")";
         } else {
             searchRadius = 50.0;  // Default: wider than before to handle motion
         }
+
+        // If confidence is low, expand search to allow re-acquisition
+        if (m_trackingConfidence < 5) {
+            searchRadius = std::max(searchRadius, 150.0);  // Wide search when uncertain
+            qDebug() << "Low confidence (" << m_trackingConfidence << "), expanding search to" << searchRadius << "px";
+        }
     } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
-        // No track yet - search in zone center
-        searchCenterX = (m_zoneCorners[0].x() + m_zoneCorners[1].x() +
-                        m_zoneCorners[2].x() + m_zoneCorners[3].x()) / 4.0;
-        searchCenterY = (m_zoneCorners[0].y() + m_zoneCorners[1].y() +
-                        m_zoneCorners[2].y() + m_zoneCorners[3].y()) / 4.0;
-        searchRadius = 100.0;  // Wide search initially
+        // No track yet - search whole frame (ball might be outside zone initially)
+        searchCenterX = processed.cols / 2.0;
+        searchCenterY = processed.rows / 2.0;
+        searchRadius = 999999.0;  // Unlimited - find the ball anywhere in frame
     } else {
         // No zone, no track - search whole frame
         searchCenterX = processed.cols / 2.0;
@@ -1119,25 +1122,23 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Skip this candidate, too dark to be a white golf ball
         }
 
-        // Zone preference (strongly prefer balls inside zone)
-        double zoneScore = 1.0;
+        // Zone check (for visualization only - doesn't affect detection scoring)
+        // Per user requirement: "once the ball is out of the grid the circle should
+        // still track the ball but show red" - zone only affects COLOR, not detection
         bool inZoneCheck = false;
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto &corner : m_zoneCorners) {
                 zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
             }
-            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), true);
-            if (distance >= 0) {
-                zoneScore = 1.5;  // Boost score for balls inside zone
-                inZoneCheck = true;
-            } else {
-                zoneScore = 0.3;  // Penalty for balls outside zone
-            }
+            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), false);
+            inZoneCheck = (distance >= 0);
         }
 
-        // Combined score with temporal weighting + brightness preference
-        double score = 0.4 * proximityScore + 0.2 * radiusScore + 0.15 * zoneScore + 0.25 * brightnessScore;
+        // Combined score: focus on brightness (white ball), radius (golf ball size),
+        // and proximity (temporal consistency). NO zone preference - track the ball
+        // regardless of whether it's in zone or not.
+        double score = 0.4 * proximityScore + 0.25 * radiusScore + 0.35 * brightnessScore;
 
         if (score > bestScore) {
             bestScore = score;
@@ -1396,6 +1397,15 @@ void CameraCalibration::stopRecording() {
 
     qDebug() << "Stopped recording. Saved" << m_recordedFrames << "frames to:" << m_recordingPath;
     qDebug() << "Video location:" << m_recordingPath;
+}
+
+void CameraCalibration::resetTracking() {
+    qDebug() << "Manually resetting ball tracking";
+    m_liveTrackingInitialized = false;
+    m_kalmanInitialized = false;
+    m_trackingConfidence = 0;
+    m_missedFrames = 0;
+    qDebug() << "Tracking reset complete - will re-acquire ball on next frame";
 }
 
 QString CameraCalibration::captureScreenshot() {

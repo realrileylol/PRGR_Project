@@ -467,7 +467,8 @@ Rectangle {
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
-                        anchors.margins: 10
+                        anchors.leftMargin: 10
+                        anchors.bottomMargin: 70  // Leave space for reset button
                         width: 200
                         height: 60
                         color: "#dd000000"
@@ -506,6 +507,47 @@ Rectangle {
                                 font.pixelSize: 10
                                 color: "#888888"
                             }
+                        }
+                    }
+
+                    // Reset tracking button
+                    Button {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.margins: 10
+                        width: 200
+                        height: 50
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "🔄 RESET"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Reset Tracking"
+                                font.pixelSize: 9
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#e65100" : "#ff6f00"
+                            radius: 6
+                            border.color: "#d84315"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            cameraCalibration.resetTracking()
+                            soundManager.playClick()
                         }
                     }
 
