@@ -955,6 +955,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
+    // White ball filtering: boost bright pixels (golf ball should be brighter than background)
+    // This helps reject dark objects like club heads, tees, shadows
+    cv::Mat whiteMask;
+    double whiteThreshold = std::max(100.0, brightness * 0.7);  // Adaptive threshold for "white"
+    cv::threshold(processed, whiteMask, whiteThreshold, 255, cv::THRESH_BINARY);
+
+    // Apply mask to enhance white regions
+    cv::Mat whiteEnhanced;
+    processed.copyTo(whiteEnhanced, whiteMask);
+
     // Detect circles using HoughCircles with adaptive parameters
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
@@ -1044,6 +1054,13 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Radius score (prefer ideal golf ball size)
         double radiusScore = 1.0 - std::min(1.0, std::abs(r - idealRadius) / idealRadius);
 
+        // Brightness score (prefer white/bright objects = golf ball)
+        // Sample pixel brightness at circle center
+        int sampleX = std::max(0, std::min(static_cast<int>(cx), gray.cols - 1));
+        int sampleY = std::max(0, std::min(static_cast<int>(cy), gray.rows - 1));
+        double circleBrightness = gray.at<uchar>(sampleY, sampleX);
+        double brightnessScore = circleBrightness / 255.0;  // Normalize to 0-1
+
         // Zone preference (strongly prefer balls inside zone)
         double zoneScore = 1.0;
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
@@ -1059,8 +1076,8 @@ QVariantMap CameraCalibration::detectBallLive() {
             }
         }
 
-        // Combined score with temporal weighting
-        double score = 0.5 * proximityScore + 0.3 * radiusScore + 0.2 * zoneScore;
+        // Combined score with temporal weighting + brightness preference
+        double score = 0.4 * proximityScore + 0.2 * radiusScore + 0.15 * zoneScore + 0.25 * brightnessScore;
 
         if (score > bestScore) {
             bestScore = score;
