@@ -1,0 +1,23 @@
+# Simple Makefile for standalone K-LD2 radar test
+# Usage: make -f Makefile.radar
+
+CXX = g++
+CXXFLAGS = -O2 -Wall -std=c++17
+LDFLAGS = -lpthread
+
+TARGET = test_radar
+SRC = test_radar.cpp
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+	@echo ""
+	@echo "Build complete! Run with: ./test_radar"
+	@echo "  ./test_radar --help     # Show all options"
+	@echo "  ./test_radar --debug    # Show raw radar data"
+
+clean:
+	rm -f $(TARGET)
