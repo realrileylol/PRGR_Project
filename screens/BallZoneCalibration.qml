@@ -226,11 +226,10 @@ Rectangle {
                         }
                     }
 
-                    // Overlay for clicked points
+                    // Overlay for clicked points and zone box
                     Canvas {
                         id: clickOverlay
                         anchors.fill: parent
-                        visible: clickMode !== "" || cameraCalibration.isBallZoneCalibrated || cameraCalibration.isZoneDefined
 
                         onPaint: {
                             var ctx = getContext("2d")
@@ -350,13 +349,14 @@ Rectangle {
                                 ctx.stroke()
                             }
 
-                            // Draw calibrated zone boundary
-                            if (cameraCalibration.isZoneDefined && clickMode !== "zone_corners") {
+                            // Draw calibrated zone boundary (always visible when defined)
+                            if (cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
                                 if (corners.length === 4) {
-                                    ctx.strokeStyle = "#2196f3"
-                                    ctx.lineWidth = 2
-                                    ctx.setLineDash([5, 5])
+                                    // Draw solid bright blue box (always visible)
+                                    ctx.strokeStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                    ctx.lineWidth = 3
+                                    ctx.setLineDash([])
 
                                     ctx.beginPath()
                                     for (var m = 0; m < 4; m++) {
@@ -370,7 +370,28 @@ Rectangle {
                                     }
                                     ctx.closePath()
                                     ctx.stroke()
-                                    ctx.setLineDash([])
+
+                                    // Draw corner markers
+                                    ctx.fillStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                    var labels = ["FL", "FR", "BR", "BL"]
+                                    for (var n = 0; n < 4; n++) {
+                                        var cx = corners[n].x * scaleX + offsetX
+                                        var cy = corners[n].y * scaleY + offsetY
+
+                                        // Draw small circle at corner
+                                        ctx.beginPath()
+                                        ctx.arc(cx, cy, 4, 0, 2 * Math.PI)
+                                        ctx.fill()
+
+                                        // Draw label
+                                        ctx.fillStyle = "#ffffff"
+                                        ctx.font = "bold 12px sans-serif"
+                                        ctx.strokeStyle = "#000000"
+                                        ctx.lineWidth = 2
+                                        ctx.strokeText(labels[n], cx + 8, cy - 8)
+                                        ctx.fillText(labels[n], cx + 8, cy - 8)
+                                        ctx.fillStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                    }
                                 }
                             }
                         }
