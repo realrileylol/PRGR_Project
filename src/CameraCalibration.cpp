@@ -907,7 +907,7 @@ QString CameraCalibration::formatCalibrationSummary() const {
 }
 
 // ============================================================================
-// LIVE BALL TRACKING
+// LIVE BALL TRACKING (Temporal Tracking with Adaptive Lighting)
 // ============================================================================
 
 QVariantMap CameraCalibration::detectBallLive() {
@@ -936,51 +936,131 @@ QVariantMap CameraCalibration::detectBallLive() {
         gray = frame.clone();
     }
 
+    // ========== ADAPTIVE LIGHTING DETECTION ==========
+    // Calculate mean brightness to adapt detection parameters
+    cv::Scalar meanBrightness = cv::mean(gray);
+    double brightness = meanBrightness[0];  // 0-255 range
+
+    // Adapt HoughCircles parameters based on lighting
+    // Darker scenes need lower thresholds, brighter scenes can use higher thresholds
+    int cannyThreshold = static_cast<int>(std::max(50.0, std::min(150.0, brightness * 0.7)));
+    int accumulatorThreshold = static_cast<int>(std::max(10.0, std::min(20.0, brightness * 0.08)));
+
     // Preprocess frame for better ball detection
     cv::Mat processed;
     cv::GaussianBlur(gray, processed, cv::Size(5, 5), 1.5);
 
-    // Use CLAHE for contrast enhancement
-    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
+    // Use CLAHE for contrast enhancement (adaptive to lighting)
+    double clipLimit = (brightness < 100) ? 3.0 : 2.0;  // More aggressive in dark scenes
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles
+    // Detect circles using HoughCircles with adaptive parameters
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 16,  // Min distance between centers
-                     100,  // Canny upper threshold
-                     15,   // Accumulator threshold
+                     cannyThreshold,       // Adaptive Canny threshold
+                     accumulatorThreshold, // Adaptive accumulator threshold
                      6,    // Min radius (golf ball should be 6-12 pixels)
                      12);  // Max radius
 
     if (circles.empty()) {
+        // Track missed frames
+        m_missedFrames++;
+
+        // If we've been tracking successfully, use last known position for a few frames
+        if (m_liveTrackingInitialized && m_missedFrames < 5 && m_trackingConfidence > 3) {
+            result["detected"] = true;
+            result["x"] = m_smoothedBallX;
+            result["y"] = m_smoothedBallY;
+            result["radius"] = m_lastBallRadius;
+
+            // Check zone with last known position
+            bool inZone = false;
+            if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+                std::vector<cv::Point2f> zonePoints;
+                for (const auto &corner : m_zoneCorners) {
+                    zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+                }
+                double distance = cv::pointPolygonTest(zonePoints,
+                    cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
+                inZone = (distance >= 0);
+            }
+            result["inZone"] = inZone;
+        } else {
+            // Lost tracking after too many missed frames
+            if (m_missedFrames > 10) {
+                m_liveTrackingInitialized = false;
+                m_trackingConfidence = 0;
+            }
+        }
         return result;
     }
 
-    // Find best circle (closest to frame center, reasonable size)
-    double frameCenterX = processed.cols / 2.0;
-    double frameCenterY = processed.rows / 2.0;
-    double idealRadius = 9.0;
+    // ========== TEMPORAL PROXIMITY FILTERING ==========
+    // Define search region based on zone or last position
+    double searchCenterX, searchCenterY, searchRadius;
 
+    if (m_liveTrackingInitialized && m_trackingConfidence > 2) {
+        // We have a good track - search near last position
+        searchCenterX = m_smoothedBallX;
+        searchCenterY = m_smoothedBallY;
+        searchRadius = 30.0;  // Allow 30 pixels of motion per frame
+    } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+        // No track yet - search in zone center
+        searchCenterX = (m_zoneCorners[0].x() + m_zoneCorners[1].x() +
+                        m_zoneCorners[2].x() + m_zoneCorners[3].x()) / 4.0;
+        searchCenterY = (m_zoneCorners[0].y() + m_zoneCorners[1].y() +
+                        m_zoneCorners[2].y() + m_zoneCorners[3].y()) / 4.0;
+        searchRadius = 100.0;  // Wide search initially
+    } else {
+        // No zone, no track - search whole frame
+        searchCenterX = processed.cols / 2.0;
+        searchCenterY = processed.rows / 2.0;
+        searchRadius = 999999.0;  // Unlimited
+    }
+
+    // Score candidates with temporal consistency
     cv::Vec3f bestCircle;
     double bestScore = -1.0;
+    double idealRadius = 9.0;
 
     for (const auto& circle : circles) {
         double cx = circle[0];
         double cy = circle[1];
         double r = circle[2];
 
-        // Distance from center (normalized)
-        double distFromCenter = std::sqrt(std::pow(cx - frameCenterX, 2) +
-                                         std::pow(cy - frameCenterY, 2));
-        double maxDist = std::sqrt(std::pow(frameCenterX, 2) + std::pow(frameCenterY, 2));
-        double centerScore = 1.0 - (distFromCenter / maxDist);
+        // Distance from search center (temporal consistency)
+        double distFromSearch = std::sqrt(std::pow(cx - searchCenterX, 2) +
+                                         std::pow(cy - searchCenterY, 2));
 
-        // Radius score
+        // Reject if outside search radius
+        if (distFromSearch > searchRadius) {
+            continue;
+        }
+
+        double proximityScore = 1.0 - std::min(1.0, distFromSearch / searchRadius);
+
+        // Radius score (prefer ideal golf ball size)
         double radiusScore = 1.0 - std::min(1.0, std::abs(r - idealRadius) / idealRadius);
 
-        // Combined score
-        double score = 0.6 * centerScore + 0.4 * radiusScore;
+        // Zone preference (strongly prefer balls inside zone)
+        double zoneScore = 1.0;
+        if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+            std::vector<cv::Point2f> zonePoints;
+            for (const auto &corner : m_zoneCorners) {
+                zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+            }
+            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), true);
+            if (distance >= 0) {
+                zoneScore = 1.5;  // Boost score for balls inside zone
+            } else {
+                zoneScore = 0.3;  // Penalty for balls outside zone
+            }
+        }
+
+        // Combined score with temporal weighting
+        double score = 0.5 * proximityScore + 0.3 * radiusScore + 0.2 * zoneScore;
 
         if (score > bestScore) {
             bestScore = score;
@@ -988,28 +1068,60 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
     }
 
+    // Reject if score too low (likely false positive)
+    if (bestScore < 0.3) {
+        m_missedFrames++;
+        return result;
+    }
+
     double ballX = bestCircle[0];
     double ballY = bestCircle[1];
     double ballRadius = bestCircle[2];
 
-    // Check if ball is inside zone boundaries
+    // ========== EXPONENTIAL SMOOTHING FILTER ==========
+    // Smooth position to reduce jitter
+    double alpha = 0.3;  // Smoothing factor (0 = no change, 1 = instant change)
+
+    if (!m_liveTrackingInitialized) {
+        // First detection - initialize tracking
+        m_smoothedBallX = ballX;
+        m_smoothedBallY = ballY;
+        m_lastBallX = ballX;
+        m_lastBallY = ballY;
+        m_lastBallRadius = ballRadius;
+        m_liveTrackingInitialized = true;
+        m_trackingConfidence = 1;
+        m_missedFrames = 0;
+    } else {
+        // Apply exponential moving average
+        m_smoothedBallX = alpha * ballX + (1.0 - alpha) * m_smoothedBallX;
+        m_smoothedBallY = alpha * ballY + (1.0 - alpha) * m_smoothedBallY;
+        m_lastBallX = ballX;
+        m_lastBallY = ballY;
+        m_lastBallRadius = ballRadius;
+
+        // Build up confidence
+        m_trackingConfidence = std::min(10, m_trackingConfidence + 1);
+        m_missedFrames = 0;
+    }
+
+    // Check if ball is inside zone boundaries (using smoothed position)
     bool inZone = false;
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
-        // Convert zone corners to OpenCV format
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
             zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
         }
 
-        // Use OpenCV's pointPolygonTest (returns positive if inside)
-        double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), false);
+        double distance = cv::pointPolygonTest(zonePoints,
+            cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
         inZone = (distance >= 0);
     }
 
-    // Fill result
+    // Fill result with smoothed values
     result["detected"] = true;
-    result["x"] = ballX;
-    result["y"] = ballY;
+    result["x"] = m_smoothedBallX;
+    result["y"] = m_smoothedBallY;
     result["radius"] = ballRadius;
     result["inZone"] = inZone;
 

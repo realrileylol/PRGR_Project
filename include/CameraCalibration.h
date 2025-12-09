@@ -181,6 +181,16 @@ private:
     std::vector<std::vector<cv::Point2f>> m_imagePoints;
     std::vector<std::vector<cv::Point3f>> m_objectPoints;
 
+    // Live ball tracking state (temporal tracking)
+    bool m_liveTrackingInitialized = false;
+    double m_lastBallX = 0.0;
+    double m_lastBallY = 0.0;
+    double m_lastBallRadius = 0.0;
+    double m_smoothedBallX = 0.0;
+    double m_smoothedBallY = 0.0;
+    int m_trackingConfidence = 0;  // Consecutive successful detections
+    int m_missedFrames = 0;        // Consecutive failed detections
+
     // Helper methods
     bool detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners);
     cv::Mat createUndistortMap();
