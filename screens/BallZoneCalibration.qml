@@ -509,6 +509,51 @@ Rectangle {
                         }
                     }
 
+                    // Screenshot button
+                    Button {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.rightMargin: 140  // Leave space for record button
+                        anchors.bottomMargin: 10
+                        width: 100
+                        height: 50
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "📸 CAP"
+                                font.pixelSize: 16
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Screenshot"
+                                font.pixelSize: 9
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#1976d2" : "#2196f3"
+                            radius: 6
+                            border.color: "#1565c0"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            var filepath = cameraCalibration.captureScreenshot()
+                            if (filepath) {
+                                console.log("Screenshot saved: " + filepath)
+                            }
+                            soundManager.playClick()
+                        }
+                    }
+
                     // Record button
                     Button {
                         anchors.bottom: parent.bottom

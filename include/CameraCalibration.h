@@ -124,6 +124,9 @@ public slots:
     Q_INVOKABLE void stopRecording();
     Q_INVOKABLE bool isRecording() const { return m_isRecording; }
 
+    // Screenshot capture with overlays
+    Q_INVOKABLE QString captureScreenshot();
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();

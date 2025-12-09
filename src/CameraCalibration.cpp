@@ -1084,12 +1084,40 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Radius score (prefer ideal golf ball size)
         double radiusScore = 1.0 - std::min(1.0, std::abs(r - idealRadius) / idealRadius);
 
-        // Brightness score (prefer white/bright objects = golf ball)
-        // Sample pixel brightness at circle center
-        int sampleX = std::max(0, std::min(static_cast<int>(cx), gray.cols - 1));
-        int sampleY = std::max(0, std::min(static_cast<int>(cy), gray.rows - 1));
-        double circleBrightness = gray.at<uchar>(sampleY, sampleX);
-        double brightnessScore = circleBrightness / 255.0;  // Normalize to 0-1
+        // Enhanced brightness score (prefer white/bright objects = golf ball)
+        // Sample multiple points within the circle for better accuracy
+        double totalBrightness = 0.0;
+        int validSamples = 0;
+
+        // Sample 5 points: center + 4 cardinal directions at 60% radius
+        std::vector<std::pair<int, int>> sampleOffsets = {
+            {0, 0},                                    // Center
+            {static_cast<int>(r * 0.6), 0},           // Right
+            {-static_cast<int>(r * 0.6), 0},          // Left
+            {0, static_cast<int>(r * 0.6)},           // Down
+            {0, -static_cast<int>(r * 0.6)}           // Up
+        };
+
+        for (const auto& offset : sampleOffsets) {
+            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
+            totalBrightness += gray.at<uchar>(sampleY, sampleX);
+            validSamples++;
+        }
+
+        double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
+        double brightnessScore = avgBrightness / 255.0;  // Normalize to 0-1
+
+        // Boost score significantly if object is very bright (>200/255 = white golf ball)
+        if (avgBrightness > 200.0) {
+            brightnessScore = std::min(1.0, brightnessScore * 1.3);  // 30% boost for bright objects
+        }
+
+        // Reject obviously dark objects (not golf balls)
+        // Golf balls should have average brightness > 120 in most lighting conditions
+        if (avgBrightness < 100.0) {
+            continue;  // Skip this candidate, too dark to be a white golf ball
+        }
 
         // Zone preference (strongly prefer balls inside zone)
         double zoneScore = 1.0;
@@ -1368,4 +1396,110 @@ void CameraCalibration::stopRecording() {
 
     qDebug() << "Stopped recording. Saved" << m_recordedFrames << "frames to:" << m_recordingPath;
     qDebug() << "Video location:" << m_recordingPath;
+}
+
+QString CameraCalibration::captureScreenshot() {
+    if (!m_frameProvider) {
+        qWarning() << "No frame provider available";
+        return QString();
+    }
+
+    // Get latest frame
+    cv::Mat frame = m_frameProvider->getLatestFrame();
+    if (frame.empty()) {
+        qWarning() << "No frame available for screenshot";
+        return QString();
+    }
+
+    // Create color version if needed
+    cv::Mat colorFrame;
+    if (frame.channels() == 1) {
+        cv::cvtColor(frame, colorFrame, cv::COLOR_GRAY2BGR);
+    } else {
+        colorFrame = frame.clone();
+    }
+
+    // Get current ball detection state
+    bool ballDetected = m_liveTrackingInitialized && m_trackingConfidence > 0;
+    bool inZone = false;
+
+    if (ballDetected && m_isZoneDefined && m_zoneCorners.size() == 4) {
+        std::vector<cv::Point2f> zonePoints;
+        for (const auto &corner : m_zoneCorners) {
+            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+        }
+        double distance = cv::pointPolygonTest(zonePoints,
+            cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
+        inZone = (distance >= 0);
+    }
+
+    // Draw all overlays (same as video recording)
+    // 1. Draw zone boundary (cyan box)
+    if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+        std::vector<cv::Point> pts;
+        for (const auto &corner : m_zoneCorners) {
+            pts.push_back(cv::Point(corner.x(), corner.y()));
+        }
+        cv::polylines(colorFrame, pts, true, cv::Scalar(212, 188, 0), 2);  // Cyan BGR
+
+        // Draw corner labels
+        QStringList labels = {"FL", "FR", "BR", "BL"};
+        for (int i = 0; i < 4 && i < m_zoneCorners.size(); i++) {
+            cv::putText(colorFrame, labels[i].toStdString(),
+                       cv::Point(m_zoneCorners[i].x() + 5, m_zoneCorners[i].y() - 5),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+        }
+    }
+
+    // 2. Draw ball tracking circle (green or red)
+    if (ballDetected) {
+        cv::Scalar circleColor = inZone ? cv::Scalar(80, 175, 76) : cv::Scalar(0, 0, 255);  // Green or Red BGR
+        cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+                  m_lastBallRadius + 3, circleColor, 3);
+        cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+                  2, circleColor, -1);  // Center dot
+    }
+
+    // 3. Draw tracking status text
+    QString statusText = ballDetected ?
+                        (inZone ? "TRACKING - IN ZONE" : "TRACKING - OUT OF ZONE") :
+                        "SEARCHING...";
+    cv::putText(colorFrame, statusText.toStdString(),
+               cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.7,
+               cv::Scalar(0, 255, 0), 2);
+
+    // 4. Draw confidence indicator
+    if (ballDetected) {
+        QString confText = QString("Confidence: %1/10").arg(m_trackingConfidence);
+        cv::putText(colorFrame, confText.toStdString(),
+                   cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                   cv::Scalar(255, 255, 255), 1);
+    }
+
+    // 5. Draw timestamp
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+    cv::putText(colorFrame, timestamp.toStdString(),
+               cv::Point(10, colorFrame.rows - 10), cv::FONT_HERSHEY_SIMPLEX, 0.5,
+               cv::Scalar(255, 255, 255), 1);
+
+    // Create screenshots directory
+    QString screenshotsDir = QDir::homePath() + "/prgr/PRGR_Project/screenshots";
+    QDir dir;
+    if (!dir.mkpath(screenshotsDir)) {
+        qWarning() << "Failed to create screenshots directory:" << screenshotsDir;
+        return QString();
+    }
+
+    // Generate filename with timestamp
+    QString filenameTimestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+    QString filepath = screenshotsDir + "/tracking_" + filenameTimestamp + ".png";
+
+    // Save screenshot
+    if (!cv::imwrite(filepath.toStdString(), colorFrame)) {
+        qWarning() << "Failed to save screenshot to:" << filepath;
+        return QString();
+    }
+
+    qDebug() << "Screenshot saved to:" << filepath;
+    return filepath;
 }
