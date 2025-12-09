@@ -942,13 +942,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     double brightness = meanBrightness[0];  // 0-255 range
 
     // Adapt HoughCircles parameters based on lighting
-    // RELAXED parameters for better initial detection
-    int cannyThreshold = static_cast<int>(std::max(40.0, std::min(120.0, brightness * 0.5)));
-    int accumulatorThreshold = static_cast<int>(std::max(8.0, std::min(15.0, brightness * 0.06)));
+    // Tighter parameters to reduce false positives (was getting 80+ false circles)
+    int cannyThreshold = static_cast<int>(std::max(60.0, std::min(140.0, brightness * 0.6)));
+    int accumulatorThreshold = static_cast<int>(std::max(12.0, std::min(20.0, brightness * 0.08)));
 
-    qDebug() << "Scene brightness:" << brightness
-             << "Canny:" << cannyThreshold
-             << "Acc:" << accumulatorThreshold;
+    // Only log lighting changes significantly
+    static double lastBrightness = 0;
+    if (std::abs(brightness - lastBrightness) > 10.0 || lastBrightness == 0) {
+        qDebug() << "Scene brightness:" << brightness << "Canny:" << cannyThreshold << "Acc:" << accumulatorThreshold;
+        lastBrightness = brightness;
+    }
 
     // Preprocess frame for better ball detection
     cv::Mat processed;
@@ -968,7 +971,12 @@ QVariantMap CameraCalibration::detectBallLive() {
                      5,    // Min radius (relaxed from 6)
                      15);  // Max radius (increased from 12)
 
-    qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
+    // Only log if detection changes significantly
+    static int lastCircleCount = 0;
+    if (std::abs(static_cast<int>(circles.size()) - lastCircleCount) > 5 || circles.size() == 0) {
+        qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
+        lastCircleCount = circles.size();
+    }
 
     if (circles.empty()) {
         // Track missed frames
@@ -1021,7 +1029,20 @@ QVariantMap CameraCalibration::detectBallLive() {
         // We have a good track - search near last position
         searchCenterX = m_smoothedBallX;
         searchCenterY = m_smoothedBallY;
-        searchRadius = 30.0;  // Allow 30 pixels of motion per frame
+
+        // Adaptive search radius based on estimated velocity
+        // If ball moving fast, expand search area
+        if (m_kalmanInitialized && m_kalmanFilter.statePost.rows >= 4) {
+            float vx = m_kalmanFilter.statePost.at<float>(2);
+            float vy = m_kalmanFilter.statePost.at<float>(3);
+            double speed = std::sqrt(vx*vx + vy*vy);
+
+            // Base radius 30px, add 3x velocity to account for motion
+            searchRadius = 30.0 + std::min(100.0, speed * 3.0);
+            qDebug() << "Adaptive search radius:" << searchRadius << "px (speed:" << speed << ")";
+        } else {
+            searchRadius = 50.0;  // Default: wider than before to handle motion
+        }
     } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         // No track yet - search in zone center
         searchCenterX = (m_zoneCorners[0].x() + m_zoneCorners[1].x() +
@@ -1051,9 +1072,8 @@ QVariantMap CameraCalibration::detectBallLive() {
         double distFromSearch = std::sqrt(std::pow(cx - searchCenterX, 2) +
                                          std::pow(cy - searchCenterY, 2));
 
-        // Reject if outside search radius
+        // Reject if outside search radius (don't log each rejection to reduce spam)
         if (distFromSearch > searchRadius) {
-            qDebug() << "  Circle" << cx << "," << cy << "r=" << r << "REJECTED: outside search radius" << searchRadius;
             continue;
         }
         candidatesInRange++;
@@ -1090,18 +1110,21 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Combined score with temporal weighting + brightness preference
         double score = 0.4 * proximityScore + 0.2 * radiusScore + 0.15 * zoneScore + 0.25 * brightnessScore;
 
-        qDebug() << "  Circle (" << cx << "," << cy << ") r=" << r
-                 << " prox=" << proximityScore << " rad=" << radiusScore
-                 << " bright=" << brightnessScore << " zone=" << zoneScore
-                 << " inZone=" << inZoneCheck << " TOTAL=" << score;
-
         if (score > bestScore) {
             bestScore = score;
             bestCircle = circle;
         }
     }
 
-    qDebug() << "Candidates in search range:" << candidatesInRange << "Best score:" << bestScore;
+    // Only log summary and best candidate (not all 80 circles)
+    if (candidatesInRange > 0) {
+        double bx = bestCircle[0];
+        double by = bestCircle[1];
+        double br = bestCircle[2];
+        qDebug() << "Candidates:" << candidatesInRange << "Best: (" << bx << "," << by << ") r=" << br << "score=" << bestScore;
+    } else {
+        qDebug() << "No candidates in search range (total detected:" << circles.size() << ")";
+    }
 
     // RELAXED rejection threshold
     if (bestScore < 0.2) {
@@ -1175,7 +1198,24 @@ QVariantMap CameraCalibration::detectBallLive() {
         // ========== UPDATE STEP ==========
         // Update prediction with new measurement
         cv::Mat measurement = (cv::Mat_<float>(2, 1) << ballX, ballY);
+
+        // Safety check before correction
+        if (measurement.empty() || measurement.rows != 2) {
+            qDebug() << "ERROR: Invalid measurement matrix, skipping correction";
+            m_missedFrames++;
+            return result;
+        }
+
         cv::Mat estimated = m_kalmanFilter.correct(measurement);
+
+        // Safety check on estimated state
+        if (estimated.empty() || estimated.rows < 2) {
+            qDebug() << "ERROR: Invalid Kalman state after correction";
+            m_kalmanInitialized = false;
+            m_liveTrackingInitialized = false;
+            m_missedFrames++;
+            return result;
+        }
 
         // Extract smoothed position from Kalman state
         m_smoothedBallX = estimated.at<float>(0);
@@ -1186,13 +1226,17 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_trackingConfidence = std::min(10, m_trackingConfidence + 1);
         m_missedFrames = 0;
 
-        // Debug: show velocity estimate
-        if (m_trackingConfidence == 10) {
-            double vx = estimated.at<float>(2);
-            double vy = estimated.at<float>(3);
-            double speed = std::sqrt(vx*vx + vy*vy);
-            if (speed > 5.0) {  // Only log if moving
-                qDebug() << "Ball velocity:" << vx << "," << vy << "px/frame, speed:" << speed;
+        // Debug: show velocity estimate (with safety checks)
+        if (m_trackingConfidence == 10 && estimated.rows >= 4) {
+            try {
+                double vx = estimated.at<float>(2);
+                double vy = estimated.at<float>(3);
+                double speed = std::sqrt(vx*vx + vy*vy);
+                if (speed > 5.0 && speed < 100.0) {  // Only log if moving at reasonable speed
+                    qDebug() << "Ball velocity:" << vx << "," << vy << "px/frame, speed:" << speed;
+                }
+            } catch (...) {
+                qDebug() << "ERROR: Exception accessing Kalman velocity state";
             }
         }
     }
