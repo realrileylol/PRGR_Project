@@ -191,6 +191,10 @@ private:
     int m_trackingConfidence = 0;  // Consecutive successful detections
     int m_missedFrames = 0;        // Consecutive failed detections
 
+    // Kalman filter for professional-grade tracking (same as TrackMan/GCQuad)
+    cv::KalmanFilter m_kalmanFilter;
+    bool m_kalmanInitialized = false;
+
     // Helper methods
     bool detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners);
     cv::Mat createUndistortMap();
