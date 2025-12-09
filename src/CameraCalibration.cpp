@@ -905,3 +905,113 @@ QString CameraCalibration::formatCalibrationSummary() const {
 
     return summary;
 }
+
+// ============================================================================
+// LIVE BALL TRACKING
+// ============================================================================
+
+QVariantMap CameraCalibration::detectBallLive() {
+    QVariantMap result;
+    result["detected"] = false;
+    result["x"] = 0.0;
+    result["y"] = 0.0;
+    result["radius"] = 0.0;
+    result["inZone"] = false;
+
+    if (!m_frameProvider) {
+        return result;
+    }
+
+    // Get latest frame
+    cv::Mat frame = m_frameProvider->getLatestFrame();
+    if (frame.empty()) {
+        return result;
+    }
+
+    // Convert to grayscale if needed
+    cv::Mat gray;
+    if (frame.channels() == 3) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    } else {
+        gray = frame.clone();
+    }
+
+    // Preprocess frame for better ball detection
+    cv::Mat processed;
+    cv::GaussianBlur(gray, processed, cv::Size(5, 5), 1.5);
+
+    // Use CLAHE for contrast enhancement
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
+    clahe->apply(processed, processed);
+
+    // Detect circles using HoughCircles
+    std::vector<cv::Vec3f> circles;
+    cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
+                     processed.rows / 16,  // Min distance between centers
+                     100,  // Canny upper threshold
+                     15,   // Accumulator threshold
+                     6,    // Min radius (golf ball should be 6-12 pixels)
+                     12);  // Max radius
+
+    if (circles.empty()) {
+        return result;
+    }
+
+    // Find best circle (closest to frame center, reasonable size)
+    double frameCenterX = processed.cols / 2.0;
+    double frameCenterY = processed.rows / 2.0;
+    double idealRadius = 9.0;
+
+    cv::Vec3f bestCircle;
+    double bestScore = -1.0;
+
+    for (const auto& circle : circles) {
+        double cx = circle[0];
+        double cy = circle[1];
+        double r = circle[2];
+
+        // Distance from center (normalized)
+        double distFromCenter = std::sqrt(std::pow(cx - frameCenterX, 2) +
+                                         std::pow(cy - frameCenterY, 2));
+        double maxDist = std::sqrt(std::pow(frameCenterX, 2) + std::pow(frameCenterY, 2));
+        double centerScore = 1.0 - (distFromCenter / maxDist);
+
+        // Radius score
+        double radiusScore = 1.0 - std::min(1.0, std::abs(r - idealRadius) / idealRadius);
+
+        // Combined score
+        double score = 0.6 * centerScore + 0.4 * radiusScore;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestCircle = circle;
+        }
+    }
+
+    double ballX = bestCircle[0];
+    double ballY = bestCircle[1];
+    double ballRadius = bestCircle[2];
+
+    // Check if ball is inside zone boundaries
+    bool inZone = false;
+    if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+        // Convert zone corners to OpenCV format
+        std::vector<cv::Point2f> zonePoints;
+        for (const auto &corner : m_zoneCorners) {
+            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+        }
+
+        // Use OpenCV's pointPolygonTest (returns positive if inside)
+        double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), false);
+        inZone = (distance >= 0);
+    }
+
+    // Fill result
+    result["detected"] = true;
+    result["x"] = ballX;
+    result["y"] = ballY;
+    result["radius"] = ballRadius;
+    result["inZone"] = inZone;
+
+    return result;
+}

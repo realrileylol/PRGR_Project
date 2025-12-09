@@ -116,6 +116,9 @@ public slots:
     Q_INVOKABLE void useMarkerCornersForZone();  // Use extrinsic calibration markers as zone
     void setBallZone(double centerX, double centerY, double radius);
 
+    // Live ball tracking for real-time overlay
+    Q_INVOKABLE QVariantMap detectBallLive();
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();

@@ -13,6 +13,30 @@ Rectangle {
     property var ballEdgePoints: []
     property var zoneCornerPoints: []
 
+    // Live ball tracking state
+    property bool liveBallDetected: false
+    property real liveBallX: 0
+    property real liveBallY: 0
+    property real liveBallRadius: 0
+    property bool liveBallInZone: false
+
+    // Live ball tracking timer
+    Timer {
+        id: liveTrackingTimer
+        interval: 33  // ~30 fps
+        running: true
+        repeat: true
+        onTriggered: {
+            var result = cameraCalibration.detectBallLive()
+            liveBallDetected = result.detected
+            liveBallX = result.x
+            liveBallY = result.y
+            liveBallRadius = result.radius
+            liveBallInZone = result.inZone
+            clickOverlay.requestPaint()
+        }
+    }
+
     // Ensure camera preview is active when screen loads
     Component.onCompleted: {
         if (!cameraManager.previewActive) {
@@ -323,7 +347,7 @@ Rectangle {
                                 }
                             }
 
-                            // Draw calibrated ball (green circle)
+                            // Draw calibrated ball (green circle) - static reference
                             if (cameraCalibration.isBallZoneCalibrated && clickMode !== "ball_edge") {
                                 var ballX = cameraCalibration.ballCenterX
                                 var ballY = cameraCalibration.ballCenterY
@@ -347,6 +371,26 @@ Rectangle {
                                 ctx.moveTo(displayX, displayY - 15)
                                 ctx.lineTo(displayX, displayY + 15)
                                 ctx.stroke()
+                            }
+
+                            // Draw LIVE ball tracking (green when in zone, red when out)
+                            if (liveBallDetected && clickMode !== "ball_edge") {
+                                var liveX = liveBallX * scaleX + offsetX
+                                var liveY = liveBallY * scaleY + offsetY
+                                var liveR = liveBallRadius * Math.min(scaleX, scaleY)
+
+                                // Green when ball is in zone, red when outside
+                                ctx.strokeStyle = liveBallInZone ? "#4caf50" : "#ff0000"
+                                ctx.lineWidth = 4
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, liveR + 3, 0, 2 * Math.PI)
+                                ctx.stroke()
+
+                                // Draw small center dot
+                                ctx.fillStyle = liveBallInZone ? "#4caf50" : "#ff0000"
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, 3, 0, 2 * Math.PI)
+                                ctx.fill()
                             }
 
                             // Draw calibrated zone boundary (always visible when defined)
