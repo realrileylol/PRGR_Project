@@ -1156,13 +1156,10 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     // ========== DEBUG VISUALIZATION ==========
     if (m_debugMode) {
-        // Create color debug frame
+        // Create color debug frame from PROCESSED image (same as what HoughCircles sees)
+        // This shows the CLAHE-enhanced bright image, not the raw dark frame
         cv::Mat debugFrame;
-        if (frame.channels() == 1) {
-            cv::cvtColor(frame, debugFrame, cv::COLOR_GRAY2BGR);
-        } else {
-            debugFrame = frame.clone();
-        }
+        cv::cvtColor(processed, debugFrame, cv::COLOR_GRAY2BGR);
 
         // Draw ALL detected circles in BLUE with brightness labels
         for (const auto& circle : circles) {
