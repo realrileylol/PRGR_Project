@@ -1117,8 +1117,8 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // Reject obviously dark objects (not golf balls)
-        // Golf balls should have average brightness > 120 in most lighting conditions
-        if (avgBrightness < 100.0) {
+        // Lowered threshold to 70 - golf ball brightness is ~84-94 in current lighting
+        if (avgBrightness < 70.0) {
             continue;  // Skip this candidate, too dark to be a white golf ball
         }
 
@@ -1225,7 +1225,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Canny: %1 | Acc: %2 | MinBright: 100")
+        QString paramText = QString("Canny: %1 | Acc: %2 | MinBright: 70")
             .arg(cannyThreshold)
             .arg(accumulatorThreshold);
         cv::putText(debugFrame, paramText.toStdString(),
