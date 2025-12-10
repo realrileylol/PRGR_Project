@@ -1167,6 +1167,91 @@ QVariantMap CameraCalibration::detectBallLive() {
     double ballY = bestCircle[1];
     double ballRadius = bestCircle[2];
 
+    // ========== DEBUG VISUALIZATION ==========
+    if (m_debugMode) {
+        // Create color debug frame
+        cv::Mat debugFrame;
+        if (frame.channels() == 1) {
+            cv::cvtColor(frame, debugFrame, cv::COLOR_GRAY2BGR);
+        } else {
+            debugFrame = frame.clone();
+        }
+
+        // Draw ALL detected circles in BLUE with brightness labels
+        for (const auto& circle : circles) {
+            double cx = circle[0];
+            double cy = circle[1];
+            double r = circle[2];
+
+            // Calculate brightness for this circle
+            double totalBrightness = 0.0;
+            int validSamples = 0;
+            std::vector<std::pair<int, int>> sampleOffsets = {
+                {0, 0},
+                {static_cast<int>(r * 0.6), 0},
+                {-static_cast<int>(r * 0.6), 0},
+                {0, static_cast<int>(r * 0.6)},
+                {0, -static_cast<int>(r * 0.6)}
+            };
+            for (const auto& offset : sampleOffsets) {
+                int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
+                int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
+                totalBrightness += gray.at<uchar>(sampleY, sampleX);
+                validSamples++;
+            }
+            double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
+
+            // Draw circle in BLUE
+            cv::circle(debugFrame, cv::Point(cx, cy), r, cv::Scalar(255, 100, 0), 1);  // Blue
+
+            // Draw brightness value
+            QString brightnessText = QString::number(static_cast<int>(avgBrightness));
+            cv::putText(debugFrame, brightnessText.toStdString(),
+                       cv::Point(cx - 10, cy - r - 5),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 1);  // Cyan text
+        }
+
+        // Draw SELECTED circle in GREEN/RED (much larger and thicker)
+        if (candidatesInRange > 0 && bestScore >= 0.2) {
+            cv::Scalar selectedColor = cv::Scalar(0, 255, 0);  // Green
+            cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius + 5, selectedColor, 4);
+            cv::circle(debugFrame, cv::Point(ballX, ballY), 3, selectedColor, -1);  // Center dot
+
+            // Draw score
+            QString scoreText = QString("SELECTED: Score=%1").arg(bestScore, 0, 'f', 2);
+            cv::putText(debugFrame, scoreText.toStdString(),
+                       cv::Point(ballX - 50, ballY + ballRadius + 20),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+        }
+
+        // Draw search center and radius
+        cv::circle(debugFrame, cv::Point(searchCenterX, searchCenterY), 3,
+                  cv::Scalar(0, 255, 255), -1);  // Yellow dot for search center
+        if (searchRadius < 999999.0) {
+            cv::circle(debugFrame, cv::Point(searchCenterX, searchCenterY), searchRadius,
+                      cv::Scalar(0, 255, 255), 1);  // Yellow search radius circle
+        }
+
+        // Draw info text
+        QString infoText = QString("Detected: %1 | In Range: %2 | Best Score: %3")
+            .arg(circles.size())
+            .arg(candidatesInRange)
+            .arg(bestScore, 0, 'f', 2);
+        cv::putText(debugFrame, infoText.toStdString(),
+                   cv::Point(10, frame.rows - 40),
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+
+        QString paramText = QString("Canny: %1 | Acc: %2 | MinBright: 100")
+            .arg(cannyThreshold)
+            .arg(accumulatorThreshold);
+        cv::putText(debugFrame, paramText.toStdString(),
+                   cv::Point(10, frame.rows - 20),
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+
+        // Store for screenshot capability
+        m_lastDebugFrame = debugFrame.clone();
+    }
+
     // ========== KALMAN FILTER (Professional-Grade Tracking) ==========
     // Same approach as TrackMan/GCQuad - predicts ball position using physics model
     // State: [x, y, vx, vy] - position + velocity
@@ -1426,6 +1511,18 @@ void CameraCalibration::resetTracking() {
     qDebug() << "Tracking reset complete - will re-acquire ball on next frame";
 }
 
+void CameraCalibration::setDebugMode(bool enabled) {
+    m_debugMode = enabled;
+    qDebug() << "Debug mode" << (enabled ? "ENABLED" : "DISABLED");
+    if (enabled) {
+        qDebug() << "Debug visualization will show:";
+        qDebug() << "  - All detected circles in BLUE";
+        qDebug() << "  - Brightness scores for each circle";
+        qDebug() << "  - Selected circle in GREEN/RED (larger)";
+        qDebug() << "  - Detection parameters and scores";
+    }
+}
+
 // ============================================================================
 // BALL ZONE STATE MACHINE (Professional Launch Monitor Ready System)
 // ============================================================================
@@ -1596,6 +1693,29 @@ void CameraCalibration::updateBallZoneState(bool ballDetected, bool inZone, doub
 }
 
 QString CameraCalibration::captureScreenshot() {
+    // If debug mode is enabled, use the last debug frame (shows all circles)
+    if (m_debugMode && !m_lastDebugFrame.empty()) {
+        QString screenshotsDir = QDir::homePath() + "/prgr/PRGR_Project/screenshots";
+        QDir dir;
+        if (!dir.mkpath(screenshotsDir)) {
+            qWarning() << "Failed to create screenshots directory:" << screenshotsDir;
+            return QString();
+        }
+
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+        QString filepath = screenshotsDir + "/debug_" + timestamp + ".png";
+
+        if (!cv::imwrite(filepath.toStdString(), m_lastDebugFrame)) {
+            qWarning() << "Failed to save debug screenshot to:" << filepath;
+            return QString();
+        }
+
+        qDebug() << "DEBUG screenshot saved to:" << filepath;
+        qDebug() << "Shows: ALL detected circles (blue), brightness values, selected circle (green)";
+        return filepath;
+    }
+
+    // Normal screenshot mode (no debug visualization)
     if (!m_frameProvider) {
         qWarning() << "No frame provider available";
         return QString();

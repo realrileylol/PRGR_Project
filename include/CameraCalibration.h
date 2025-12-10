@@ -135,6 +135,10 @@ public slots:
     Q_INVOKABLE bool isSystemReady() const;
     Q_INVOKABLE bool isSystemArmed() const;
 
+    // Debug visualization mode
+    Q_INVOKABLE void setDebugMode(bool enabled);
+    Q_INVOKABLE bool isDebugMode() const { return m_debugMode; }
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();
@@ -240,6 +244,10 @@ private:
     cv::VideoWriter m_videoWriter;
     QString m_recordingPath;
     int m_recordedFrames = 0;
+
+    // Debug visualization
+    bool m_debugMode = true;  // Start in debug mode to diagnose tracking issues
+    cv::Mat m_lastDebugFrame;  // Store last debug frame for screenshot
 
     // Helper methods
     bool detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners);

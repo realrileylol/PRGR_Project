@@ -594,6 +594,60 @@ Rectangle {
                         }
                     }
 
+                    // Debug mode toggle (CRITICAL for diagnosing tracking issues)
+                    Button {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.rightMargin: 270  // Leave space for CAP + REC buttons
+                        anchors.bottomMargin: 10
+                        width: 100
+                        height: 50
+
+                        property bool debugEnabled: cameraCalibration.isDebugMode()
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: parent.parent.debugEnabled ? "🐛 ON" : "🐛 OFF"
+                                font.pixelSize: 16
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Debug Mode"
+                                font.pixelSize: 9
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.debugEnabled
+                                   ? (parent.pressed ? "#7b1fa2" : "#9c27b0")  // Purple when ON
+                                   : (parent.pressed ? "#424242" : "#616161")  // Gray when OFF
+                            radius: 6
+                            border.color: parent.debugEnabled ? "#6a1b9a" : "#424242"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            debugEnabled = !debugEnabled
+                            cameraCalibration.setDebugMode(debugEnabled)
+                            soundManager.playClick()
+                        }
+
+                        Timer {
+                            interval: 100
+                            running: true
+                            repeat: true
+                            onTriggered: parent.debugEnabled = cameraCalibration.isDebugMode()
+                        }
+                    }
+
                     // Screenshot button
                     Button {
                         anchors.bottom: parent.bottom
