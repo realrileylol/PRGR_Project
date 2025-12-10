@@ -1122,19 +1122,6 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Skip this candidate, too dark to be a white golf ball
         }
 
-        // Zone check (for visualization only - doesn't affect detection scoring)
-        // Per user requirement: "once the ball is out of the grid the circle should
-        // still track the ball but show red" - zone only affects COLOR, not detection
-        bool inZoneCheck = false;
-        if (m_isZoneDefined && m_zoneCorners.size() == 4) {
-            std::vector<cv::Point2f> zonePoints;
-            for (const auto &corner : m_zoneCorners) {
-                zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
-            }
-            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), false);
-            inZoneCheck = (distance >= 0);
-        }
-
         // Combined score: focus on brightness (white ball), radius (golf ball size),
         // and proximity (temporal consistency). NO zone preference - track the ball
         // regardless of whether it's in zone or not.
@@ -1433,11 +1420,9 @@ QVariantMap CameraCalibration::detectBallLive() {
     }
 
     // ========== BALL ZONE STATE MACHINE UPDATE ==========
-    // Update state machine with current detection results
+    // Update state machine with current detection results (ballX, ballY already in scope)
     bool ballDetected = result["detected"].toBool();
     bool ballInZone = result["inZone"].toBool();
-    double ballX = result["x"].toDouble();
-    double ballY = result["y"].toDouble();
 
     updateBallZoneState(ballDetected, ballInZone, ballX, ballY);
 

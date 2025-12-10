@@ -230,7 +230,7 @@ private:
 
     // Stability detection
     std::deque<cv::Point2f> m_ballPositionHistory;  // Recent positions for stability check
-    const int m_stabilityHistorySize = 15;          // 0.5 seconds at 30 FPS
+    const size_t m_stabilityHistorySize = 15;       // 0.5 seconds at 30 FPS
     const double m_stabilityThreshold = 2.0;        // Max 2px movement for "stable"
     qint64 m_stableStartTime = 0;                   // When ball became stable
     const qint64 m_readyRequiredMs = 1000;          // 1 second stable = READY
