@@ -1116,16 +1116,17 @@ QVariantMap CameraCalibration::detectBallLive() {
             brightnessScore = std::min(1.0, brightnessScore * 1.3);  // 30% boost for bright objects
         }
 
-        // Reject obviously dark objects (not golf balls)
-        // Lowered threshold to 70 - golf ball brightness is ~84-94 in current lighting
+        // TEMPORARILY DISABLED: Let all objects through to debug tracking
+        // Will re-enable once we confirm ball is being selected
+        /*
         if (avgBrightness < 70.0) {
             continue;  // Skip this candidate, too dark to be a white golf ball
         }
+        */
 
-        // Combined score: focus on brightness (white ball), radius (golf ball size),
-        // and proximity (temporal consistency). NO zone preference - track the ball
-        // regardless of whether it's in zone or not.
-        double score = 0.4 * proximityScore + 0.25 * radiusScore + 0.35 * brightnessScore;
+        // Combined score: HEAVILY WEIGHT BRIGHTNESS to find the white golf ball
+        // Brightness is king - white golf ball should be brightest object
+        double score = 0.1 * proximityScore + 0.2 * radiusScore + 0.7 * brightnessScore;
 
         if (score > bestScore) {
             bestScore = score;
@@ -1225,7 +1226,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Canny: %1 | Acc: %2 | MinBright: 70")
+        QString paramText = QString("Canny: %1 | Acc: %2 | Weights: 10%prox 20%rad 70%bright")
             .arg(cannyThreshold)
             .arg(accumulatorThreshold);
         cv::putText(debugFrame, paramText.toStdString(),
