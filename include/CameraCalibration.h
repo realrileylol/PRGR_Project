@@ -130,6 +130,11 @@ public slots:
     // Reset tracking when it gets stuck on wrong object
     Q_INVOKABLE void resetTracking();
 
+    // Ball zone state (for UI display)
+    Q_INVOKABLE QString getBallZoneStateDisplay() const;
+    Q_INVOKABLE bool isSystemReady() const;
+    Q_INVOKABLE bool isSystemArmed() const;
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();
@@ -206,6 +211,30 @@ private:
     cv::KalmanFilter m_kalmanFilter;
     bool m_kalmanInitialized = false;
 
+    // Ball zone state machine (like Bushnell/GCQuad/TrackMan ready system)
+    enum class BallZoneState {
+        NO_BALL,                // No ball detected anywhere
+        BALL_OUT_OF_ZONE,      // Ball detected but outside 12×12 zone
+        BALL_IN_ZONE_MOVING,   // Ball inside zone but still moving
+        BALL_IN_ZONE_STABLE,   // Ball inside zone and stationary (stabilizing)
+        READY,                 // Ball stable in zone for required time - ARMED
+        IMPACT_DETECTED,       // Ball just left zone (impact occurred)
+        POST_IMPACT            // Capturing post-impact data
+    };
+
+    BallZoneState m_ballZoneState = BallZoneState::NO_BALL;
+
+    // Stability detection
+    std::deque<cv::Point2f> m_ballPositionHistory;  // Recent positions for stability check
+    const int m_stabilityHistorySize = 15;          // 0.5 seconds at 30 FPS
+    const double m_stabilityThreshold = 2.0;        // Max 2px movement for "stable"
+    qint64 m_stableStartTime = 0;                   // When ball became stable
+    const qint64 m_readyRequiredMs = 1000;          // 1 second stable = READY
+
+    // Impact detection
+    bool m_isArmed = false;                         // True when in READY state
+    qint64 m_impactTime = 0;                        // Timestamp of impact detection
+
     // Video recording
     bool m_isRecording = false;
     cv::VideoWriter m_videoWriter;
@@ -217,6 +246,11 @@ private:
     cv::Mat createUndistortMap();
     void calculateCameraPose();
     QString formatCalibrationSummary() const;
+
+    // Ball zone state machine helpers
+    bool isBallStable() const;
+    QString getBallZoneStateString() const;
+    void updateBallZoneState(bool ballDetected, bool inZone, double ballX, double ballY);
 
     // OV9281 sensor specs (for validation)
     static constexpr double SENSOR_WIDTH_MM = 5.635;   // 1/4" sensor physical width

@@ -1347,6 +1347,21 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_recordedFrames++;
     }
 
+    // ========== BALL ZONE STATE MACHINE UPDATE ==========
+    // Update state machine with current detection results
+    bool ballDetected = result["detected"].toBool();
+    bool ballInZone = result["inZone"].toBool();
+    double ballX = result["x"].toDouble();
+    double ballY = result["y"].toDouble();
+
+    updateBallZoneState(ballDetected, ballInZone, ballX, ballY);
+
+    // Add state machine info to result for UI display
+    result["zoneState"] = getBallZoneStateString();
+    result["zoneStateDisplay"] = getBallZoneStateDisplay();
+    result["isReady"] = isSystemReady();
+    result["isArmed"] = isSystemArmed();
+
     return result;
 }
 
@@ -1405,7 +1420,179 @@ void CameraCalibration::resetTracking() {
     m_kalmanInitialized = false;
     m_trackingConfidence = 0;
     m_missedFrames = 0;
+    m_ballZoneState = BallZoneState::NO_BALL;
+    m_isArmed = false;
+    m_ballPositionHistory.clear();
     qDebug() << "Tracking reset complete - will re-acquire ball on next frame";
+}
+
+// ============================================================================
+// BALL ZONE STATE MACHINE (Professional Launch Monitor Ready System)
+// ============================================================================
+
+bool CameraCalibration::isBallStable() const {
+    if (m_ballPositionHistory.size() < m_stabilityHistorySize) {
+        return false;  // Not enough history yet
+    }
+
+    // Calculate max movement in recent history
+    double maxMovement = 0.0;
+    cv::Point2f firstPos = m_ballPositionHistory.front();
+
+    for (const auto& pos : m_ballPositionHistory) {
+        double dx = pos.x - firstPos.x;
+        double dy = pos.y - firstPos.y;
+        double movement = std::sqrt(dx*dx + dy*dy);
+        maxMovement = std::max(maxMovement, movement);
+    }
+
+    // Stable if max movement is below threshold
+    return maxMovement < m_stabilityThreshold;
+}
+
+QString CameraCalibration::getBallZoneStateString() const {
+    switch (m_ballZoneState) {
+        case BallZoneState::NO_BALL:
+            return "NO_BALL";
+        case BallZoneState::BALL_OUT_OF_ZONE:
+            return "OUT_OF_ZONE";
+        case BallZoneState::BALL_IN_ZONE_MOVING:
+            return "MOVING";
+        case BallZoneState::BALL_IN_ZONE_STABLE:
+            return "STABILIZING";
+        case BallZoneState::READY:
+            return "READY";
+        case BallZoneState::IMPACT_DETECTED:
+            return "IMPACT";
+        case BallZoneState::POST_IMPACT:
+            return "PROCESSING";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+QString CameraCalibration::getBallZoneStateDisplay() const {
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+    switch (m_ballZoneState) {
+        case BallZoneState::NO_BALL:
+            return "Place ball in zone";
+        case BallZoneState::BALL_OUT_OF_ZONE:
+            return "Ball outside zone";
+        case BallZoneState::BALL_IN_ZONE_MOVING:
+            return "Ball moving...";
+        case BallZoneState::BALL_IN_ZONE_STABLE: {
+            qint64 elapsed = currentTime - m_stableStartTime;
+            double remaining = (m_readyRequiredMs - elapsed) / 1000.0;
+            return QString("Stabilizing... %1s").arg(remaining, 0, 'f', 1);
+        }
+        case BallZoneState::READY:
+            return "READY - Hit when ready";
+        case BallZoneState::IMPACT_DETECTED:
+            return "IMPACT!";
+        case BallZoneState::POST_IMPACT:
+            return "Processing...";
+        default:
+            return "Unknown state";
+    }
+}
+
+bool CameraCalibration::isSystemReady() const {
+    return m_ballZoneState == BallZoneState::READY;
+}
+
+bool CameraCalibration::isSystemArmed() const {
+    return m_isArmed;
+}
+
+void CameraCalibration::updateBallZoneState(bool ballDetected, bool inZone, double ballX, double ballY) {
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    BallZoneState previousState = m_ballZoneState;
+
+    // Update position history for stability tracking
+    if (ballDetected && inZone) {
+        m_ballPositionHistory.push_back(cv::Point2f(ballX, ballY));
+        if (m_ballPositionHistory.size() > m_stabilityHistorySize) {
+            m_ballPositionHistory.pop_front();
+        }
+    } else {
+        m_ballPositionHistory.clear();
+    }
+
+    // State machine transitions
+    switch (m_ballZoneState) {
+        case BallZoneState::NO_BALL:
+            if (ballDetected && inZone) {
+                m_ballZoneState = BallZoneState::BALL_IN_ZONE_MOVING;
+                qDebug() << "State: NO_BALL → BALL_IN_ZONE_MOVING";
+            } else if (ballDetected && !inZone) {
+                m_ballZoneState = BallZoneState::BALL_OUT_OF_ZONE;
+                qDebug() << "State: NO_BALL → BALL_OUT_OF_ZONE";
+            }
+            break;
+
+        case BallZoneState::BALL_OUT_OF_ZONE:
+            if (!ballDetected) {
+                m_ballZoneState = BallZoneState::NO_BALL;
+                qDebug() << "State: BALL_OUT_OF_ZONE → NO_BALL";
+            } else if (inZone) {
+                m_ballZoneState = BallZoneState::BALL_IN_ZONE_MOVING;
+                qDebug() << "State: BALL_OUT_OF_ZONE → BALL_IN_ZONE_MOVING";
+            }
+            break;
+
+        case BallZoneState::BALL_IN_ZONE_MOVING:
+            if (!ballDetected || !inZone) {
+                m_ballZoneState = !ballDetected ? BallZoneState::NO_BALL : BallZoneState::BALL_OUT_OF_ZONE;
+                qDebug() << "State: BALL_IN_ZONE_MOVING → " << getBallZoneStateString();
+            } else if (isBallStable()) {
+                m_ballZoneState = BallZoneState::BALL_IN_ZONE_STABLE;
+                m_stableStartTime = currentTime;
+                qDebug() << "State: BALL_IN_ZONE_MOVING → BALL_IN_ZONE_STABLE (ball stopped moving)";
+            }
+            break;
+
+        case BallZoneState::BALL_IN_ZONE_STABLE:
+            if (!ballDetected || !inZone) {
+                m_ballZoneState = !ballDetected ? BallZoneState::NO_BALL : BallZoneState::BALL_OUT_OF_ZONE;
+                qDebug() << "State: BALL_IN_ZONE_STABLE → " << getBallZoneStateString();
+            } else if (!isBallStable()) {
+                m_ballZoneState = BallZoneState::BALL_IN_ZONE_MOVING;
+                qDebug() << "State: BALL_IN_ZONE_STABLE → BALL_IN_ZONE_MOVING (ball moved)";
+            } else if (currentTime - m_stableStartTime >= m_readyRequiredMs) {
+                m_ballZoneState = BallZoneState::READY;
+                m_isArmed = true;
+                qDebug() << "State: BALL_IN_ZONE_STABLE → READY ✅ (SYSTEM ARMED)";
+            }
+            break;
+
+        case BallZoneState::READY:
+            // Check for impact (ball left zone or disappeared)
+            if (!ballDetected || !inZone) {
+                m_ballZoneState = BallZoneState::IMPACT_DETECTED;
+                m_impactTime = currentTime;
+                qDebug() << "State: READY → IMPACT_DETECTED 🏌️ (Shot detected!)";
+            }
+            // If ball is still there but moving, stay READY (club might be approaching)
+            break;
+
+        case BallZoneState::IMPACT_DETECTED:
+            // Transition to post-impact processing
+            // (This will be handled by high-speed capture system)
+            m_ballZoneState = BallZoneState::POST_IMPACT;
+            qDebug() << "State: IMPACT_DETECTED → POST_IMPACT";
+            break;
+
+        case BallZoneState::POST_IMPACT:
+            // Reset to NO_BALL after processing complete
+            // (Will be triggered after capture sequence completes)
+            break;
+    }
+
+    // Log state changes
+    if (m_ballZoneState != previousState) {
+        qDebug() << "Ball Zone State Changed:" << getBallZoneStateString();
+    }
 }
 
 QString CameraCalibration::captureScreenshot() {

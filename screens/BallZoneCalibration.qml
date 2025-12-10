@@ -20,6 +20,12 @@ Rectangle {
     property real liveBallRadius: 0
     property bool liveBallInZone: false
 
+    // Ball zone state machine properties
+    property string ballZoneState: "NO_BALL"
+    property string ballZoneStateDisplay: "Place ball in zone"
+    property bool systemReady: false
+    property bool systemArmed: false
+
     // Live ball tracking timer
     Timer {
         id: liveTrackingTimer
@@ -33,6 +39,13 @@ Rectangle {
             liveBallY = result.y
             liveBallRadius = result.radius
             liveBallInZone = result.inZone
+
+            // Update state machine properties
+            ballZoneState = result.zoneState || "NO_BALL"
+            ballZoneStateDisplay = result.zoneStateDisplay || "Place ball in zone"
+            systemReady = result.isReady || false
+            systemArmed = result.isArmed || false
+
             clickOverlay.requestPaint()
         }
     }
@@ -463,49 +476,79 @@ Rectangle {
                         styleColor: "#000000"
                     }
 
-                    // Tracking status indicator
+                    // Professional Ready State Indicator (like Bushnell/GCQuad)
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         anchors.leftMargin: 10
                         anchors.bottomMargin: 70  // Leave space for reset button
-                        width: 200
-                        height: 60
+                        width: 220
+                        height: 70
                         color: "#dd000000"
                         radius: 6
                         border.width: 2
-                        border.color: liveBallDetected ? "#4caf50" : "#ff9800"
+                        // Border color based on state machine
+                        border.color: {
+                            if (systemReady) return "#4caf50"           // Green when READY
+                            if (ballZoneState === "STABILIZING") return "#ff9800"  // Orange when stabilizing
+                            if (ballZoneState === "MOVING") return "#ffc107"       // Yellow when moving
+                            if (ballZoneState === "OUT_OF_ZONE") return "#ff5722"  // Red when out
+                            return "#666666"  // Gray when no ball
+                        }
 
                         Column {
                             anchors.centerIn: parent
                             spacing: 3
 
+                            // Main status indicator
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: liveBallDetected ? "● TRACKING" : "○ SEARCHING..."
-                                font.pixelSize: 14
+                                text: {
+                                    if (systemReady) return "● READY"
+                                    if (ballZoneState === "STABILIZING") return "◐ STABILIZING"
+                                    if (ballZoneState === "MOVING") return "◔ MOVING"
+                                    if (ballZoneState === "OUT_OF_ZONE") return "○ OUT OF ZONE"
+                                    if (ballZoneState === "IMPACT") return "⚡ IMPACT!"
+                                    if (ballZoneState === "PROCESSING") return "⚙ PROCESSING"
+                                    return "○ NO BALL"
+                                }
+                                font.pixelSize: 16
                                 font.bold: true
-                                color: liveBallDetected ? "#4caf50" : "#ff9800"
+                                color: {
+                                    if (systemReady) return "#4caf50"           // Green
+                                    if (ballZoneState === "STABILIZING") return "#ff9800"  // Orange
+                                    if (ballZoneState === "MOVING") return "#ffc107"       // Yellow
+                                    if (ballZoneState === "OUT_OF_ZONE") return "#ff5722"  // Red
+                                    if (ballZoneState === "IMPACT") return "#00ff00"       // Bright green
+                                    return "#aaaaaa"  // Gray
+                                }
+
+                                // Pulse animation when READY
+                                SequentialAnimation on opacity {
+                                    running: systemReady
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 0.6; duration: 800 }
+                                    NumberAnimation { to: 1.0; duration: 800 }
+                                }
                             }
 
+                            // Detailed state text
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: liveBallDetected
-                                      ? (liveBallInZone ? "IN ZONE ✓" : "OUT OF ZONE")
-                                      : "Place ball in zone"
+                                text: ballZoneStateDisplay
                                 font.pixelSize: 11
-                                color: liveBallDetected
-                                       ? (liveBallInZone ? "#4caf50" : "#ff5722")
-                                       : "#cccccc"
+                                color: systemReady ? "#4caf50" : "#cccccc"
                             }
 
+                            // Position info (only when tracking)
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: liveBallDetected
                                       ? "X:" + liveBallX.toFixed(1) + " Y:" + liveBallY.toFixed(1)
-                                      : "No detection"
-                                font.pixelSize: 10
+                                      : ""
+                                font.pixelSize: 9
                                 color: "#888888"
+                                visible: liveBallDetected
                             }
                         }
                     }
