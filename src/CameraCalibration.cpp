@@ -1067,9 +1067,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         };
 
         for (const auto& offset : sampleOffsets) {
-            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
-            double brightness = gray.at<uchar>(sampleY, sampleX);  // RAW brightness
+            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), processed.cols - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), processed.rows - 1));
+            double brightness = processed.at<uchar>(sampleY, sampleX);  // CLAHE-enhanced brightness (what human eye sees)
             totalBrightness += brightness;
             validSamples++;
         }
