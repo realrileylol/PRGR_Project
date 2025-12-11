@@ -1030,7 +1030,6 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     cv::Vec3f bestCircle;
     double bestBrightness = -1.0;
-    double idealRadius = 9.0;
 
     for (const auto& circle : circles) {
         double cx = circle[0];
@@ -1133,7 +1132,6 @@ QVariantMap CameraCalibration::detectBallLive() {
         cv::putText(debugFrame, brightnessText.toStdString(),
                    cv::Point(ballX - 50, ballY + ballRadius + 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
-        }
 
         // Draw info text - SIMPLE brightness-based tracking
         QString infoText = QString("Detected: %1 | Brightest: %2")
@@ -1143,9 +1141,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Canny: 70 | Acc: 15 | Strategy: TRACK BRIGHTEST CIRCLE")
-            .arg(cannyThreshold)
-            .arg(accumulatorThreshold);
+        QString paramText = QString("Canny: 70 | Acc: 15 | Strategy: TRACK BRIGHTEST CIRCLE");
         cv::putText(debugFrame, paramText.toStdString(),
                    cv::Point(10, frame.rows - 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
