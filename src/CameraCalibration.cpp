@@ -1115,9 +1115,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         };
 
         for (const auto& offset : sampleOffsets) {
-            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), processed.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(cx + offset.second), processed.rows - 1));
-            double brightness = processed.at<uchar>(sampleY, sampleX);  // CLAHE-enhanced brightness (what human eye sees)
+            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
+            double brightness = gray.at<uchar>(sampleY, sampleX);  // RAW brightness - white ball is truly brightest on raw frame
             totalBrightness += brightness;
             validSamples++;
         }
@@ -1155,9 +1155,9 @@ QVariantMap CameraCalibration::detectBallLive() {
             {0, -static_cast<int>(bestCircle[2] * 0.6)}
         };
         for (const auto& offset : sampleOffsets) {
-            int sampleX = std::max(0, std::min(static_cast<int>(bestCircle[0] + offset.first), processed.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(bestCircle[1] + offset.second), processed.rows - 1));
-            actualBrightness += processed.at<uchar>(sampleY, sampleX);
+            int sampleX = std::max(0, std::min(static_cast<int>(bestCircle[0] + offset.first), gray.cols - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(bestCircle[1] + offset.second), gray.rows - 1));
+            actualBrightness += gray.at<uchar>(sampleY, sampleX);
             validSamples++;
         }
         actualBrightness /= validSamples;
