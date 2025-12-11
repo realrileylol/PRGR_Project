@@ -963,14 +963,14 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles with RELAXED parameters
+    // Detect circles using HoughCircles with TIGHT parameters for golf ball
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 20,  // Min distance between centers (relaxed)
-                     cannyThreshold,       // Adaptive Canny threshold
-                     accumulatorThreshold, // Adaptive accumulator threshold
-                     5,    // Min radius (relaxed from 6)
-                     15);  // Max radius (increased from 12)
+                     processed.rows / 10,  // Larger min distance between centers (reject close duplicates)
+                     80,                   // Higher Canny threshold (reduce noise edges)
+                     18,                   // Higher accumulator threshold (require stronger evidence)
+                     7,                    // Golf ball min radius (~14mm at expected distance)
+                     11);                  // Golf ball max radius (~22mm at expected distance)
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
@@ -1031,22 +1031,17 @@ QVariantMap CameraCalibration::detectBallLive() {
         searchCenterX = m_smoothedBallX;
         searchCenterY = m_smoothedBallY;
 
-        // Adaptive search radius based on estimated velocity
-        // If ball moving fast, expand search area
-        if (m_kalmanInitialized && m_kalmanFilter.statePost.rows >= 4) {
-            float vx = m_kalmanFilter.statePost.at<float>(2);
-            float vy = m_kalmanFilter.statePost.at<float>(3);
-            double speed = std::sqrt(vx*vx + vy*vy);
-
-            // Base radius 30px, add 3x velocity to account for motion
-            searchRadius = 30.0 + std::min(100.0, speed * 3.0);
+        // TEMPORAL LOCKING: Tight search radius for instant, locked tracking
+        // High confidence = small search area (ball won't jump far between frames at 30 FPS)
+        if (m_trackingConfidence >= 8) {
+            // Very high confidence - LOCK to tight area for instant response
+            searchRadius = 30.0;  // Ball can't move more than 30px in 1/30 second
+        } else if (m_trackingConfidence >= 5) {
+            // Medium confidence - moderate search area
+            searchRadius = 50.0;
         } else {
-            searchRadius = 50.0;  // Default: wider than before to handle motion
-        }
-
-        // If confidence is low, expand search to allow re-acquisition
-        if (m_trackingConfidence < 5) {
-            searchRadius = std::max(searchRadius, 150.0);  // Wide search when uncertain
+            // Low confidence - expand search to allow re-acquisition
+            searchRadius = 100.0;
             qDebug() << "Low confidence (" << m_trackingConfidence << "), expanding search to" << searchRadius << "px";
         }
     } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
@@ -1072,6 +1067,12 @@ QVariantMap CameraCalibration::detectBallLive() {
         double cy = circle[1];
         double r = circle[2];
 
+        // STRICT radius filter: Golf ball should be 7-11px at expected distance
+        // Reject anything outside this range immediately
+        if (r < 7.0 || r > 11.0) {
+            continue;  // Not a golf ball - wrong size
+        }
+
         // Distance from search center (temporal consistency)
         double distFromSearch = std::sqrt(std::pow(cx - searchCenterX, 2) +
                                          std::pow(cy - searchCenterY, 2));
@@ -1091,6 +1092,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Sample multiple points within the circle for better accuracy
         double totalBrightness = 0.0;
         int validSamples = 0;
+        std::vector<double> brightnessSamples;  // Store samples for uniformity check
 
         // Sample 5 points: center + 4 cardinal directions at 60% radius
         std::vector<std::pair<int, int>> sampleOffsets = {
@@ -1104,11 +1106,29 @@ QVariantMap CameraCalibration::detectBallLive() {
         for (const auto& offset : sampleOffsets) {
             int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
             int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
-            totalBrightness += gray.at<uchar>(sampleY, sampleX);
+            double brightness = gray.at<uchar>(sampleY, sampleX);
+            totalBrightness += brightness;
+            brightnessSamples.push_back(brightness);
             validSamples++;
         }
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
+
+        // BRIGHTNESS UNIFORMITY CHECK: Golf ball should have uniform brightness
+        // Shadows, edges, or partial objects will have high variance
+        double variance = 0.0;
+        for (double sample : brightnessSamples) {
+            variance += std::pow(sample - avgBrightness, 2);
+        }
+        variance /= validSamples;
+        double stdDev = std::sqrt(variance);
+
+        // Reject if brightness varies too much (stdDev > 40 means inconsistent lighting)
+        // Golf ball should be uniformly white, not patchy
+        if (stdDev > 40.0) {
+            continue;  // Too much brightness variation - likely a shadow or edge
+        }
+
         double brightnessScore = avgBrightness / 255.0;  // Normalize to 0-1
 
         // Boost score significantly if object is very bright (>200/255 = white golf ball)
