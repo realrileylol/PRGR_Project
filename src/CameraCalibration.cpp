@@ -963,15 +963,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles with BALANCED parameters for golf ball
-    // Not too relaxed (was getting 100+ circles), not too tight (ball disappears)
+    // Detect circles using HoughCircles with VERY RELAXED parameters
+    // PRIORITY: Detect the golf ball EVERY TIME, even if we get false positives
+    // Zone filtering + brightness scoring will handle false positives
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 16,  // Moderate min distance between centers
-                     70,                   // Moderate Canny threshold (was 60, now 70)
-                     15,                   // Moderate accumulator threshold (was 12, now 15)
-                     6,                    // Golf ball min radius (slightly relaxed)
-                     13);                  // Golf ball max radius (slightly relaxed)
+                     processed.rows / 20,  // Allow closer circles (more detections)
+                     50,                   // LOW Canny threshold (detect subtle edges)
+                     10,                   // LOW accumulator (require less evidence)
+                     7,                    // Golf ball min radius
+                     12);                  // Golf ball max radius
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
