@@ -1046,10 +1046,21 @@ QVariantMap CameraCalibration::detectBallLive() {
             qDebug() << "Low confidence (" << m_trackingConfidence << "), expanding search to" << searchRadius << "px";
         }
     } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
-        // No track yet - search whole frame (ball might be outside zone initially)
-        searchCenterX = processed.cols / 2.0;
-        searchCenterY = processed.rows / 2.0;
-        searchRadius = 999999.0;  // Unlimited - find the ball anywhere in frame
+        // No track yet - search near ZONE CENTER (ball likely starts in zone)
+        // Calculate zone center
+        double zoneCenterX = 0.0;
+        double zoneCenterY = 0.0;
+        for (const auto& corner : m_zoneCorners) {
+            zoneCenterX += corner.x();
+            zoneCenterY += corner.y();
+        }
+        zoneCenterX /= 4.0;
+        zoneCenterY /= 4.0;
+
+        searchCenterX = zoneCenterX;
+        searchCenterY = zoneCenterY;
+        searchRadius = 999999.0;  // Unlimited - but proximity scoring will prefer zone center
+        qDebug() << "No track yet - searching from zone center:" << zoneCenterX << "," << zoneCenterY;
     } else {
         // No zone, no track - search whole frame
         searchCenterX = processed.cols / 2.0;
@@ -1145,9 +1156,20 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
         */
 
-        // Combined score: HEAVILY WEIGHT BRIGHTNESS to find the white golf ball
-        // Brightness is king - white golf ball should be brightest object
-        double score = 0.1 * proximityScore + 0.2 * radiusScore + 0.7 * brightnessScore;
+        // Combined score: PROXIMITY-BASED with brightness as secondary factor
+        // Strategy:
+        // - No tracking: Prefer objects near zone center (ball likely in zone)
+        // - Tracking established: Prefer objects near last position (temporal consistency)
+        // - Brightness helps but isn't primary (lighting varies)
+
+        double score;
+        if (m_liveTrackingInitialized && m_trackingConfidence >= 5) {
+            // TRACKING MODE: Heavy proximity weight (stick to ball)
+            score = 0.7 * proximityScore + 0.15 * radiusScore + 0.15 * brightnessScore;
+        } else {
+            // ACQUISITION MODE: Balance proximity (zone center) with brightness
+            score = 0.5 * proximityScore + 0.2 * radiusScore + 0.3 * brightnessScore;
+        }
 
         if (score > bestScore) {
             bestScore = score;
