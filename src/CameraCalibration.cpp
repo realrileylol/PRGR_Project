@@ -1052,6 +1052,44 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (!inZone && m_isZoneDefined) {
             continue;  // Skip circles outside zone
         }
+
+        // ========== SPHERICAL/CIRCULARITY CHECK ==========
+        // Golf ball is a perfect sphere - check if this detection is truly circular
+        // Sample 8 points around the perimeter and check brightness consistency
+        std::vector<double> perimeterBrightness;
+        for (int angle = 0; angle < 360; angle += 45) {  // 8 points around perimeter
+            double rad = angle * M_PI / 180.0;
+            int px = static_cast<int>(cx + r * cos(rad));
+            int py = static_cast<int>(cy + r * sin(rad));
+
+            if (px >= 0 && px < processed.cols && py >= 0 && py < processed.rows) {
+                perimeterBrightness.push_back(processed.at<uchar>(py, px));
+            }
+        }
+
+        // Calculate variance of perimeter brightness
+        // Sphere should have consistent edges (low variance)
+        // False detections (texture, shadows) have inconsistent edges (high variance)
+        if (perimeterBrightness.size() >= 6) {
+            double perimeterMean = 0.0;
+            for (double b : perimeterBrightness) {
+                perimeterMean += b;
+            }
+            perimeterMean /= perimeterBrightness.size();
+
+            double perimeterVariance = 0.0;
+            for (double b : perimeterBrightness) {
+                perimeterVariance += std::pow(b - perimeterMean, 2);
+            }
+            perimeterVariance /= perimeterBrightness.size();
+
+            // Reject if perimeter is too inconsistent (stdDev > 50)
+            // Sphere has uniform circular edge, non-spherical objects don't
+            if (std::sqrt(perimeterVariance) > 50.0) {
+                continue;  // Not spherical enough
+            }
+        }
+
         circlesInZone++;
 
         // Sample brightness within the circle - MORE SAMPLES for better discrimination
