@@ -1053,22 +1053,31 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
         circlesInZone++;
 
-        // Sample brightness within the circle (from RAW frame, not CLAHE)
+        // Sample brightness within the circle - MORE SAMPLES for better discrimination
         double totalBrightness = 0.0;
         int validSamples = 0;
 
-        // Sample 5 points: center + 4 cardinal directions at 60% radius
+        // Sample 13 points: center + 4 cardinal + 4 diagonal + 4 mid-cardinal at 60% radius
+        // More samples = better brightness measurement = fewer false positives
         std::vector<std::pair<int, int>> sampleOffsets = {
             {0, 0},                                    // Center
             {static_cast<int>(r * 0.6), 0},           // Right
             {-static_cast<int>(r * 0.6), 0},          // Left
             {0, static_cast<int>(r * 0.6)},           // Down
-            {0, -static_cast<int>(r * 0.6)}           // Up
+            {0, -static_cast<int>(r * 0.6)},          // Up
+            {static_cast<int>(r * 0.4), static_cast<int>(r * 0.4)},    // Diagonal NE
+            {-static_cast<int>(r * 0.4), static_cast<int>(r * 0.4)},   // Diagonal NW
+            {static_cast<int>(r * 0.4), -static_cast<int>(r * 0.4)},   // Diagonal SE
+            {-static_cast<int>(r * 0.4), -static_cast<int>(r * 0.4)},  // Diagonal SW
+            {static_cast<int>(r * 0.8), 0},           // Far right
+            {-static_cast<int>(r * 0.8), 0},          // Far left
+            {0, static_cast<int>(r * 0.8)},           // Far down
+            {0, -static_cast<int>(r * 0.8)}           // Far up
         };
 
         for (const auto& offset : sampleOffsets) {
             int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), processed.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), processed.rows - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(cx + offset.second), processed.rows - 1));
             double brightness = processed.at<uchar>(sampleY, sampleX);  // CLAHE-enhanced brightness (what human eye sees)
             totalBrightness += brightness;
             validSamples++;
@@ -1076,9 +1085,14 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // Pick the brightest circle IN THE ZONE
-        if (avgBrightness > bestBrightness) {
-            bestBrightness = avgBrightness;
+        // COMBINED SCORE: Brightness + Radius preference (golf ball is ~9px)
+        // Among similar brightness circles, prefer the one closest to ideal golf ball size
+        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 9.0) / 9.0);  // 0-1, best at r=9
+        double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
+
+        // Pick the best circle IN THE ZONE (brightness + size preference)
+        if (combinedScore > bestBrightness) {
+            bestBrightness = combinedScore;  // Actually storing combined score
             bestCircle = circle;
         }
     }
@@ -1090,9 +1104,29 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
-    qDebug() << "Circles in zone:" << circlesInZone << "Selected brightest - Brightness:" << bestBrightness
+    // Recalculate actual brightness for logging (not combined score)
+    double actualBrightness = 0.0;
+    {
+        int validSamples = 0;
+        std::vector<std::pair<int, int>> sampleOffsets = {
+            {0, 0},
+            {static_cast<int>(bestCircle[2] * 0.6), 0},
+            {-static_cast<int>(bestCircle[2] * 0.6), 0},
+            {0, static_cast<int>(bestCircle[2] * 0.6)},
+            {0, -static_cast<int>(bestCircle[2] * 0.6)}
+        };
+        for (const auto& offset : sampleOffsets) {
+            int sampleX = std::max(0, std::min(static_cast<int>(bestCircle[0] + offset.first), processed.cols - 1));
+            int sampleY = std::max(0, std::min(static_cast<int>(bestCircle[1] + offset.second), processed.rows - 1));
+            actualBrightness += processed.at<uchar>(sampleY, sampleX);
+            validSamples++;
+        }
+        actualBrightness /= validSamples;
+    }
+
+    qDebug() << "Circles in zone:" << circlesInZone << "Selected - Brightness:" << actualBrightness
              << "Position:(" << bestCircle[0] << "," << bestCircle[1] << ")"
-             << "Radius:" << bestCircle[2];
+             << "Radius:" << bestCircle[2] << "Score:" << bestBrightness;
 
     double ballX = bestCircle[0];
     double ballY = bestCircle[1];
