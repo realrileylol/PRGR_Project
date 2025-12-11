@@ -1027,6 +1027,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     // Define search region based on zone or last position
     double searchCenterX, searchCenterY, searchRadius;
 
+    qDebug() << "SEARCH SETUP - Tracking initialized:" << m_liveTrackingInitialized
+             << "Confidence:" << m_trackingConfidence
+             << "Zone defined:" << m_isZoneDefined;
+
     if (m_liveTrackingInitialized && m_trackingConfidence > 2) {
         // We have a good track - search near last position
         searchCenterX = m_smoothedBallX;
@@ -1060,13 +1064,16 @@ QVariantMap CameraCalibration::detectBallLive() {
         searchCenterX = zoneCenterX;
         searchCenterY = zoneCenterY;
         searchRadius = 999999.0;  // Unlimited - but proximity scoring will prefer zone center
-        qDebug() << "No track yet - searching from zone center:" << zoneCenterX << "," << zoneCenterY;
+        qDebug() << "No track yet - searching from zone center:" << zoneCenterX << "," << zoneCenterY << "Radius:" << searchRadius;
     } else {
         // No zone, no track - search whole frame
         searchCenterX = processed.cols / 2.0;
         searchCenterY = processed.rows / 2.0;
         searchRadius = 999999.0;  // Unlimited
+        qDebug() << "No zone - searching whole frame:" << searchCenterX << "," << searchCenterY << "Radius:" << searchRadius;
     }
+
+    qDebug() << "Final search params - Center:(" << searchCenterX << "," << searchCenterY << ") Radius:" << searchRadius;
 
     // Score candidates with temporal consistency
     cv::Vec3f bestCircle;
@@ -1079,11 +1086,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         double cy = circle[1];
         double r = circle[2];
 
-        // Radius filter: Golf ball should be 6-13px at expected distance
-        // Match the HoughCircles range for consistency
-        if (r < 6.0 || r > 13.0) {
-            continue;  // Not a golf ball - wrong size
-        }
+        // HoughCircles already filters by radius (6-13px) - no need for redundant filter
 
         // Distance from search center (temporal consistency)
         double distFromSearch = std::sqrt(std::pow(cx - searchCenterX, 2) +
@@ -1126,8 +1129,9 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // BRIGHTNESS UNIFORMITY CHECK: Golf ball should have uniform brightness
-        // Shadows, edges, or partial objects will have high variance
+        // BRIGHTNESS UNIFORMITY CHECK: TEMPORARILY DISABLED FOR DEBUGGING
+        // Was rejecting too many valid candidates
+        /*
         double variance = 0.0;
         for (double sample : brightnessSamples) {
             variance += std::pow(sample - avgBrightness, 2);
@@ -1135,11 +1139,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         variance /= validSamples;
         double stdDev = std::sqrt(variance);
 
-        // Reject if brightness varies too much (relaxed threshold to allow real golf ball)
-        // Golf ball should be uniformly white, not extremely patchy
         if (stdDev > 60.0) {
             continue;  // Extreme brightness variation - likely a shadow or edge
         }
+        */
 
         double brightnessScore = avgBrightness / 255.0;  // Normalize to 0-1
 
