@@ -1083,16 +1083,15 @@ QVariantMap CameraCalibration::detectBallLive() {
             }
             perimeterVariance /= perimeterBrightness.size();
 
-            // Reject if perimeter is too inconsistent (stdDev > 50)
+            // STRICT: Reject if perimeter is too inconsistent (stdDev > 30)
             // Sphere has uniform circular edge, non-spherical objects don't
-            if (std::sqrt(perimeterVariance) > 50.0) {
-                continue;  // Not spherical enough
+            if (std::sqrt(perimeterVariance) > 30.0) {
+                continue;  // Not spherical enough - reject
             }
         }
 
-        circlesInZone++;
-
-        // Sample brightness within the circle - MORE SAMPLES for better discrimination
+        // Sample brightness within the circle FIRST to check minimum threshold
+        // Golf ball is 200+ brightness, false detections are 70-90
         double totalBrightness = 0.0;
         int validSamples = 0;
 
@@ -1123,6 +1122,14 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
+
+        // MINIMUM BRIGHTNESS FILTER: Golf ball is 200+, false detections are 70-90
+        // Only accept objects brighter than 120 on raw frame
+        if (avgBrightness < 120.0) {
+            continue;  // Too dark to be white golf ball
+        }
+
+        circlesInZone++;
 
         // COMBINED SCORE: Brightness + Radius preference (golf ball is ~9px)
         // Among similar brightness circles, prefer the one closest to ideal golf ball size
