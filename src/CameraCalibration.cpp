@@ -1023,91 +1023,23 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
-    // ========== TEMPORAL PROXIMITY FILTERING ==========
-    // Define search region based on zone or last position
-    double searchCenterX, searchCenterY, searchRadius;
+    // ========== SIMPLE BRIGHTNESS-BASED TRACKING ==========
+    // USER REQUIREMENT: Track the WHITEST object (golf ball)
+    // NO complex proximity scoring, NO zone-aware logic
+    // JUST find the brightest circle and track it
 
-    qDebug() << "SEARCH SETUP - Tracking initialized:" << m_liveTrackingInitialized
-             << "Confidence:" << m_trackingConfidence
-             << "Zone defined:" << m_isZoneDefined;
-
-    if (m_liveTrackingInitialized && m_trackingConfidence > 2) {
-        // We have a good track - search near last position
-        searchCenterX = m_smoothedBallX;
-        searchCenterY = m_smoothedBallY;
-
-        // TEMPORAL LOCKING: Tight search radius for instant, locked tracking
-        // High confidence = small search area (ball won't jump far between frames at 30 FPS)
-        if (m_trackingConfidence >= 8) {
-            // Very high confidence - LOCK to tight area for instant response
-            searchRadius = 30.0;  // Ball can't move more than 30px in 1/30 second
-        } else if (m_trackingConfidence >= 5) {
-            // Medium confidence - moderate search area
-            searchRadius = 50.0;
-        } else {
-            // Low confidence - expand search to allow re-acquisition
-            searchRadius = 100.0;
-            qDebug() << "Low confidence (" << m_trackingConfidence << "), expanding search to" << searchRadius << "px";
-        }
-    } else if (m_isZoneDefined && m_zoneCorners.size() == 4) {
-        // No track yet - search near ZONE CENTER (ball likely starts in zone)
-        // Calculate zone center
-        double zoneCenterX = 0.0;
-        double zoneCenterY = 0.0;
-        for (const auto& corner : m_zoneCorners) {
-            zoneCenterX += corner.x();
-            zoneCenterY += corner.y();
-        }
-        zoneCenterX /= 4.0;
-        zoneCenterY /= 4.0;
-
-        searchCenterX = zoneCenterX;
-        searchCenterY = zoneCenterY;
-        searchRadius = 999999.0;  // Unlimited - but proximity scoring will prefer zone center
-        qDebug() << "No track yet - searching from zone center:" << zoneCenterX << "," << zoneCenterY << "Radius:" << searchRadius;
-    } else {
-        // No zone, no track - search whole frame
-        searchCenterX = processed.cols / 2.0;
-        searchCenterY = processed.rows / 2.0;
-        searchRadius = 999999.0;  // Unlimited
-        qDebug() << "No zone - searching whole frame:" << searchCenterX << "," << searchCenterY << "Radius:" << searchRadius;
-    }
-
-    qDebug() << "Final search params - Center:(" << searchCenterX << "," << searchCenterY << ") Radius:" << searchRadius;
-
-    // Score candidates with temporal consistency
     cv::Vec3f bestCircle;
-    double bestScore = -1.0;
+    double bestBrightness = -1.0;
     double idealRadius = 9.0;
-    int candidatesInRange = 0;
 
     for (const auto& circle : circles) {
         double cx = circle[0];
         double cy = circle[1];
         double r = circle[2];
 
-        // HoughCircles already filters by radius (6-13px) - no need for redundant filter
-
-        // Distance from search center (temporal consistency)
-        double distFromSearch = std::sqrt(std::pow(cx - searchCenterX, 2) +
-                                         std::pow(cy - searchCenterY, 2));
-
-        // Reject if outside search radius (don't log each rejection to reduce spam)
-        if (distFromSearch > searchRadius) {
-            continue;
-        }
-        candidatesInRange++;
-
-        double proximityScore = 1.0 - std::min(1.0, distFromSearch / searchRadius);
-
-        // Radius score (prefer ideal golf ball size)
-        double radiusScore = 1.0 - std::min(1.0, std::abs(r - idealRadius) / idealRadius);
-
-        // Enhanced brightness score (prefer white/bright objects = golf ball)
-        // Sample multiple points within the circle for better accuracy
+        // Sample brightness within the circle
         double totalBrightness = 0.0;
         int validSamples = 0;
-        std::vector<double> brightnessSamples;  // Store samples for uniformity check
 
         // Sample 5 points: center + 4 cardinal directions at 60% radius
         std::vector<std::pair<int, int>> sampleOffsets = {
@@ -1123,79 +1055,28 @@ QVariantMap CameraCalibration::detectBallLive() {
             int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
             double brightness = gray.at<uchar>(sampleY, sampleX);
             totalBrightness += brightness;
-            brightnessSamples.push_back(brightness);
             validSamples++;
         }
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // BRIGHTNESS UNIFORMITY CHECK: TEMPORARILY DISABLED FOR DEBUGGING
-        // Was rejecting too many valid candidates
-        /*
-        double variance = 0.0;
-        for (double sample : brightnessSamples) {
-            variance += std::pow(sample - avgBrightness, 2);
-        }
-        variance /= validSamples;
-        double stdDev = std::sqrt(variance);
-
-        if (stdDev > 60.0) {
-            continue;  // Extreme brightness variation - likely a shadow or edge
-        }
-        */
-
-        double brightnessScore = avgBrightness / 255.0;  // Normalize to 0-1
-
-        // Boost score significantly if object is very bright (>200/255 = white golf ball)
-        if (avgBrightness > 200.0) {
-            brightnessScore = std::min(1.0, brightnessScore * 1.3);  // 30% boost for bright objects
-        }
-
-        // TEMPORARILY DISABLED: Let all objects through to debug tracking
-        // Will re-enable once we confirm ball is being selected
-        /*
-        if (avgBrightness < 70.0) {
-            continue;  // Skip this candidate, too dark to be a white golf ball
-        }
-        */
-
-        // Combined score: PROXIMITY-BASED with brightness as secondary factor
-        // Strategy:
-        // - No tracking: Prefer objects near zone center (ball likely in zone)
-        // - Tracking established: Prefer objects near last position (temporal consistency)
-        // - Brightness helps but isn't primary (lighting varies)
-
-        double score;
-        if (m_liveTrackingInitialized && m_trackingConfidence >= 5) {
-            // TRACKING MODE: Heavy proximity weight (stick to ball)
-            score = 0.7 * proximityScore + 0.15 * radiusScore + 0.15 * brightnessScore;
-        } else {
-            // ACQUISITION MODE: Balance proximity (zone center) with brightness
-            score = 0.5 * proximityScore + 0.2 * radiusScore + 0.3 * brightnessScore;
-        }
-
-        if (score > bestScore) {
-            bestScore = score;
+        // SIMPLE: Pick the brightest circle
+        if (avgBrightness > bestBrightness) {
+            bestBrightness = avgBrightness;
             bestCircle = circle;
         }
     }
 
-    // Only log summary and best candidate (not all 80 circles)
-    if (candidatesInRange > 0) {
-        double bx = bestCircle[0];
-        double by = bestCircle[1];
-        double br = bestCircle[2];
-        qDebug() << "Candidates:" << candidatesInRange << "Best: (" << bx << "," << by << ") r=" << br << "score=" << bestScore;
-    } else {
-        qDebug() << "No candidates in search range (total detected:" << circles.size() << ")";
-    }
-
-    // RELAXED rejection threshold
-    if (bestScore < 0.2) {
-        qDebug() << "All candidates rejected: best score" << bestScore << "< 0.2";
+    // Did we find any circles?
+    if (bestBrightness < 0) {
+        qDebug() << "No circles detected";
         m_missedFrames++;
         return result;
     }
+
+    qDebug() << "Selected brightest circle - Brightness:" << bestBrightness
+             << "Position:(" << bestCircle[0] << "," << bestCircle[1] << ")"
+             << "Radius:" << bestCircle[2];
 
     double ballX = bestCircle[0];
     double ballY = bestCircle[1];
@@ -1242,37 +1123,27 @@ QVariantMap CameraCalibration::detectBallLive() {
                        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 1);  // Cyan text
         }
 
-        // Draw SELECTED circle in GREEN/RED (much larger and thicker)
-        if (candidatesInRange > 0 && bestScore >= 0.2) {
-            cv::Scalar selectedColor = cv::Scalar(0, 255, 0);  // Green
-            cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius + 5, selectedColor, 4);
-            cv::circle(debugFrame, cv::Point(ballX, ballY), 3, selectedColor, -1);  // Center dot
+        // Draw SELECTED circle (BRIGHTEST) in GREEN (much larger and thicker)
+        cv::Scalar selectedColor = cv::Scalar(0, 255, 0);  // Green
+        cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius + 5, selectedColor, 4);
+        cv::circle(debugFrame, cv::Point(ballX, ballY), 3, selectedColor, -1);  // Center dot
 
-            // Draw score
-            QString scoreText = QString("SELECTED: Score=%1").arg(bestScore, 0, 'f', 2);
-            cv::putText(debugFrame, scoreText.toStdString(),
-                       cv::Point(ballX - 50, ballY + ballRadius + 20),
-                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+        // Draw brightness
+        QString brightnessText = QString("BRIGHTEST: %1").arg(static_cast<int>(bestBrightness));
+        cv::putText(debugFrame, brightnessText.toStdString(),
+                   cv::Point(ballX - 50, ballY + ballRadius + 20),
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
         }
 
-        // Draw search center and radius
-        cv::circle(debugFrame, cv::Point(searchCenterX, searchCenterY), 3,
-                  cv::Scalar(0, 255, 255), -1);  // Yellow dot for search center
-        if (searchRadius < 999999.0) {
-            cv::circle(debugFrame, cv::Point(searchCenterX, searchCenterY), searchRadius,
-                      cv::Scalar(0, 255, 255), 1);  // Yellow search radius circle
-        }
-
-        // Draw info text
-        QString infoText = QString("Detected: %1 | In Range: %2 | Best Score: %3")
+        // Draw info text - SIMPLE brightness-based tracking
+        QString infoText = QString("Detected: %1 | Brightest: %2")
             .arg(circles.size())
-            .arg(candidatesInRange)
-            .arg(bestScore, 0, 'f', 2);
+            .arg(static_cast<int>(bestBrightness));
         cv::putText(debugFrame, infoText.toStdString(),
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Canny: %1 | Acc: %2 | Weights: 10%prox 20%rad 70%bright")
+        QString paramText = QString("Canny: 70 | Acc: 15 | Strategy: TRACK BRIGHTEST CIRCLE")
             .arg(cannyThreshold)
             .arg(accumulatorThreshold);
         cv::putText(debugFrame, paramText.toStdString(),
