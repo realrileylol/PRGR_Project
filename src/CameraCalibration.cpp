@@ -963,14 +963,15 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles with TIGHT parameters for golf ball
+    // Detect circles using HoughCircles with BALANCED parameters for golf ball
+    // Not too relaxed (was getting 100+ circles), not too tight (ball disappears)
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 10,  // Larger min distance between centers (reject close duplicates)
-                     80,                   // Higher Canny threshold (reduce noise edges)
-                     18,                   // Higher accumulator threshold (require stronger evidence)
-                     7,                    // Golf ball min radius (~14mm at expected distance)
-                     11);                  // Golf ball max radius (~22mm at expected distance)
+                     processed.rows / 16,  // Moderate min distance between centers
+                     70,                   // Moderate Canny threshold (was 60, now 70)
+                     15,                   // Moderate accumulator threshold (was 12, now 15)
+                     6,                    // Golf ball min radius (slightly relaxed)
+                     13);                  // Golf ball max radius (slightly relaxed)
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
@@ -1067,9 +1068,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         double cy = circle[1];
         double r = circle[2];
 
-        // STRICT radius filter: Golf ball should be 7-11px at expected distance
-        // Reject anything outside this range immediately
-        if (r < 7.0 || r > 11.0) {
+        // Radius filter: Golf ball should be 6-13px at expected distance
+        // Match the HoughCircles range for consistency
+        if (r < 6.0 || r > 13.0) {
             continue;  // Not a golf ball - wrong size
         }
 
@@ -1123,10 +1124,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         variance /= validSamples;
         double stdDev = std::sqrt(variance);
 
-        // Reject if brightness varies too much (stdDev > 40 means inconsistent lighting)
-        // Golf ball should be uniformly white, not patchy
-        if (stdDev > 40.0) {
-            continue;  // Too much brightness variation - likely a shadow or edge
+        // Reject if brightness varies too much (relaxed threshold to allow real golf ball)
+        // Golf ball should be uniformly white, not extremely patchy
+        if (stdDev > 60.0) {
+            continue;  // Extreme brightness variation - likely a shadow or edge
         }
 
         double brightnessScore = avgBrightness / 255.0;  // Normalize to 0-1
