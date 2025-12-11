@@ -387,31 +387,60 @@ Rectangle {
                             }
 
                             // Draw LIVE ball tracking (green when in zone, red when out)
+                            // INSTANT color transition as ball crosses zone boundary
                             if (liveBallDetected && clickMode !== "ball_edge") {
                                 var liveX = liveBallX * scaleX + offsetX
                                 var liveY = liveBallY * scaleY + offsetY
                                 var liveR = liveBallRadius * Math.min(scaleX, scaleY)
 
-                                // Green when ball is in zone, red when outside
-                                ctx.strokeStyle = liveBallInZone ? "#4caf50" : "#ff0000"
+                                // INSTANT green→red transition based on zone boundary
+                                var trackingColor = liveBallInZone ? "#4caf50" : "#ff0000"
+
+                                // Outer glow effect for better visibility
+                                ctx.shadowBlur = 8
+                                ctx.shadowColor = trackingColor
+
+                                // Main tracking circle
+                                ctx.strokeStyle = trackingColor
                                 ctx.lineWidth = 4
                                 ctx.beginPath()
                                 ctx.arc(liveX, liveY, liveR + 3, 0, 2 * Math.PI)
                                 ctx.stroke()
 
-                                // Draw small center dot
-                                ctx.fillStyle = liveBallInZone ? "#4caf50" : "#ff0000"
+                                // Reset shadow
+                                ctx.shadowBlur = 0
+
+                                // Draw center dot
+                                ctx.fillStyle = trackingColor
                                 ctx.beginPath()
                                 ctx.arc(liveX, liveY, 3, 0, 2 * Math.PI)
                                 ctx.fill()
+
+                                // Add crosshair for precision
+                                ctx.strokeStyle = trackingColor
+                                ctx.lineWidth = 2
+                                ctx.beginPath()
+                                ctx.moveTo(liveX - 8, liveY)
+                                ctx.lineTo(liveX + 8, liveY)
+                                ctx.moveTo(liveX, liveY - 8)
+                                ctx.lineTo(liveX, liveY + 8)
+                                ctx.stroke()
                             }
 
-                            // Draw calibrated zone boundary (always visible when defined)
+                            // Draw calibrated zone boundary (PERMANENT - always visible)
+                            // This is the 12×12 inch hit zone that must be visible in finished product
                             if (cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
                                 if (corners.length === 4) {
-                                    // Draw solid bright blue box (always visible)
-                                    ctx.strokeStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                    // Professional zone box styling
+                                    var zoneColor = clickMode === "zone_corners" ? "#ff9800" : "#00e5ff"  // Bright cyan
+
+                                    // Outer glow for visibility
+                                    ctx.shadowBlur = 6
+                                    ctx.shadowColor = zoneColor
+
+                                    // Draw zone boundary box
+                                    ctx.strokeStyle = zoneColor
                                     ctx.lineWidth = 3
                                     ctx.setLineDash([])
 
@@ -427,6 +456,9 @@ Rectangle {
                                     }
                                     ctx.closePath()
                                     ctx.stroke()
+
+                                    // Reset shadow
+                                    ctx.shadowBlur = 0
 
                                     // Draw corner markers
                                     ctx.fillStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
