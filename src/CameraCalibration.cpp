@@ -1237,109 +1237,22 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_lastDebugFrame = debugFrame.clone();
     }
 
-    // ========== KALMAN FILTER (Professional-Grade Tracking) ==========
-    // Same approach as TrackMan/GCQuad - predicts ball position using physics model
-    // State: [x, y, vx, vy] - position + velocity
-    // Measurement: [x, y] - position from HoughCircles
+    // ========== INSTANT TRACKING MODE (NO SMOOTHING) ==========
+    // User wants INSTANT tracking - use raw detection directly
+    // This sacrifices smoothness for maximum responsiveness
+    m_smoothedBallX = ballX;  // Use raw detection
+    m_smoothedBallY = ballY;  // Use raw detection
+    m_lastBallRadius = ballRadius;
 
-    if (!m_kalmanInitialized) {
-        // Initialize Kalman filter with constant velocity model
-        // 4 state variables (x, y, vx, vy), 2 measurements (x, y)
-        m_kalmanFilter = cv::KalmanFilter(4, 2, 0);
-
-        // Transition matrix (constant velocity model)
-        // x_new = x + vx*dt, y_new = y + vy*dt
-        float dt = 0.033f;  // 30 fps = 33ms
-        m_kalmanFilter.transitionMatrix = (cv::Mat_<float>(4, 4) <<
-            1, 0, dt, 0,   // x = x + vx*dt
-            0, 1, 0, dt,   // y = y + vy*dt
-            0, 0, 1, 0,    // vx = vx (constant)
-            0, 0, 0, 1     // vy = vy (constant)
-        );
-
-        // Measurement matrix (we only measure position, not velocity)
-        m_kalmanFilter.measurementMatrix = (cv::Mat_<float>(2, 4) <<
-            1, 0, 0, 0,    // measure x
-            0, 1, 0, 0     // measure y
-        );
-
-        // Process noise covariance (how much we trust the model)
-        // Higher = trust measurements more, lower = trust predictions more
-        cv::setIdentity(m_kalmanFilter.processNoiseCov, cv::Scalar::all(1e-2));
-
-        // Measurement noise covariance (HoughCircles jitter)
-        // Golf ball detection has ~1-2 pixel jitter
-        cv::setIdentity(m_kalmanFilter.measurementNoiseCov, cv::Scalar::all(1.5));
-
-        // Estimation error covariance (initial uncertainty)
-        cv::setIdentity(m_kalmanFilter.errorCovPost, cv::Scalar::all(1.0));
-
-        // Initialize state with first detection
-        m_kalmanFilter.statePost = (cv::Mat_<float>(4, 1) <<
-            ballX, ballY, 0, 0  // position + zero velocity
-        );
-
-        m_kalmanInitialized = true;
+    // Track initialization status for temporal filtering
+    if (!m_liveTrackingInitialized) {
         m_liveTrackingInitialized = true;
-        m_trackingConfidence = 1;
-        m_missedFrames = 0;
-        m_lastBallRadius = ballRadius;
-
-        // First frame uses raw detection
-        m_smoothedBallX = ballX;
-        m_smoothedBallY = ballY;
-
-        qDebug() << "Kalman filter initialized at position:" << ballX << "," << ballY;
+        m_trackingConfidence = 10;  // Start with high confidence
+        qDebug() << "Tracking initialized (instant mode) at:" << ballX << "," << ballY;
     } else {
-        // ========== PREDICTION STEP ==========
-        // Predict next position based on velocity model
-        cv::Mat prediction = m_kalmanFilter.predict();
-
-        // ========== UPDATE STEP ==========
-        // Update prediction with new measurement
-        cv::Mat measurement = (cv::Mat_<float>(2, 1) << ballX, ballY);
-
-        // Safety check before correction
-        if (measurement.empty() || measurement.rows != 2) {
-            qDebug() << "ERROR: Invalid measurement matrix, skipping correction";
-            m_missedFrames++;
-            return result;
-        }
-
-        cv::Mat estimated = m_kalmanFilter.correct(measurement);
-
-        // Safety check on estimated state
-        if (estimated.empty() || estimated.rows < 2) {
-            qDebug() << "ERROR: Invalid Kalman state after correction";
-            m_kalmanInitialized = false;
-            m_liveTrackingInitialized = false;
-            m_missedFrames++;
-            return result;
-        }
-
-        // Extract smoothed position from Kalman state
-        m_smoothedBallX = estimated.at<float>(0);
-        m_smoothedBallY = estimated.at<float>(1);
-        m_lastBallRadius = ballRadius;
-
-        // Build up confidence
-        m_trackingConfidence = std::min(10, m_trackingConfidence + 1);
-        m_missedFrames = 0;
-
-        // Debug: show velocity estimate (with safety checks)
-        if (m_trackingConfidence == 10 && estimated.rows >= 4) {
-            try {
-                double vx = estimated.at<float>(2);
-                double vy = estimated.at<float>(3);
-                double speed = std::sqrt(vx*vx + vy*vy);
-                if (speed > 5.0 && speed < 100.0) {  // Only log if moving at reasonable speed
-                    qDebug() << "Ball velocity:" << vx << "," << vy << "px/frame, speed:" << speed;
-                }
-            } catch (...) {
-                qDebug() << "ERROR: Exception accessing Kalman velocity state";
-            }
-        }
+        m_trackingConfidence = 10;  // Always high confidence in instant mode
     }
+    m_missedFrames = 0;
 
     // Check if ball is inside zone boundaries (using smoothed position)
     bool inZone = false;
