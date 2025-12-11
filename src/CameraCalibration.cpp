@@ -1053,9 +1053,18 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Skip circles outside zone
         }
 
+        // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
+        // When tracking, check if this circle is near last position
+        bool nearLastPosition = false;
+        if (m_liveTrackingInitialized) {
+            double distFromLast = std::sqrt(std::pow(cx - m_smoothedBallX, 2) +
+                                           std::pow(cy - m_smoothedBallY, 2));
+            nearLastPosition = (distFromLast < 50.0);  // Within 50px of last
+        }
+
         // ========== SPHERICAL/CIRCULARITY CHECK ==========
         // Golf ball is a perfect sphere - check if this detection is truly circular
-        // Sample 8 points around the perimeter and check brightness consistency
+        // RELAXED when near last position (ball might be partially occluded)
         std::vector<double> perimeterBrightness;
         for (int angle = 0; angle < 360; angle += 45) {  // 8 points around perimeter
             double rad = angle * M_PI / 180.0;
@@ -1068,8 +1077,6 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // Calculate variance of perimeter brightness
-        // Sphere should have consistent edges (low variance)
-        // False detections (texture, shadows) have inconsistent edges (high variance)
         if (perimeterBrightness.size() >= 6) {
             double perimeterMean = 0.0;
             for (double b : perimeterBrightness) {
@@ -1083,10 +1090,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             }
             perimeterVariance /= perimeterBrightness.size();
 
-            // STRICT: Reject if perimeter is too inconsistent (stdDev > 30)
-            // Sphere has uniform circular edge, non-spherical objects don't
-            if (std::sqrt(perimeterVariance) > 30.0) {
-                continue;  // Not spherical enough - reject
+            // ADAPTIVE threshold: strict for new detections, relaxed when tracking
+            double circularityThreshold = nearLastPosition ? 50.0 : 30.0;
+            if (std::sqrt(perimeterVariance) > circularityThreshold) {
+                continue;  // Not spherical enough
             }
         }
 
@@ -1123,18 +1130,23 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // MINIMUM BRIGHTNESS FILTER: Golf ball is 200+, false detections are 70-90
-        // Only accept objects brighter than 120 on raw frame
-        if (avgBrightness < 120.0) {
-            continue;  // Too dark to be white golf ball
+        // ADAPTIVE BRIGHTNESS FILTER: Strict for new, relaxed when tracking
+        // Heat-seeking mode: if near last position, accept lower brightness (ball might be in shadow/partial occlusion)
+        double brightnessThreshold = nearLastPosition ? 80.0 : 120.0;
+        if (avgBrightness < brightnessThreshold) {
+            continue;  // Too dark
         }
 
         circlesInZone++;
 
-        // COMBINED SCORE: Brightness + Radius preference (golf ball is ~9px)
-        // Among similar brightness circles, prefer the one closest to ideal golf ball size
+        // COMBINED SCORE: Brightness + Radius + Temporal proximity
         double radiusScore = 1.0 - std::min(1.0, std::abs(r - 9.0) / 9.0);  // 0-1, best at r=9
         double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
+
+        // HEAT-SEEKING BONUS: Huge boost for circles near last position
+        if (nearLastPosition) {
+            combinedScore += 100.0;  // Massive bonus - prefer continuing track
+        }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
         if (combinedScore > bestBrightness) {
@@ -1147,7 +1159,36 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (bestBrightness < 0) {
         qDebug() << "No circles in zone (total detected:" << circles.size() << ")";
         m_missedFrames++;
-        return result;
+
+        // HEAT-SEEKING MISSILE MODE: Use last known position
+        // Green circle NEVER disappears - stays on last position
+        if (m_liveTrackingInitialized && m_missedFrames < 30) {
+            // Ball temporarily lost - use last known position
+            qDebug() << "Using last position (missed frames:" << m_missedFrames << ")";
+
+            result["detected"] = true;
+            result["x"] = m_smoothedBallX;
+            result["y"] = m_smoothedBallY;
+            result["radius"] = m_lastBallRadius;
+
+            // Check if last position is in zone
+            bool inZone = false;
+            if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+                std::vector<cv::Point2f> zonePoints;
+                for (const auto &corner : m_zoneCorners) {
+                    zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+                }
+                double distance = cv::pointPolygonTest(zonePoints,
+                    cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
+                inZone = (distance >= 0);
+            }
+            result["inZone"] = inZone;
+
+            return result;
+        } else {
+            // Too many missed frames - truly lost
+            return result;
+        }
     }
 
     // Recalculate actual brightness for logging (not combined score)
