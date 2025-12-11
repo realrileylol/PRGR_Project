@@ -1025,18 +1025,35 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     // ========== SIMPLE BRIGHTNESS-BASED TRACKING ==========
     // USER REQUIREMENT: Track the WHITEST object (golf ball)
-    // NO complex proximity scoring, NO zone-aware logic
-    // JUST find the brightest circle and track it
+    // Strategy: Find brightest circle IN THE ZONE (ignore bright lights outside zone)
 
     cv::Vec3f bestCircle;
     double bestBrightness = -1.0;
+    int circlesInZone = 0;
 
     for (const auto& circle : circles) {
         double cx = circle[0];
         double cy = circle[1];
         double r = circle[2];
 
-        // Sample brightness within the circle
+        // Check if circle center is in the zone
+        bool inZone = false;
+        if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+            std::vector<cv::Point2f> zonePoints;
+            for (const auto& corner : m_zoneCorners) {
+                zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+            }
+            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), false);
+            inZone = (distance >= 0);
+        }
+
+        // ONLY consider circles in the zone (ignore bright lights outside)
+        if (!inZone && m_isZoneDefined) {
+            continue;  // Skip circles outside zone
+        }
+        circlesInZone++;
+
+        // Sample brightness within the circle (from RAW frame, not CLAHE)
         double totalBrightness = 0.0;
         int validSamples = 0;
 
@@ -1052,28 +1069,28 @@ QVariantMap CameraCalibration::detectBallLive() {
         for (const auto& offset : sampleOffsets) {
             int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
             int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
-            double brightness = gray.at<uchar>(sampleY, sampleX);
+            double brightness = gray.at<uchar>(sampleY, sampleX);  // RAW brightness
             totalBrightness += brightness;
             validSamples++;
         }
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // SIMPLE: Pick the brightest circle
+        // Pick the brightest circle IN THE ZONE
         if (avgBrightness > bestBrightness) {
             bestBrightness = avgBrightness;
             bestCircle = circle;
         }
     }
 
-    // Did we find any circles?
+    // Did we find any circles in zone?
     if (bestBrightness < 0) {
-        qDebug() << "No circles detected";
+        qDebug() << "No circles in zone (total detected:" << circles.size() << ")";
         m_missedFrames++;
         return result;
     }
 
-    qDebug() << "Selected brightest circle - Brightness:" << bestBrightness
+    qDebug() << "Circles in zone:" << circlesInZone << "Selected brightest - Brightness:" << bestBrightness
              << "Position:(" << bestCircle[0] << "," << bestCircle[1] << ")"
              << "Radius:" << bestCircle[2];
 
@@ -1133,15 +1150,16 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(ballX - 50, ballY + ballRadius + 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
-        // Draw info text - SIMPLE brightness-based tracking
-        QString infoText = QString("Detected: %1 | Brightest: %2")
+        // Draw info text - Zone-filtered brightness tracking
+        QString infoText = QString("Detected: %1 | In Zone: %2 | Brightest: %3")
             .arg(circles.size())
+            .arg(circlesInZone)
             .arg(static_cast<int>(bestBrightness));
         cv::putText(debugFrame, infoText.toStdString(),
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Canny: 70 | Acc: 15 | Strategy: TRACK BRIGHTEST CIRCLE");
+        QString paramText = QString("Strategy: BRIGHTEST IN ZONE (ignore lights outside)");
         cv::putText(debugFrame, paramText.toStdString(),
                    cv::Point(10, frame.rows - 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
