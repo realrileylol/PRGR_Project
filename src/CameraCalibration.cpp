@@ -1224,6 +1224,8 @@ QVariantMap CameraCalibration::detectBallLive() {
     double ballY = bestCircle[1];
     double ballRadius = bestCircle[2];
 
+    qDebug() << "BALL DETECTED - Position:(" << ballX << "," << ballY << ") Radius:" << ballRadius << "pixels";
+
     // ========== DEBUG VISUALIZATION ==========
     if (m_debugMode) {
         // Create color debug frame from PROCESSED image (same as what HoughCircles sees)
@@ -1265,13 +1267,26 @@ QVariantMap CameraCalibration::detectBallLive() {
                        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 1);  // Cyan text
         }
 
-        // Draw SELECTED circle (BRIGHTEST) in GREEN (much larger and thicker)
+        // Draw SELECTED circle (EXACT ball dimensions) in GREEN
         cv::Scalar selectedColor = cv::Scalar(0, 255, 0);  // Green
-        cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius + 5, selectedColor, 4);
-        cv::circle(debugFrame, cv::Point(ballX, ballY), 3, selectedColor, -1);  // Center dot
 
-        // Draw brightness
-        QString brightnessText = QString("BRIGHTEST: %1").arg(static_cast<int>(bestBrightness));
+        // Outer circle - exact ball radius
+        cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius, selectedColor, 3);
+
+        // Inner circle for clarity
+        cv::circle(debugFrame, cv::Point(ballX, ballY), ballRadius - 2, selectedColor, 1);
+
+        // Center dot
+        cv::circle(debugFrame, cv::Point(ballX, ballY), 2, selectedColor, -1);
+
+        // Crosshair
+        cv::line(debugFrame, cv::Point(ballX - 6, ballY), cv::Point(ballX + 6, ballY), selectedColor, 1);
+        cv::line(debugFrame, cv::Point(ballX, ballY - 6), cv::Point(ballX, ballY + 6), selectedColor, 1);
+
+        // Draw brightness and radius info
+        QString brightnessText = QString("BALL: R=%1px Bright=%2")
+            .arg(static_cast<int>(ballRadius))
+            .arg(static_cast<int>(actualBrightness));
         cv::putText(debugFrame, brightnessText.toStdString(),
                    cv::Point(ballX - 50, ballY + ballRadius + 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
