@@ -642,15 +642,13 @@ Rectangle {
                             width: 100
                             height: 50
 
-                            property bool baselineCaptured: cameraCalibration.hasBaseline()
-
                             contentItem: Column {
                                 anchors.centerIn: parent
                                 spacing: 2
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    text: parent.parent.baselineCaptured ? "✓ BASE" : "📷 BASE"
+                                    text: cameraCalibration.hasBaseline ? "✓ BASE" : "📷 BASE"
                                     font.pixelSize: 16
                                     font.bold: true
                                     color: "#ffffff"
@@ -658,7 +656,7 @@ Rectangle {
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    text: parent.parent.baselineCaptured ? "Captured" : "Capture"
+                                    text: cameraCalibration.hasBaseline ? "Captured" : "Capture"
                                     font.pixelSize: 9
                                     color: "#cccccc"
                                 }
@@ -666,22 +664,15 @@ Rectangle {
 
                             background: Rectangle {
                                 color: {
-                                    if (parent.baselineCaptured) {
+                                    if (cameraCalibration.hasBaseline) {
                                         return parent.pressed ? "#388e3c" : "#4caf50"  // Green when captured
                                     } else {
                                         return parent.pressed ? "#ff8f00" : "#ffa726"  // Orange when not captured
                                     }
                                 }
                                 radius: 6
-                                border.color: parent.baselineCaptured ? "#2e7d32" : "#f57c00"
+                                border.color: cameraCalibration.hasBaseline ? "#2e7d32" : "#f57c00"
                                 border.width: 2
-                            }
-
-                            Connections {
-                                target: cameraCalibration
-                                function onBaselineCaptured() {
-                                    parent.baselineCaptured = true
-                                }
                             }
 
                             onClicked: {
@@ -694,9 +685,7 @@ Rectangle {
                         Button {
                             width: 100
                             height: 50
-
-                            property bool baselineReady: cameraCalibration.hasBaseline()
-                            enabled: baselineReady
+                            enabled: cameraCalibration.hasBaseline
                             opacity: enabled ? 1.0 : 0.5
 
                             contentItem: Column {
@@ -724,13 +713,6 @@ Rectangle {
                                 radius: 6
                                 border.color: "#6a1b9a"
                                 border.width: 2
-                            }
-
-                            Connections {
-                                target: cameraCalibration
-                                function onBaselineCaptured() {
-                                    parent.baselineReady = true
-                                }
                             }
 
                             onClicked: {

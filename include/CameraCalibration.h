@@ -49,6 +49,9 @@ class CameraCalibration : public QObject {
     Q_PROPERTY(QList<QPointF> zoneCorners READ zoneCorners NOTIFY zoneDefinedChanged)
     Q_PROPERTY(QList<QPointF> markerCorners READ markerCorners NOTIFY extrinsicCalibrationChanged)
 
+    // Background subtraction
+    Q_PROPERTY(bool hasBaseline READ hasBaseline NOTIFY baselineCaptured)
+
 public:
     explicit CameraCalibration(QObject *parent = nullptr);
     ~CameraCalibration() override;
@@ -142,7 +145,7 @@ public slots:
     // Background subtraction for eliminating texture circles
     Q_INVOKABLE void captureBaseline();  // Capture empty zone (no ball)
     Q_INVOKABLE QString saveBackgroundSubtractionView();  // Save screenshot of difference image
-    Q_INVOKABLE bool hasBaseline() const { return m_hasBaseline; }
+    bool hasBaseline() const { return m_hasBaseline; }  // Now a Q_PROPERTY above
 
     // Load/save calibration
     void loadCalibration();
