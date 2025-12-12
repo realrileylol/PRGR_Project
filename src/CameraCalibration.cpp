@@ -715,8 +715,8 @@ void CameraCalibration::detectBallForZoneCalibration() {
                      processed.rows / 16,  // Min distance between centers
                      100,  // Canny upper threshold
                      15,   // Accumulator threshold
-                     45,   // Min radius - golf ball size at camera distance
-                     55);  // Max radius - golf ball size at camera distance
+                     20,   // Min radius - golf ball size at camera distance (~25 pixels)
+                     30);  // Max radius - golf ball size at camera distance (~25 pixels)
 
     if (circles.empty()) {
         qWarning() << "No ball detected in frame";
@@ -730,7 +730,7 @@ void CameraCalibration::detectBallForZoneCalibration() {
     // Ball should be near center of frame since that's where we expect it
     double frameCenterX = processed.cols / 2.0;
     double frameCenterY = processed.rows / 2.0;
-    double idealRadius = 50.0;  // Ideal golf ball radius (middle of 45-55 range)
+    double idealRadius = 25.0;  // Ideal golf ball radius (middle of 20-30 range)
 
     cv::Vec3f bestCircle;
     double bestScore = -1.0;
@@ -964,15 +964,15 @@ QVariantMap CameraCalibration::detectBallLive() {
     clahe->apply(processed, processed);
 
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
-    // Golf ball appears as 45-55 pixels at camera distance
+    // Golf ball appears as ~25 pixels at camera distance
     // STRICT size filtering - only detect objects matching golf ball dimensions
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 20,  // Allow closer circles (more detections)
                      50,                   // LOW Canny threshold (detect subtle edges)
                      10,                   // LOW accumulator (require less evidence)
-                     45,                   // Golf ball min radius (STRICT)
-                     55);                  // Golf ball max radius (STRICT)
+                     20,                   // Golf ball min radius (STRICT)
+                     30);                  // Golf ball max radius (STRICT)
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
@@ -1053,8 +1053,8 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Skip circles outside zone
         }
 
-        // STRICT SIZE FILTER: Only accept circles matching golf ball size (45-55 pixels)
-        if (r < 45.0 || r > 55.0) {
+        // STRICT SIZE FILTER: Only accept circles matching golf ball size (20-30 pixels)
+        if (r < 20.0 || r > 30.0) {
             continue;  // Not golf ball size - reject immediately
         }
 
@@ -1144,7 +1144,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         circlesInZone++;
 
         // COMBINED SCORE: Brightness + Radius + Temporal proximity
-        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 50.0) / 5.0);  // 0-1, best at r=50 (middle of 45-55)
+        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0);  // 0-1, best at r=25 (middle of 20-30)
         double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
 
         // HEAT-SEEKING BONUS: Only for high-quality circles near last position
