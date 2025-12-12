@@ -139,6 +139,11 @@ public slots:
     Q_INVOKABLE void setDebugMode(bool enabled);
     Q_INVOKABLE bool isDebugMode() const { return m_debugMode; }
 
+    // Background subtraction for eliminating texture circles
+    Q_INVOKABLE void captureBaseline();  // Capture empty zone (no ball)
+    Q_INVOKABLE QString saveBackgroundSubtractionView();  // Save screenshot of difference image
+    Q_INVOKABLE bool hasBaseline() const { return m_hasBaseline; }
+
     // Load/save calibration
     void loadCalibration();
     void saveCalibration();
@@ -253,6 +258,11 @@ private:
     // Debug visualization
     bool m_debugMode = true;  // Start in debug mode to diagnose tracking issues
     cv::Mat m_lastDebugFrame;  // Store last debug frame for screenshot
+
+    // Background subtraction (eliminate texture circles)
+    bool m_hasBaseline = false;
+    cv::Mat m_baselineFrame;  // Empty zone (no ball) - used for background subtraction
+    cv::Mat m_lastDifferenceFrame;  // Store difference image for screenshot
 
     // Helper methods
     bool detectCheckerboard(const cv::Mat &image, std::vector<cv::Point2f> &corners);

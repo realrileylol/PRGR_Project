@@ -958,10 +958,32 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Mat processed;
     cv::GaussianBlur(gray, processed, cv::Size(5, 5), 1.5);
 
-    // Use CLAHE for contrast enhancement (adaptive to lighting)
-    double clipLimit = (brightness < 100) ? 3.0 : 2.0;  // More aggressive in dark scenes
-    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
-    clahe->apply(processed, processed);
+    // ========== BACKGROUND SUBTRACTION (Eliminate Texture Circles) ==========
+    if (m_hasBaseline && !m_baselineFrame.empty()) {
+        // Subtract baseline from current frame
+        cv::Mat diff;
+        cv::absdiff(processed, m_baselineFrame, diff);
+
+        // Threshold to create binary mask (ball shows up, texture doesn't)
+        cv::threshold(diff, diff, 25, 255, cv::THRESH_BINARY);
+
+        // Apply morphological opening to remove small noise
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+        cv::morphologyEx(diff, diff, cv::MORPH_OPEN, kernel);
+
+        // Store difference frame for screenshot
+        m_lastDifferenceFrame = diff.clone();
+
+        // Use difference frame for detection
+        processed = diff;
+
+        qDebug() << "Background subtraction ACTIVE - texture eliminated";
+    } else {
+        // Use CLAHE for contrast enhancement (adaptive to lighting) - only when no baseline
+        double clipLimit = (brightness < 100) ? 3.0 : 2.0;  // More aggressive in dark scenes
+        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
+        clahe->apply(processed, processed);
+    }
 
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
     // Golf ball appears as ~25 pixels at camera distance
@@ -1232,10 +1254,13 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Strategy: SHAPE-BASED (Size + Circularity + Zone + Temporal)");
-        cv::putText(debugFrame, paramText.toStdString(),
+        QString strategyText = m_hasBaseline ?
+            QString("Strategy: BACKGROUND SUBTRACTION + Shape") :
+            QString("Strategy: SHAPE-BASED (Size + Circularity + Zone + Temporal)");
+        cv::putText(debugFrame, strategyText.toStdString(),
                    cv::Point(10, frame.rows - 20),
-                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                   m_hasBaseline ? cv::Scalar(0, 255, 0) : cv::Scalar(255, 255, 255), 1);
 
         // Store for screenshot capability
         m_lastDebugFrame = debugFrame.clone();
@@ -1434,6 +1459,65 @@ void CameraCalibration::setDebugMode(bool enabled) {
         qDebug() << "  - Brightness scores for each circle";
         qDebug() << "  - Selected circle in GREEN/RED (larger)";
         qDebug() << "  - Detection parameters and scores";
+    }
+}
+
+// ============================================================================
+// BACKGROUND SUBTRACTION (Eliminate Texture Circles)
+// ============================================================================
+
+void CameraCalibration::captureBaseline() {
+    if (!m_frameProvider) {
+        qWarning() << "No frame provider available";
+        return;
+    }
+
+    // Get current frame (EMPTY ZONE - no ball!)
+    cv::Mat frame = m_frameProvider->getLatestFrame();
+    if (frame.empty()) {
+        qWarning() << "Failed to capture baseline frame";
+        return;
+    }
+
+    // Convert to grayscale if needed
+    if (frame.channels() == 3) {
+        cv::cvtColor(frame, m_baselineFrame, cv::COLOR_BGR2GRAY);
+    } else {
+        m_baselineFrame = frame.clone();
+    }
+
+    // Apply same preprocessing as detection (for consistency)
+    cv::GaussianBlur(m_baselineFrame, m_baselineFrame, cv::Size(5, 5), 1.5);
+
+    m_hasBaseline = true;
+    qDebug() << "✓ Baseline captured! Background subtraction ENABLED";
+    qDebug() << "  Baseline size:" << m_baselineFrame.cols << "x" << m_baselineFrame.rows;
+    qDebug() << "  All texture circles will be eliminated";
+}
+
+QString CameraCalibration::saveBackgroundSubtractionView() {
+    if (!m_lastDifferenceFrame.empty()) {
+        // Save the last difference frame
+        QString screenshotsDir = QDir::homePath() + "/prgr/PRGR_Project/screenshots";
+        QDir dir;
+        if (!dir.mkpath(screenshotsDir)) {
+            qWarning() << "Failed to create screenshots directory";
+            return QString();
+        }
+
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+        QString filepath = screenshotsDir + "/background_subtraction_" + timestamp + ".png";
+
+        if (!cv::imwrite(filepath.toStdString(), m_lastDifferenceFrame)) {
+            qWarning() << "Failed to save background subtraction view";
+            return QString();
+        }
+
+        qDebug() << "Background subtraction view saved:" << filepath;
+        return filepath;
+    } else {
+        qDebug() << "No difference frame available - run detection first with baseline captured";
+        return QString();
     }
 }
 

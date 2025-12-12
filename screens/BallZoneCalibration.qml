@@ -686,6 +686,102 @@ Rectangle {
                         }
                     }
 
+                    // Background subtraction buttons
+                    Row {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.bottomMargin: 10
+                        spacing: 10
+
+                        // Capture Baseline button (Step 1)
+                        Button {
+                            width: 120
+                            height: 50
+
+                            contentItem: Column {
+                                anchors.centerIn: parent
+                                spacing: 2
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "📷 BASE"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    color: "#ffffff"
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: cameraCalibration.hasBaseline() ? "✓ Captured" : "Capture Empty"
+                                    font.pixelSize: 9
+                                    color: cameraCalibration.hasBaseline() ? "#4caf50" : "#cccccc"
+                                }
+                            }
+
+                            background: Rectangle {
+                                color: {
+                                    if (cameraCalibration.hasBaseline()) {
+                                        return parent.pressed ? "#388e3c" : "#4caf50"  // Green when captured
+                                    } else {
+                                        return parent.pressed ? "#ff8f00" : "#ffa726"  // Orange when not captured
+                                    }
+                                }
+                                radius: 6
+                                border.color: cameraCalibration.hasBaseline() ? "#2e7d32" : "#f57c00"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                cameraCalibration.captureBaseline()
+                                soundManager.playClick()
+                            }
+                        }
+
+                        // View Background Subtraction button (Step 2)
+                        Button {
+                            width: 120
+                            height: 50
+                            enabled: cameraCalibration.hasBaseline()
+                            opacity: enabled ? 1.0 : 0.5
+
+                            contentItem: Column {
+                                anchors.centerIn: parent
+                                spacing: 2
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "🔍 DIFF"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    color: "#ffffff"
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "View Subtraction"
+                                    font.pixelSize: 9
+                                    color: "#cccccc"
+                                }
+                            }
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#7b1fa2" : "#9c27b0"  // Purple
+                                radius: 6
+                                border.color: "#6a1b9a"
+                                border.width: 2
+                            }
+
+                            onClicked: {
+                                var filepath = cameraCalibration.saveBackgroundSubtractionView()
+                                if (filepath) {
+                                    console.log("Background subtraction view saved: " + filepath)
+                                }
+                                soundManager.playClick()
+                            }
+                        }
+                    }
+
                     // Screenshot button
                     Button {
                         anchors.bottom: parent.bottom
