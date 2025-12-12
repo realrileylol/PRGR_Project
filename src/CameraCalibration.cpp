@@ -1493,6 +1493,8 @@ void CameraCalibration::captureBaseline() {
     qDebug() << "✓ Baseline captured! Background subtraction ENABLED";
     qDebug() << "  Baseline size:" << m_baselineFrame.cols << "x" << m_baselineFrame.rows;
     qDebug() << "  All texture circles will be eliminated";
+
+    emit baselineCaptured();  // Notify QML that baseline is ready
 }
 
 QString CameraCalibration::saveBackgroundSubtractionView() {

@@ -161,6 +161,7 @@ signals:
     void calibrationComplete(const QString &summary);
     void calibrationFailed(const QString &reason);
     void ballDetectedForZone(double centerX, double centerY, double radius, double confidence);
+    void baselineCaptured();  // Emitted when background baseline is captured
 
 private:
     FrameProvider *m_frameProvider = nullptr;
