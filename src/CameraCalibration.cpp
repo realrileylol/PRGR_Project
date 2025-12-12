@@ -1102,55 +1102,21 @@ QVariantMap CameraCalibration::detectBallLive() {
             }
         }
 
-        // Sample brightness within the circle FIRST to check minimum threshold
-        // Golf ball is 200+ brightness, false detections are 70-90
-        double totalBrightness = 0.0;
-        int validSamples = 0;
-
-        // Sample 13 points: center + 4 cardinal + 4 diagonal + 4 mid-cardinal at 60% radius
-        // More samples = better brightness measurement = fewer false positives
-        std::vector<std::pair<int, int>> sampleOffsets = {
-            {0, 0},                                    // Center
-            {static_cast<int>(r * 0.6), 0},           // Right
-            {-static_cast<int>(r * 0.6), 0},          // Left
-            {0, static_cast<int>(r * 0.6)},           // Down
-            {0, -static_cast<int>(r * 0.6)},          // Up
-            {static_cast<int>(r * 0.4), static_cast<int>(r * 0.4)},    // Diagonal NE
-            {-static_cast<int>(r * 0.4), static_cast<int>(r * 0.4)},   // Diagonal NW
-            {static_cast<int>(r * 0.4), -static_cast<int>(r * 0.4)},   // Diagonal SE
-            {-static_cast<int>(r * 0.4), -static_cast<int>(r * 0.4)},  // Diagonal SW
-            {static_cast<int>(r * 0.8), 0},           // Far right
-            {-static_cast<int>(r * 0.8), 0},          // Far left
-            {0, static_cast<int>(r * 0.8)},           // Far down
-            {0, -static_cast<int>(r * 0.8)}           // Far up
-        };
-
-        for (const auto& offset : sampleOffsets) {
-            int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
-            double brightness = gray.at<uchar>(sampleY, sampleX);  // RAW brightness - white ball is truly brightest on raw frame
-            totalBrightness += brightness;
-            validSamples++;
-        }
-
-        double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
-
-        // BRIGHTNESS FILTER: Ball is WHITE - at least 100 brightness
-        // Lowered from 120 to 100 to handle ball brightness variance (109-136 observed)
-        if (avgBrightness < 100.0) {
-            continue;  // Too dark to be white golf ball
-        }
+        // ========== SHAPE-BASED DETECTION FOR ANY COLOR BALL ==========
+        // NO brightness filtering - works with white, yellow, orange, any color ball
+        // Detection based ONLY on: SIZE (20-30px) + SHAPE (circular) + ZONE + TEMPORAL
 
         circlesInZone++;
 
-        // COMBINED SCORE: Brightness + Radius + Temporal proximity
-        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0);  // 0-1, best at r=25 (middle of 20-30)
-        double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
+        // COMBINED SCORE: Radius match + Temporal proximity
+        // Perfect radius match (r=25) gets score of 100, edges (r=20 or 30) get score of 0
+        double radiusScore = 100.0 * (1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0));
+        double combinedScore = radiusScore;
 
-        // HEAT-SEEKING BONUS: Only for high-quality circles near last position
-        // Ball must meet quality standards (brightness 100+) to get tracking bonus
-        if (nearLastPosition && avgBrightness >= 100.0) {
-            combinedScore += 150.0;  // Massive bonus - lock onto high-quality ball
+        // HEAT-SEEKING BONUS: Massive bonus for circles near last tracked position
+        // This provides temporal consistency - ball doesn't jump randomly
+        if (nearLastPosition) {
+            combinedScore += 500.0;  // HUGE bonus - stay locked on same ball
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
@@ -1201,29 +1167,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
     }
 
-    // Recalculate actual brightness for logging (not combined score)
-    double actualBrightness = 0.0;
-    {
-        int validSamples = 0;
-        std::vector<std::pair<int, int>> sampleOffsets = {
-            {0, 0},
-            {static_cast<int>(bestCircle[2] * 0.6), 0},
-            {-static_cast<int>(bestCircle[2] * 0.6), 0},
-            {0, static_cast<int>(bestCircle[2] * 0.6)},
-            {0, -static_cast<int>(bestCircle[2] * 0.6)}
-        };
-        for (const auto& offset : sampleOffsets) {
-            int sampleX = std::max(0, std::min(static_cast<int>(bestCircle[0] + offset.first), gray.cols - 1));
-            int sampleY = std::max(0, std::min(static_cast<int>(bestCircle[1] + offset.second), gray.rows - 1));
-            actualBrightness += gray.at<uchar>(sampleY, sampleX);
-            validSamples++;
-        }
-        actualBrightness /= validSamples;
-    }
-
-    qDebug() << "Circles in zone:" << circlesInZone << "Selected - Brightness:" << actualBrightness
+    qDebug() << "Circles in zone:" << circlesInZone << "Selected circle -"
              << "Position:(" << bestCircle[0] << "," << bestCircle[1] << ")"
-             << "Radius:" << bestCircle[2] << "Score:" << bestBrightness;
+             << "Radius:" << bestCircle[2] << "pixels | Score:" << bestBrightness;
 
     double ballX = bestCircle[0];
     double ballY = bestCircle[1];
@@ -1238,37 +1184,19 @@ QVariantMap CameraCalibration::detectBallLive() {
         cv::Mat debugFrame;
         cv::cvtColor(processed, debugFrame, cv::COLOR_GRAY2BGR);
 
-        // Draw ALL detected circles in BLUE with brightness labels
+        // Draw ALL detected circles in BLUE with radius labels
         for (const auto& circle : circles) {
             double cx = circle[0];
             double cy = circle[1];
             double r = circle[2];
 
-            // Calculate brightness for this circle
-            double totalBrightness = 0.0;
-            int validSamples = 0;
-            std::vector<std::pair<int, int>> sampleOffsets = {
-                {0, 0},
-                {static_cast<int>(r * 0.6), 0},
-                {-static_cast<int>(r * 0.6), 0},
-                {0, static_cast<int>(r * 0.6)},
-                {0, -static_cast<int>(r * 0.6)}
-            };
-            for (const auto& offset : sampleOffsets) {
-                int sampleX = std::max(0, std::min(static_cast<int>(cx + offset.first), gray.cols - 1));
-                int sampleY = std::max(0, std::min(static_cast<int>(cy + offset.second), gray.rows - 1));
-                totalBrightness += gray.at<uchar>(sampleY, sampleX);
-                validSamples++;
-            }
-            double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
-
             // Draw circle in BLUE
             cv::circle(debugFrame, cv::Point(cx, cy), r, cv::Scalar(255, 100, 0), 1);  // Blue
 
-            // Draw brightness value
-            QString brightnessText = QString::number(static_cast<int>(avgBrightness));
-            cv::putText(debugFrame, brightnessText.toStdString(),
-                       cv::Point(cx - 10, cy - r - 5),
+            // Draw radius value (shape-based detection)
+            QString radiusText = QString("R=%1").arg(static_cast<int>(r));
+            cv::putText(debugFrame, radiusText.toStdString(),
+                       cv::Point(cx - 15, cy - r - 5),
                        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 1);  // Cyan text
         }
 
@@ -1288,16 +1216,15 @@ QVariantMap CameraCalibration::detectBallLive() {
         cv::line(debugFrame, cv::Point(ballX - 6, ballY), cv::Point(ballX + 6, ballY), selectedColor, 1);
         cv::line(debugFrame, cv::Point(ballX, ballY - 6), cv::Point(ballX, ballY + 6), selectedColor, 1);
 
-        // Draw brightness and radius info
-        QString brightnessText = QString("BALL: R=%1px Bright=%2")
-            .arg(static_cast<int>(ballRadius))
-            .arg(static_cast<int>(actualBrightness));
-        cv::putText(debugFrame, brightnessText.toStdString(),
-                   cv::Point(ballX - 50, ballY + ballRadius + 20),
+        // Draw radius info (shape-based detection)
+        QString ballText = QString("BALL: R=%1px (ANY COLOR)")
+            .arg(static_cast<int>(ballRadius));
+        cv::putText(debugFrame, ballText.toStdString(),
+                   cv::Point(ballX - 70, ballY + ballRadius + 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
-        // Draw info text - Zone-filtered brightness tracking
-        QString infoText = QString("Detected: %1 | In Zone: %2 | Brightest: %3")
+        // Draw info text - Shape-based tracking
+        QString infoText = QString("Detected: %1 | In Zone: %2 | Best Score: %3")
             .arg(circles.size())
             .arg(circlesInZone)
             .arg(static_cast<int>(bestBrightness));
@@ -1305,7 +1232,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::Point(10, frame.rows - 40),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
 
-        QString paramText = QString("Strategy: BRIGHTEST IN ZONE (ignore lights outside)");
+        QString paramText = QString("Strategy: SHAPE-BASED (Size + Circularity + Zone + Temporal)");
         cv::putText(debugFrame, paramText.toStdString(),
                    cv::Point(10, frame.rows - 20),
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
