@@ -1130,11 +1130,10 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // ADAPTIVE BRIGHTNESS FILTER: Strict for new, relaxed when tracking
-        // Heat-seeking mode: if near last position, accept lower brightness (ball might be in shadow/partial occlusion)
-        double brightnessThreshold = nearLastPosition ? 80.0 : 120.0;
-        if (avgBrightness < brightnessThreshold) {
-            continue;  // Too dark
+        // STRICT BRIGHTNESS FILTER: Ball is WHITE - always at least 120
+        // Heat-seeking bonus handles tracking continuity, not lowered standards
+        if (avgBrightness < 120.0) {
+            continue;  // Too dark to be white golf ball
         }
 
         circlesInZone++;
@@ -1143,9 +1142,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         double radiusScore = 1.0 - std::min(1.0, std::abs(r - 9.0) / 9.0);  // 0-1, best at r=9
         double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
 
-        // HEAT-SEEKING BONUS: Huge boost for circles near last position
-        if (nearLastPosition) {
-            combinedScore += 100.0;  // Massive bonus - prefer continuing track
+        // HEAT-SEEKING BONUS: Only for high-quality circles near last position
+        // Ball must meet quality standards (brightness 120+) to get tracking bonus
+        if (nearLastPosition && avgBrightness >= 140.0) {
+            combinedScore += 150.0;  // Massive bonus - lock onto high-quality ball
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
