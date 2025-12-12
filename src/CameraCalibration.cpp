@@ -709,14 +709,14 @@ void CameraCalibration::detectBallForZoneCalibration() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles
+    // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 16,  // Min distance between centers
                      100,  // Canny upper threshold
                      15,   // Accumulator threshold
-                     6,    // Min radius (golf ball at 5ft should be 6-12 pixels)
-                     12);  // Max radius
+                     45,   // Min radius - golf ball size at camera distance
+                     55);  // Max radius - golf ball size at camera distance
 
     if (circles.empty()) {
         qWarning() << "No ball detected in frame";
@@ -730,7 +730,7 @@ void CameraCalibration::detectBallForZoneCalibration() {
     // Ball should be near center of frame since that's where we expect it
     double frameCenterX = processed.cols / 2.0;
     double frameCenterY = processed.rows / 2.0;
-    double idealRadius = 9.0;  // Ideal golf ball radius at this distance
+    double idealRadius = 50.0;  // Ideal golf ball radius (middle of 45-55 range)
 
     cv::Vec3f bestCircle;
     double bestScore = -1.0;
@@ -963,16 +963,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
     clahe->apply(processed, processed);
 
-    // Detect circles using HoughCircles with VERY RELAXED parameters
-    // PRIORITY: Detect the golf ball EVERY TIME, even if we get false positives
-    // Zone filtering + brightness scoring will handle false positives
+    // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
+    // Golf ball appears as 45-55 pixels at camera distance
+    // STRICT size filtering - only detect objects matching golf ball dimensions
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 20,  // Allow closer circles (more detections)
                      50,                   // LOW Canny threshold (detect subtle edges)
                      10,                   // LOW accumulator (require less evidence)
-                     7,                    // Golf ball min radius
-                     12);                  // Golf ball max radius
+                     45,                   // Golf ball min radius (STRICT)
+                     55);                  // Golf ball max radius (STRICT)
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
@@ -1051,6 +1051,11 @@ QVariantMap CameraCalibration::detectBallLive() {
         // ONLY consider circles in the zone (ignore bright lights outside)
         if (!inZone && m_isZoneDefined) {
             continue;  // Skip circles outside zone
+        }
+
+        // STRICT SIZE FILTER: Only accept circles matching golf ball size (45-55 pixels)
+        if (r < 45.0 || r > 55.0) {
+            continue;  // Not golf ball size - reject immediately
         }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
@@ -1139,7 +1144,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         circlesInZone++;
 
         // COMBINED SCORE: Brightness + Radius + Temporal proximity
-        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 9.0) / 9.0);  // 0-1, best at r=9
+        double radiusScore = 1.0 - std::min(1.0, std::abs(r - 50.0) / 5.0);  // 0-1, best at r=50 (middle of 45-55)
         double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
 
         // HEAT-SEEKING BONUS: Only for high-quality circles near last position
