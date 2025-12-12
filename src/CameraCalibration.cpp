@@ -1160,18 +1160,23 @@ QVariantMap CameraCalibration::detectBallLive() {
         qDebug() << "No circles in zone (total detected:" << circles.size() << ")";
         m_missedFrames++;
 
-        // HEAT-SEEKING MISSILE MODE: Use last known position
-        // Green circle NEVER disappears - stays on last position
+        // HEAT-SEEKING MISSILE MODE: VELOCITY PREDICTION
+        // When club passes in front, predict where ball is based on velocity
         if (m_liveTrackingInitialized && m_missedFrames < 30) {
-            // Ball temporarily lost - use last known position
-            qDebug() << "Using last position (missed frames:" << m_missedFrames << ")";
+            // PREDICT ball position using velocity
+            double predictedX = m_smoothedBallX + (m_ballVelocityX * m_missedFrames);
+            double predictedY = m_smoothedBallY + (m_ballVelocityY * m_missedFrames);
+
+            qDebug() << "PREDICTION mode (missed:" << m_missedFrames
+                     << ") vx:" << m_ballVelocityX << "vy:" << m_ballVelocityY
+                     << "predicted:(" << predictedX << "," << predictedY << ")";
 
             result["detected"] = true;
-            result["x"] = m_smoothedBallX;
-            result["y"] = m_smoothedBallY;
+            result["x"] = predictedX;
+            result["y"] = predictedY;
             result["radius"] = m_lastBallRadius;
 
-            // Check if last position is in zone
+            // Check if predicted position is in zone
             bool inZone = false;
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
@@ -1179,7 +1184,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                     zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
-                    cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
+                    cv::Point2f(predictedX, predictedY), false);
                 inZone = (distance >= 0);
             }
             result["inZone"] = inZone;
@@ -1289,18 +1294,32 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_lastDebugFrame = debugFrame.clone();
     }
 
-    // ========== INSTANT TRACKING MODE (NO SMOOTHING) ==========
-    // User wants INSTANT tracking - use raw detection directly
-    // This sacrifices smoothness for maximum responsiveness
+    // ========== INSTANT TRACKING MODE + VELOCITY PREDICTION ==========
+    // Calculate velocity for prediction (handle club occlusion)
+    if (m_liveTrackingInitialized) {
+        // Update velocity based on position change
+        double dx = ballX - m_smoothedBallX;
+        double dy = ballY - m_smoothedBallY;
+
+        // Smooth velocity with exponential moving average (alpha = 0.3)
+        // This reduces noise while staying responsive
+        m_ballVelocityX = 0.3 * dx + 0.7 * m_ballVelocityX;
+        m_ballVelocityY = 0.3 * dy + 0.7 * m_ballVelocityY;
+
+        qDebug() << "Velocity updated: vx=" << m_ballVelocityX << "vy=" << m_ballVelocityY;
+    }
+
     m_smoothedBallX = ballX;  // Use raw detection
     m_smoothedBallY = ballY;  // Use raw detection
     m_lastBallRadius = ballRadius;
 
-    // Track initialization status for temporal filtering
+    // Track initialization status
     if (!m_liveTrackingInitialized) {
         m_liveTrackingInitialized = true;
-        m_trackingConfidence = 10;  // Start with high confidence
-        qDebug() << "Tracking initialized (instant mode) at:" << ballX << "," << ballY;
+        m_trackingConfidence = 10;
+        m_ballVelocityX = 0.0;  // Initialize velocity
+        m_ballVelocityY = 0.0;
+        qDebug() << "Tracking initialized at:" << ballX << "," << ballY;
     } else {
         m_trackingConfidence = 10;  // Always high confidence in instant mode
     }

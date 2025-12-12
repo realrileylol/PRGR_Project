@@ -211,6 +211,11 @@ private:
     int m_trackingConfidence = 0;  // Consecutive successful detections
     int m_missedFrames = 0;        // Consecutive failed detections
 
+    // Velocity tracking for prediction (handle club occlusion)
+    double m_ballVelocityX = 0.0;  // Pixels per frame
+    double m_ballVelocityY = 0.0;  // Pixels per frame
+    qint64 m_lastDetectionTime = 0;  // Timestamp of last successful detection
+
     // Kalman filter for professional-grade tracking (same as TrackMan/GCQuad)
     cv::KalmanFilter m_kalmanFilter;
     bool m_kalmanInitialized = false;

@@ -387,7 +387,7 @@ Rectangle {
                             }
 
                             // Draw LIVE ball tracking (green when in zone, red when out)
-                            // INSTANT color transition as ball crosses zone boundary
+                            // Circle matches EXACT ball dimensions (no offset)
                             if (liveBallDetected && clickMode !== "ball_edge") {
                                 var liveX = liveBallX * scaleX + offsetX
                                 var liveY = liveBallY * scaleY + offsetY
@@ -397,14 +397,20 @@ Rectangle {
                                 var trackingColor = liveBallInZone ? "#4caf50" : "#ff0000"
 
                                 // Outer glow effect for better visibility
-                                ctx.shadowBlur = 8
+                                ctx.shadowBlur = 10
                                 ctx.shadowColor = trackingColor
 
-                                // Main tracking circle
+                                // Main tracking circle - EXACT ball dimensions
                                 ctx.strokeStyle = trackingColor
-                                ctx.lineWidth = 4
+                                ctx.lineWidth = 3
                                 ctx.beginPath()
-                                ctx.arc(liveX, liveY, liveR + 3, 0, 2 * Math.PI)
+                                ctx.arc(liveX, liveY, liveR, 0, 2 * Math.PI)  // Exact radius, no +3
+                                ctx.stroke()
+
+                                // Inner circle to show ball outline clearly
+                                ctx.lineWidth = 1
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, liveR - 2, 0, 2 * Math.PI)
                                 ctx.stroke()
 
                                 // Reset shadow
@@ -413,17 +419,17 @@ Rectangle {
                                 // Draw center dot
                                 ctx.fillStyle = trackingColor
                                 ctx.beginPath()
-                                ctx.arc(liveX, liveY, 3, 0, 2 * Math.PI)
+                                ctx.arc(liveX, liveY, 2, 0, 2 * Math.PI)
                                 ctx.fill()
 
                                 // Add crosshair for precision
                                 ctx.strokeStyle = trackingColor
-                                ctx.lineWidth = 2
+                                ctx.lineWidth = 1
                                 ctx.beginPath()
-                                ctx.moveTo(liveX - 8, liveY)
-                                ctx.lineTo(liveX + 8, liveY)
-                                ctx.moveTo(liveX, liveY - 8)
-                                ctx.lineTo(liveX, liveY + 8)
+                                ctx.moveTo(liveX - 6, liveY)
+                                ctx.lineTo(liveX + 6, liveY)
+                                ctx.moveTo(liveX, liveY - 6)
+                                ctx.lineTo(liveX, liveY + 6)
                                 ctx.stroke()
                             }
 
