@@ -1130,9 +1130,9 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         double avgBrightness = validSamples > 0 ? totalBrightness / validSamples : 0.0;
 
-        // STRICT BRIGHTNESS FILTER: Ball is WHITE - always at least 120
-        // Heat-seeking bonus handles tracking continuity, not lowered standards
-        if (avgBrightness < 120.0) {
+        // BRIGHTNESS FILTER: Ball is WHITE - at least 100 brightness
+        // Lowered from 120 to 100 to handle ball brightness variance (109-136 observed)
+        if (avgBrightness < 100.0) {
             continue;  // Too dark to be white golf ball
         }
 
@@ -1143,8 +1143,8 @@ QVariantMap CameraCalibration::detectBallLive() {
         double combinedScore = avgBrightness + (radiusScore * 20.0);  // Brightness 0-255, radius bonus 0-20
 
         // HEAT-SEEKING BONUS: Only for high-quality circles near last position
-        // Ball must meet quality standards (brightness 120+) to get tracking bonus
-        if (nearLastPosition && avgBrightness >= 140.0) {
+        // Ball must meet quality standards (brightness 100+) to get tracking bonus
+        if (nearLastPosition && avgBrightness >= 100.0) {
             combinedScore += 150.0;  // Massive bonus - lock onto high-quality ball
         }
 
