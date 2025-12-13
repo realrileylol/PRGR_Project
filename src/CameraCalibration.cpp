@@ -965,17 +965,23 @@ QVariantMap CameraCalibration::detectBallLive() {
         cv::absdiff(processed, m_baselineFrame, diff);
 
         // Threshold to create binary mask (ball shows up, texture doesn't)
-        cv::threshold(diff, diff, 25, 255, cv::THRESH_BINARY);
+        cv::Mat mask;
+        cv::threshold(diff, mask, 25, 255, cv::THRESH_BINARY);
 
         // Apply morphological opening to remove small noise
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-        cv::morphologyEx(diff, diff, cv::MORPH_OPEN, kernel);
+        cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
 
         // Store difference frame for screenshot
-        m_lastDifferenceFrame = diff.clone();
+        m_lastDifferenceFrame = mask.clone();
 
-        // Use difference frame for detection
-        processed = diff;
+        // Apply CLAHE to current frame for edge detection
+        double clipLimit = (brightness < 100) ? 3.0 : 2.0;
+        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
+        clahe->apply(processed, processed);
+
+        // Apply mask - keep CLAHE edges only where ball is (not texture)
+        processed.setTo(0, mask == 0);  // Black out areas with no difference
 
         qDebug() << "Background subtraction ACTIVE - texture eliminated";
     } else {
