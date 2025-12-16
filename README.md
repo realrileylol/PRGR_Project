@@ -1,4 +1,5 @@
 # PRGR Golf Launch Monitor
+## IGNORE AS OF DEC 25
 
 DIY golf launch monitor using Raspberry Pi and OV9281 camera.
 
