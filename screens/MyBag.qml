@@ -1,11 +1,12 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import Qt.labs.settings 1.1
+import QtCore
 
 Item {
     id: myBag
-    anchors.fill: parent
+    width: 800
+    height: 480
 
     property var win
 
@@ -140,13 +141,16 @@ Item {
                     spacing: 15
                     
                     Button {
-                        text: "← Back"
+                        text: "Back"
                         implicitHeight: 45
                         implicitWidth: 100
-                        
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#2D9A4F" : success
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {
@@ -177,10 +181,13 @@ Item {
                         text: "Reset"
                         implicitHeight: 45
                         implicitWidth: 90
-                        
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B02A2A" : danger
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {
@@ -309,10 +316,13 @@ Item {
                                 text: "+"
                                 implicitWidth: 40
                                 implicitHeight: 40
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : accent
                                     radius: 6
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
                                 
                                 contentItem: Text {
@@ -335,10 +345,13 @@ Item {
                                 implicitWidth: 70
                                 implicitHeight: 40
                                 visible: currentPreset !== "Default Set" && Object.keys(presets).length > 1
-                                
+                                scale: pressed ? 0.95 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#B02A2A" : danger
                                     radius: 6
+                                    Behavior on color { ColorAnimation { duration: 200 } }
                                 }
                                 
                                 contentItem: Text {
@@ -493,10 +506,13 @@ Item {
                         text: "−"
                         implicitWidth: 50
                         implicitHeight: 50
-                        
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#B02A2A" : danger
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {
@@ -527,10 +543,13 @@ Item {
                         text: "+"
                         implicitWidth: 50
                         implicitHeight: 50
-                        
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+
                         background: Rectangle {
                             color: parent.pressed ? "#2D9A4F" : success
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         
                         contentItem: Text {
@@ -562,17 +581,20 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                
+
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -580,21 +602,24 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         editDialog.close()
                     }
                 }
-                
+
                 Button {
                     text: "Save"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#2D9A4F" : success
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {
@@ -666,17 +691,20 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                
+
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -684,22 +712,25 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         presetNameInput.text = ""
                         newPresetDialog.close()
                     }
                 }
-                
+
                 Button {
                     text: "Create"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#2563EB" : accent
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {
@@ -765,17 +796,20 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                
+
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -783,21 +817,24 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         deletePresetDialog.close()
                     }
                 }
-                
+
                 Button {
                     text: "Delete"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B02A2A" : danger
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {
@@ -859,17 +896,20 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                
+
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: text
@@ -877,21 +917,24 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         resetDialog.close()
                     }
                 }
-                
+
                 Button {
                     text: "Reset"
                     Layout.fillWidth: true
                     implicitHeight: 50
-                    
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
                     background: Rectangle {
                         color: parent.pressed ? "#B02A2A" : danger
                         radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     
                     contentItem: Text {

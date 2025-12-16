@@ -49,7 +49,7 @@ Item {
             spacing: 12
             
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }
@@ -87,6 +87,18 @@ Item {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
+
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
 
         // --- Compression Selection ---
         Rectangle {
@@ -242,6 +254,10 @@ Item {
                         Layout.fillWidth: true
                     }
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 

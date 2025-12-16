@@ -84,11 +84,11 @@ Item {
             anchors.margins: 15
             spacing: 15
 
-            Text {
-                text: "✓"
+            Rectangle {
+                width: 4
+                height: 28
                 color: "white"
-                font.pixelSize: 28
-                font.bold: true
+                radius: 2
             }
 
             ColumnLayout {
@@ -124,13 +124,16 @@ Item {
             spacing: 12
 
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 100
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
 
                 background: Rectangle {
                     color: parent.pressed ? "#2D9A4F" : success
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
                 contentItem: Text {
@@ -163,10 +166,13 @@ Item {
                 text: "Export Data"
                 implicitWidth: 130
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
 
                 background: Rectangle {
                     color: parent.pressed ? "#2563EB" : accent
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
                 contentItem: Text {
@@ -188,10 +194,13 @@ Item {
                 text: "Clear All"
                 implicitWidth: 120
                 implicitHeight: 48
+                scale: pressed ? 0.95 : 1.0
+                Behavior on scale { NumberAnimation { duration: 100 } }
 
                 background: Rectangle {
                     color: parent.pressed ? "#B02A27" : danger
                     radius: 8
+                    Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
                 contentItem: Text {
@@ -489,10 +498,13 @@ Item {
                         text: "Cancel"
                         Layout.fillWidth: true
                         implicitHeight: 40
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
 
                         background: Rectangle {
                             color: parent.pressed ? "#B8BBC1" : edge
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {
@@ -514,10 +526,13 @@ Item {
                         text: "Delete All"
                         Layout.fillWidth: true
                         implicitHeight: 40
+                        scale: pressed ? 0.95 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 100 } }
 
                         background: Rectangle {
                             color: parent.pressed ? "#B02A27" : danger
                             radius: 8
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
 
                         contentItem: Text {

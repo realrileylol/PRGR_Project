@@ -38,7 +38,7 @@ Item {
             spacing: 12
             
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }
@@ -76,6 +76,18 @@ Item {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
+
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
 
         // --- Wind Speed ---
         Rectangle {
@@ -208,11 +220,15 @@ Item {
                 }
 
                 Text {
-                    text: "← Headwind (adds distance) | Tailwind (reduces distance) →"
+                    text: "Headwind (adds distance) | Tailwind (reduces distance)"
                     color: hint
                     font.pixelSize: 12
                     Layout.alignment: Qt.AlignHCenter
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 

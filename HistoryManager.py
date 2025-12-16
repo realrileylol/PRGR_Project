@@ -21,7 +21,7 @@ class HistoryManager(QObject):
                 with open(self._history_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"⚠️ Error loading history: {e}")
+                print(f"Error loading history: {e}")
                 return self._get_default_data()
         return self._get_default_data()
 
@@ -36,9 +36,9 @@ class HistoryManager(QObject):
         try:
             with open(self._history_file, 'w') as f:
                 json.dump(self._history_data, f, indent=2)
-            print(f"✅ History saved to {self._history_file}")
+            print(f"History saved to {self._history_file}")
         except Exception as e:
-            print(f"⚠️ Error saving history: {e}")
+            print(f"Error saving history: {e}")
 
     @Slot(str, str, float, float, float, float, int, int, int)
     def addShot(self, profile, club, clubSpeed, ballSpeed, smash, launch, spin, carry, total):
@@ -59,7 +59,7 @@ class HistoryManager(QObject):
         self._history_data["shots"].append(shot)
         self._save_history()
         self.historyChanged.emit()
-        print(f"📊 Shot added to history for {profile} using {club}")
+        print(f"Shot added to history for {profile} using {club}")
 
     @Slot(str, result=str)
     def getHistoryForProfile(self, profile):
@@ -82,7 +82,7 @@ class HistoryManager(QObject):
         self._history_data = self._get_default_data()
         self._save_history()
         self.historyChanged.emit()
-        print("🗑️ All history cleared")
+        print("All history cleared")
 
     @Slot(str)
     def clearProfileHistory(self, profile):
@@ -93,7 +93,7 @@ class HistoryManager(QObject):
         ]
         self._save_history()
         self.historyChanged.emit()
-        print(f"🗑️ History cleared for {profile}")
+        print(f"History cleared for {profile}")
 
     @Slot(result=str)
     def exportToCSV(self):
@@ -141,5 +141,5 @@ class HistoryManager(QObject):
             return export_file
 
         except Exception as e:
-            print(f"❌ Error exporting history: {e}")
+            print(f"Error exporting history: {e}")
             return ""
