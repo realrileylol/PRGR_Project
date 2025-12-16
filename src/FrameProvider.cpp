@@ -28,10 +28,10 @@ void FrameProvider::updateFrame(const cv::Mat &frame) {
     }
 
     // ========== CAMERA ROTATION ==========
-    // Camera is physically rotated 90° clockwise (portrait mode)
+    // Camera is physically rotated 180° (upside down)
     // Rotate frame to correct orientation for all downstream processing
     cv::Mat rotatedFrame;
-    cv::rotate(frame, rotatedFrame, cv::ROTATE_90_CLOCKWISE);
+    cv::rotate(frame, rotatedFrame, cv::ROTATE_180);
 
     QMutexLocker locker(&m_mutex);
     m_currentMat = rotatedFrame.clone();  // Store rotated cv::Mat for processing
