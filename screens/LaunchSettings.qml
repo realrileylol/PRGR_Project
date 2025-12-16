@@ -36,13 +36,13 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
-            
+
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }
-                contentItem: Text { 
+                contentItem: Text {
                     text: parent.text
                     color: "white"
                     font.pixelSize: 15
@@ -54,18 +54,18 @@ Item {
                     stack.goBack()
                 }
             }
-            
+
             Item { Layout.fillWidth: true }
-            
+
             Text {
                 text: "Launch Angle Settings - ONLY USE IF CAMERA NOT WORKING"
                 color: text
                 font.pixelSize: 22
                 font.bold: true
             }
-            
+
             Item { Layout.fillWidth: true }
-            
+
             Item { implicitWidth: 90; implicitHeight: 42 }
         }
 
@@ -76,6 +76,18 @@ Item {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
+
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
 
         // --- Baseline Launch Angle ---
         Rectangle {
@@ -216,6 +228,10 @@ Item {
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 

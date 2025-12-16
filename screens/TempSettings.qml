@@ -43,7 +43,7 @@ Item {
             spacing: 12
             
             Button {
-                text: "← Back"
+                text: "Back"
                 implicitWidth: 90
                 implicitHeight: 42
                 background: Rectangle { color: success; radius: 6 }
@@ -84,6 +84,18 @@ Item {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
+
+        // Scrollable content area
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+            ColumnLayout {
+                width: parent.parent.width
+                spacing: 12
 
         // --- Temperature Slider ---
         Rectangle {
@@ -150,10 +162,10 @@ Item {
 
                 Text {
                     text: {
-                        if (temperature < 50) return "❄️ Cold – Ball loses ~2-5 yards per 10°F"
-                        else if (temperature < 65) return "🌤️ Cool – Ball loses ~1-2 yards per 10°F"
-                        else if (temperature < 85) return "☀️ Ideal – Standard conditions (75°F baseline)"
-                        else return "🔥 Hot – Ball gains ~1-2 yards per 10°F"
+                        if (temperature < 50) return "Cold – Ball loses ~2-5 yards per 10°F"
+                        else if (temperature < 65) return "Cool – Ball loses ~1-2 yards per 10°F"
+                        else if (temperature < 85) return "Ideal – Standard conditions (75°F baseline)"
+                        else return "Hot – Ball gains ~1-2 yards per 10°F"
                     }
                     color: "#2D9A4F"
                     font.pixelSize: 13
@@ -192,6 +204,10 @@ Item {
                     Layout.fillWidth: true
                     lineHeight: 1.3
                 }
+            }
+        }
+
+                Item { height: 10 }
             }
         }
 

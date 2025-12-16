@@ -1,0 +1,25 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>screens/AppWindow.qml</file>
+        <file>screens/CameraScreen.qml</file>
+        <file>screens/CameraSettings.qml</file>
+        <file>screens/CameraTestScreen.qml</file>
+        <file>screens/KLD2TestScreen.qml</file>
+        <file>screens/SettingsScreen.qml</file>
+        <file>screens/CalibrationScreen.qml</file>
+        <file>screens/BallZoneCalibration.qml</file>
+        <file>screens/BallSettings.qml</file>
+        <file>screens/LaunchSettings.qml</file>
+        <file>screens/WindSettings.qml</file>
+        <file>screens/ProfileScreen.qml</file>
+        <file>screens/MyBagScreen.qml</file>
+        <file>screens/MyBag.qml</file>
+        <file>screens/TempSettings.qml</file>
+        <file>screens/HistoryScreen.qml</file>
+        <file>screens/Components/NavBar.qml</file>
+        <file>screens/Components/StatusIndicator.qml</file>
+        <file>screens/Components/ContextStrip.qml</file>
+        <file>screens/Components/MetricCard.qml</file>
+    </qresource>
+</RCC>
