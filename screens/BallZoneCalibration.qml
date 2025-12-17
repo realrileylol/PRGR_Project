@@ -58,9 +58,10 @@ Rectangle {
     }
 
     // Helper function to transform display coordinates to camera coordinates
+    // Camera captures 640×400, then rotates 90° clockwise → 400×640 (portrait)
     function transformToCamera(displayX, displayY, imageWidth, imageHeight) {
-        var cameraWidth = 640
-        var cameraHeight = 480
+        var cameraWidth = 400   // After 90° rotation: was 640×400, now 400×640
+        var cameraHeight = 640
         var cameraAspect = cameraWidth / cameraHeight
         var displayAspect = imageWidth / imageHeight
 
@@ -273,8 +274,9 @@ Rectangle {
                             ctx.clearRect(0, 0, width, height)
 
                             // Calculate scaling to match Image PreserveAspectFit
-                            var cameraWidth = 640
-                            var cameraHeight = 480
+                            // Camera captures 640×400, then rotates 90° clockwise → 400×640 (portrait)
+                            var cameraWidth = 400
+                            var cameraHeight = 640
                             var cameraAspect = cameraWidth / cameraHeight
                             var displayWidth = width
                             var displayHeight = height
@@ -507,7 +509,7 @@ Rectangle {
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.margins: 10
-                        text: "Live Camera Feed (640×480)"
+                        text: "Live Camera Feed (640×400 @ 240fps, portrait mode)"
                         font.pixelSize: 12
                         color: "#ffffff"
                         style: Text.Outline
@@ -516,10 +518,10 @@ Rectangle {
 
                     // Professional Ready State Indicator (like Bushnell/GCQuad)
                     Rectangle {
-                        anchors.bottom: parent.bottom
+                        anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        anchors.bottomMargin: 70  // Leave space for reset button
+                        anchors.topMargin: 10
                         width: 220
                         height: 70
                         color: "#dd000000"
@@ -591,148 +593,179 @@ Rectangle {
                         }
                     }
 
-                    // Left side buttons: Reset + Background Subtraction
-                    Row {
-                        anchors.bottom: parent.bottom
-                        anchors.left: parent.left
-                        anchors.leftMargin: 10
-                        anchors.bottomMargin: 10
-                        spacing: 10
+                    // Click mode indicator
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        width: 200
+                        height: 35
+                        color: "#dd000000"
+                        radius: 6
+                        visible: clickMode !== ""
 
-                        // Reset tracking button
-                        Button {
-                            width: 100
-                            height: 50
+                        Text {
+                            anchors.centerIn: parent
+                            text: clickMode === "ball_edge"
+                                  ? "Ball: " + ballEdgePoints.length + "/3-4 points"
+                                  : "Zone: " + zoneCornerPoints.length + "/4 corners"
+                            font.pixelSize: 13
+                            font.bold: true
+                            color: "#ff9800"
+                        }
+                    }
+                }
+            }
 
-                            contentItem: Column {
-                                anchors.centerIn: parent
-                                spacing: 2
+            // Control buttons (moved below camera preview)
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 65
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20
+                color: "#2d2d2d"
+                radius: 8
+                border.color: "#444444"
+                border.width: 1
 
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "🔄"
-                                    font.pixelSize: 16
-                                    font.bold: true
-                                    color: "#ffffff"
-                                }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 8
 
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "Reset Track"
-                                    font.pixelSize: 9
-                                    color: "#cccccc"
-                                }
+                    // Reset tracking button
+                    Button {
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "🔄"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#ffffff"
                             }
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#e65100" : "#ff6f00"
-                                radius: 6
-                                border.color: "#d84315"
-                                border.width: 2
-                            }
-
-                            onClicked: {
-                                cameraCalibration.resetTracking()
-                                soundManager.playClick()
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Reset Track"
+                                font.pixelSize: 8
+                                color: "#cccccc"
                             }
                         }
 
-                        // Capture Baseline button (Step 1)
-                        Button {
-                            width: 100
-                            height: 50
-
-                            contentItem: Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: cameraCalibration.hasBaseline ? "✓ BASE" : "📷 BASE"
-                                    font.pixelSize: 16
-                                    font.bold: true
-                                    color: "#ffffff"
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: cameraCalibration.hasBaseline ? "Captured" : "Capture"
-                                    font.pixelSize: 9
-                                    color: "#cccccc"
-                                }
-                            }
-
-                            background: Rectangle {
-                                color: {
-                                    if (cameraCalibration.hasBaseline) {
-                                        return parent.pressed ? "#388e3c" : "#4caf50"  // Green when captured
-                                    } else {
-                                        return parent.pressed ? "#ff8f00" : "#ffa726"  // Orange when not captured
-                                    }
-                                }
-                                radius: 6
-                                border.color: cameraCalibration.hasBaseline ? "#2e7d32" : "#f57c00"
-                                border.width: 2
-                            }
-
-                            onClicked: {
-                                cameraCalibration.captureBaseline()
-                                soundManager.playClick()
-                            }
+                        background: Rectangle {
+                            color: parent.pressed ? "#e65100" : "#ff6f00"
+                            radius: 6
+                            border.color: "#d84315"
+                            border.width: 2
                         }
 
-                        // View Background Subtraction button (Step 2)
-                        Button {
-                            width: 100
-                            height: 50
-                            enabled: cameraCalibration.hasBaseline
-                            opacity: enabled ? 1.0 : 0.5
-
-                            contentItem: Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "🔍 DIFF"
-                                    font.pixelSize: 16
-                                    font.bold: true
-                                    color: "#ffffff"
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "View"
-                                    font.pixelSize: 9
-                                    color: "#cccccc"
-                                }
-                            }
-
-                            background: Rectangle {
-                                color: parent.pressed ? "#7b1fa2" : "#9c27b0"  // Purple
-                                radius: 6
-                                border.color: "#6a1b9a"
-                                border.width: 2
-                            }
-
-                            onClicked: {
-                                var filepath = cameraCalibration.saveBackgroundSubtractionView()
-                                if (filepath) {
-                                    console.log("Background subtraction view saved: " + filepath)
-                                }
-                                soundManager.playClick()
-                            }
+                        onClicked: {
+                            cameraCalibration.resetTracking()
+                            soundManager.playClick()
                         }
                     }
 
-                    // Debug mode toggle (CRITICAL for diagnosing tracking issues)
+                    // Capture Baseline button (Step 1)
                     Button {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        anchors.rightMargin: 270  // Leave space for CAP + REC buttons
-                        anchors.bottomMargin: 10
-                        width: 100
-                        height: 50
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: cameraCalibration.hasBaseline ? "✓ BASE" : "📷 BASE"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: cameraCalibration.hasBaseline ? "Captured" : "Capture"
+                                font.pixelSize: 8
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: {
+                                if (cameraCalibration.hasBaseline) {
+                                    return parent.pressed ? "#388e3c" : "#4caf50"  // Green when captured
+                                } else {
+                                    return parent.pressed ? "#ff8f00" : "#ffa726"  // Orange when not captured
+                                }
+                            }
+                            radius: 6
+                            border.color: cameraCalibration.hasBaseline ? "#2e7d32" : "#f57c00"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            cameraCalibration.captureBaseline()
+                            soundManager.playClick()
+                        }
+                    }
+
+                    // View Background Subtraction button (Step 2)
+                    Button {
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
+                        enabled: cameraCalibration.hasBaseline
+                        opacity: enabled ? 1.0 : 0.5
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "🔍 DIFF"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "View"
+                                font.pixelSize: 8
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#7b1fa2" : "#9c27b0"  // Purple
+                            radius: 6
+                            border.color: "#6a1b9a"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            var filepath = cameraCalibration.saveBackgroundSubtractionView()
+                            if (filepath) {
+                                console.log("Background subtraction view saved: " + filepath)
+                            }
+                            soundManager.playClick()
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    // Debug mode toggle
+                    Button {
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
 
                         property bool debugEnabled: cameraCalibration.isDebugMode()
 
@@ -743,15 +776,15 @@ Rectangle {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: parent.parent.debugEnabled ? "🐛 ON" : "🐛 OFF"
-                                font.pixelSize: 16
+                                font.pixelSize: 14
                                 font.bold: true
                                 color: "#ffffff"
                             }
 
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "Debug Mode"
-                                font.pixelSize: 9
+                                text: "Debug"
+                                font.pixelSize: 8
                                 color: "#cccccc"
                             }
                         }
@@ -781,12 +814,8 @@ Rectangle {
 
                     // Screenshot button
                     Button {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        anchors.rightMargin: 140  // Leave space for record button
-                        anchors.bottomMargin: 10
-                        width: 100
-                        height: 50
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
 
                         contentItem: Column {
                             anchors.centerIn: parent
@@ -795,7 +824,7 @@ Rectangle {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: "📸 CAP"
-                                font.pixelSize: 16
+                                font.pixelSize: 14
                                 font.bold: true
                                 color: "#ffffff"
                             }
@@ -803,7 +832,7 @@ Rectangle {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: "Screenshot"
-                                font.pixelSize: 9
+                                font.pixelSize: 8
                                 color: "#cccccc"
                             }
                         }
@@ -826,11 +855,8 @@ Rectangle {
 
                     // Record button
                     Button {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        anchors.margins: 10
-                        width: 120
-                        height: 50
+                        Layout.preferredWidth: 120
+                        Layout.fillHeight: true
 
                         property bool recording: cameraCalibration.isRecording()
 
@@ -841,7 +867,7 @@ Rectangle {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: parent.parent.recording ? "⬛ STOP" : "⏺ REC"
-                                font.pixelSize: 16
+                                font.pixelSize: 14
                                 font.bold: true
                                 color: "#ffffff"
                             }
@@ -849,7 +875,7 @@ Rectangle {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: parent.parent.recording ? "Recording..." : "Start Rec"
-                                font.pixelSize: 9
+                                font.pixelSize: 8
                                 color: "#cccccc"
                             }
                         }
@@ -887,28 +913,6 @@ Rectangle {
                             running: true
                             repeat: true
                             onTriggered: parent.recording = cameraCalibration.isRecording()
-                        }
-                    }
-
-                    // Click mode indicator
-                    Rectangle {
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.margins: 10
-                        width: 200
-                        height: 35
-                        color: "#dd000000"
-                        radius: 6
-                        visible: clickMode !== ""
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: clickMode === "ball_edge"
-                                  ? "Ball: " + ballEdgePoints.length + "/3-4 points"
-                                  : "Zone: " + zoneCornerPoints.length + "/4 corners"
-                            font.pixelSize: 13
-                            font.bold: true
-                            color: "#ff9800"
                         }
                     }
                 }
