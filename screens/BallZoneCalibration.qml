@@ -298,6 +298,20 @@ Rectangle {
                             var scaleX = scaledWidth / cameraWidth
                             var scaleY = scaledHeight / cameraHeight
 
+                            // ========== ALIGNMENT GUIDES (MLM2 Pro Style) ==========
+
+                            // Vertical centerline - for horizontal ball alignment
+                            var centerX = offsetX + scaledWidth / 2
+                            ctx.strokeStyle = "#ffffff"
+                            ctx.lineWidth = 2
+                            ctx.shadowBlur = 4
+                            ctx.shadowColor = "#000000"
+                            ctx.beginPath()
+                            ctx.moveTo(centerX, offsetY)
+                            ctx.lineTo(centerX, offsetY + scaledHeight)
+                            ctx.stroke()
+                            ctx.shadowBlur = 0
+
                             // Draw ball edge points (during clicking)
                             if (clickMode === "ball_edge" && ballEdgePoints.length > 0) {
                                 ctx.fillStyle = "#ff9800"
@@ -440,17 +454,17 @@ Rectangle {
                             if (cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
                                 if (corners.length === 4) {
-                                    // Professional zone box styling
-                                    var zoneColor = clickMode === "zone_corners" ? "#ff9800" : "#00e5ff"  // Bright cyan
+                                    // MLM2 Pro zone box styling - orange dotted outline
+                                    var zoneColor = clickMode === "zone_corners" ? "#ff9800" : "#ff9800"  // Orange like MLM2 Pro
 
                                     // Outer glow for visibility
                                     ctx.shadowBlur = 6
                                     ctx.shadowColor = zoneColor
 
-                                    // Draw zone boundary box
+                                    // Draw zone boundary box - DOTTED STYLE (MLM2 Pro)
                                     ctx.strokeStyle = zoneColor
                                     ctx.lineWidth = 3
-                                    ctx.setLineDash([])
+                                    ctx.setLineDash([10, 5])  // Dotted pattern: 10px dash, 5px gap
 
                                     ctx.beginPath()
                                     for (var m = 0; m < 4; m++) {
@@ -465,11 +479,12 @@ Rectangle {
                                     ctx.closePath()
                                     ctx.stroke()
 
-                                    // Reset shadow
+                                    // Reset shadow and dash
                                     ctx.shadowBlur = 0
+                                    ctx.setLineDash([])
 
-                                    // Draw corner markers
-                                    ctx.fillStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                    // Draw corner markers - orange to match MLM2 Pro
+                                    ctx.fillStyle = "#ff9800"
                                     var labels = ["FL", "FR", "BR", "BL"]
                                     for (var n = 0; n < 4; n++) {
                                         var cx = corners[n].x * scaleX + offsetX
@@ -477,17 +492,17 @@ Rectangle {
 
                                         // Draw small circle at corner
                                         ctx.beginPath()
-                                        ctx.arc(cx, cy, 4, 0, 2 * Math.PI)
+                                        ctx.arc(cx, cy, 5, 0, 2 * Math.PI)
                                         ctx.fill()
 
-                                        // Draw label
+                                        // Draw label with outline for visibility
                                         ctx.fillStyle = "#ffffff"
                                         ctx.font = "bold 12px sans-serif"
                                         ctx.strokeStyle = "#000000"
-                                        ctx.lineWidth = 2
+                                        ctx.lineWidth = 3
                                         ctx.strokeText(labels[n], cx + 8, cy - 8)
                                         ctx.fillText(labels[n], cx + 8, cy - 8)
-                                        ctx.fillStyle = clickMode === "zone_corners" ? "#ff9800" : "#00bcd4"
+                                        ctx.fillStyle = "#ff9800"
                                     }
                                 }
                             }
