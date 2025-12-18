@@ -7,9 +7,9 @@
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
     , m_cameraShutterSpeed(1500)
-    , m_cameraGain(6.0)
-    , m_cameraFrameRate(180)
-    , m_cameraResolution("640x480")
+    , m_cameraGain(12.0)
+    , m_cameraFrameRate(240)
+    , m_cameraResolution("640x400")
     , m_cameraFormat("YUV420")
 {
     // Use JSON format for human-readable settings
@@ -40,14 +40,14 @@ SettingsManager::SettingsManager(QObject *parent)
 }
 
 void SettingsManager::loadDefaults() {
-    // Camera defaults optimized for OV9281 golf ball tracking @ 180 FPS
+    // Camera defaults optimized for OV9281 golf ball tracking @ 240 FPS
     m_settings->setValue("camera/shutterSpeed", 1500);      // 1.5ms for crisp ball edges
-    m_settings->setValue("camera/gain", 6.0);               // Balanced gain for fast shutter
-    m_settings->setValue("camera/frameRate", 180);          // 180 FPS @ 640×480 (OV9281 optimal)
-    m_settings->setValue("camera/resolution", "640x480");   // VGA - portrait mode = 480×640
+    m_settings->setValue("camera/gain", 12.0);              // Higher gain for 240fps brightness
+    m_settings->setValue("camera/frameRate", 240);          // 240 FPS @ 640×400 (max for spin tracking)
+    m_settings->setValue("camera/resolution", "640x400");   // Wide VGA - portrait mode = 400×640 (more vertical)
     m_settings->setValue("camera/format", "YUV420");        // Standard format
 
-    // Ball detection defaults (for 640×480 rotated to 480×640: ball is 8-12 pixels diameter)
+    // Ball detection defaults (for 640×400 rotated to 400×640: ball is 8-12 pixels diameter)
     m_settings->setValue("detection/minRadius", 4);     // Minimum 4 pixel radius (8px diameter)
     m_settings->setValue("detection/maxRadius", 15);    // Maximum 15 pixel radius (30px diameter)
     m_settings->setValue("detection/impactThreshold", 10);
@@ -63,9 +63,9 @@ void SettingsManager::loadDefaults() {
 
 void SettingsManager::load() {
     m_cameraShutterSpeed = m_settings->value("camera/shutterSpeed", 1500).toInt();
-    m_cameraGain = m_settings->value("camera/gain", 6.0).toDouble();
-    m_cameraFrameRate = m_settings->value("camera/frameRate", 180).toInt();
-    m_cameraResolution = m_settings->value("camera/resolution", "640x480").toString();
+    m_cameraGain = m_settings->value("camera/gain", 12.0).toDouble();
+    m_cameraFrameRate = m_settings->value("camera/frameRate", 240).toInt();
+    m_cameraResolution = m_settings->value("camera/resolution", "640x400").toString();
     m_cameraFormat = m_settings->value("camera/format", "YUV420").toString();
 
     emit settingsChanged();
