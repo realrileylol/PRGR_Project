@@ -68,6 +68,22 @@ void SettingsManager::load() {
     m_cameraResolution = m_settings->value("camera/resolution", "640x400").toString();
     m_cameraFormat = m_settings->value("camera/format", "YUV420").toString();
 
+    // Auto-migrate old 640×480 settings to new 640×400 @ 240fps
+    if (m_cameraResolution == "640x480") {
+        qDebug() << "⚠️ Detected old resolution (640×480), auto-upgrading to 640×400 @ 240fps";
+        m_cameraResolution = "640x400";
+        m_cameraFrameRate = 240;
+        m_cameraShutterSpeed = 1500;  // Reset to optimal for 240fps
+
+        // Save updated settings
+        m_settings->setValue("camera/resolution", "640x400");
+        m_settings->setValue("camera/frameRate", 240);
+        m_settings->setValue("camera/shutterSpeed", 1500);
+        m_settings->sync();
+
+        qDebug() << "✓ Settings upgraded! Restart app for changes to take effect.";
+    }
+
     emit settingsChanged();
 }
 
