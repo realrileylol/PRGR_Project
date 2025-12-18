@@ -6,7 +6,7 @@
 
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
-    , m_cameraShutterSpeed(1500)
+    , m_cameraShutterSpeed(4000)
     , m_cameraGain(12.0)
     , m_cameraFrameRate(240)
     , m_cameraResolution("640x400")
@@ -41,7 +41,7 @@ SettingsManager::SettingsManager(QObject *parent)
 
 void SettingsManager::loadDefaults() {
     // Camera defaults optimized for OV9281 golf ball tracking @ 240 FPS
-    m_settings->setValue("camera/shutterSpeed", 1500);      // 1.5ms for crisp ball edges
+    m_settings->setValue("camera/shutterSpeed", 4000);      // 4ms for brightness at 240fps
     m_settings->setValue("camera/gain", 12.0);              // Higher gain for 240fps brightness
     m_settings->setValue("camera/frameRate", 240);          // 240 FPS @ 640×400 (max for spin tracking)
     m_settings->setValue("camera/resolution", "640x400");   // Wide VGA - portrait mode = 400×640 (more vertical)
@@ -62,7 +62,7 @@ void SettingsManager::loadDefaults() {
 }
 
 void SettingsManager::load() {
-    m_cameraShutterSpeed = m_settings->value("camera/shutterSpeed", 1500).toInt();
+    m_cameraShutterSpeed = m_settings->value("camera/shutterSpeed", 4000).toInt();
     m_cameraGain = m_settings->value("camera/gain", 12.0).toDouble();
     m_cameraFrameRate = m_settings->value("camera/frameRate", 240).toInt();
     m_cameraResolution = m_settings->value("camera/resolution", "640x400").toString();
