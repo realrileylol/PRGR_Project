@@ -1086,18 +1086,24 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Skip circles outside zone
         }
 
-        // STRICT SIZE FILTER: Only accept circles matching golf ball size (20-30 pixels)
-        if (r < 20.0 || r > 30.0) {
+        // STRICT SIZE FILTER: Only accept circles matching golf ball size from settings
+        // Using settings values (default 4-15 pixels @ 640×480)
+        if (r < m_minRadius || r > m_maxRadius) {
             continue;  // Not golf ball size - reject immediately
         }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
         // When tracking, check if this circle is near last position
+        // WIDER search radius for occlusion handling (club head passing)
         bool nearLastPosition = false;
+        double distFromLast = 0.0;
         if (m_liveTrackingInitialized) {
-            double distFromLast = std::sqrt(std::pow(cx - m_smoothedBallX, 2) +
-                                           std::pow(cy - m_smoothedBallY, 2));
-            nearLastPosition = (distFromLast < 50.0);  // Within 50px of last
+            distFromLast = std::sqrt(std::pow(cx - m_smoothedBallX, 2) +
+                                     std::pow(cy - m_smoothedBallY, 2));
+            // Adaptive search radius based on confidence
+            // High confidence = tight lock (30px), lower confidence = wider search (100px)
+            double searchRadius = 30.0 + (10 - m_trackingConfidence) * 7.0;  // 30-100px range
+            nearLastPosition = (distFromLast < searchRadius);
         }
 
         // ========== SPHERICAL/CIRCULARITY CHECK ==========
@@ -1141,15 +1147,19 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         circlesInZone++;
 
-        // COMBINED SCORE: Radius match + Temporal proximity
-        // Perfect radius match (r=25) gets score of 100, edges (r=20 or 30) get score of 0
-        double radiusScore = 100.0 * (1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0));
+        // COMBINED SCORE: Radius match + Temporal proximity + Distance score
+        // Calculate ideal radius as midpoint of min/max range
+        double idealRadius = (m_minRadius + m_maxRadius) / 2.0;
+        double radiusRange = (m_maxRadius - m_minRadius) / 2.0;
+        double radiusScore = 100.0 * (1.0 - std::min(1.0, std::abs(r - idealRadius) / radiusRange));
         double combinedScore = radiusScore;
 
-        // HEAT-SEEKING BONUS: Massive bonus for circles near last tracked position
-        // This provides temporal consistency - ball doesn't jump randomly
+        // HEAT-SEEKING BONUS: Proximity-based scoring for temporal consistency
+        // MLM2 Pro-style sticky tracking - ball doesn't jump to random circles
         if (nearLastPosition) {
-            combinedScore += 500.0;  // HUGE bonus - stay locked on same ball
+            // Inverse distance score: closer = higher score (0px = 1000, 100px = 0)
+            double proximityScore = 1000.0 * (1.0 - (distFromLast / 100.0));
+            combinedScore += proximityScore;  // Massive bonus - proportional to proximity
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
@@ -1166,14 +1176,15 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         // HEAT-SEEKING MISSILE MODE: VELOCITY PREDICTION
         // When club passes in front, predict where ball is based on velocity
-        if (m_liveTrackingInitialized && m_missedFrames < 30) {
+        // Extended window (60 frames @ 180fps = 0.33 seconds) for club occlusion
+        if (m_liveTrackingInitialized && m_missedFrames < 60) {
             // PREDICT ball position using velocity
             double predictedX = m_smoothedBallX + (m_ballVelocityX * m_missedFrames);
             double predictedY = m_smoothedBallY + (m_ballVelocityY * m_missedFrames);
 
-            qDebug() << "PREDICTION mode (missed:" << m_missedFrames
-                     << ") vx:" << m_ballVelocityX << "vy:" << m_ballVelocityY
-                     << "predicted:(" << predictedX << "," << predictedY << ")";
+            qDebug() << "⚡ PREDICTION mode (occlusion) - missed:" << m_missedFrames
+                     << "frames | velocity:(" << m_ballVelocityX << "," << m_ballVelocityY << ")"
+                     << "| predicted:(" << predictedX << "," << predictedY << ")";
 
             result["detected"] = true;
             result["x"] = predictedX;
