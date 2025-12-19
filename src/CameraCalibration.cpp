@@ -1107,39 +1107,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== SPHERICAL/CIRCULARITY CHECK ==========
-        // Golf ball is a perfect sphere - check if this detection is truly circular
-        // RELAXED when near last position (ball might be partially occluded)
-        std::vector<double> perimeterBrightness;
-        for (int angle = 0; angle < 360; angle += 45) {  // 8 points around perimeter
-            double rad = angle * M_PI / 180.0;
-            int px = static_cast<int>(cx + r * cos(rad));
-            int py = static_cast<int>(cy + r * sin(rad));
-
-            if (px >= 0 && px < processed.cols && py >= 0 && py < processed.rows) {
-                perimeterBrightness.push_back(processed.at<uchar>(py, px));
-            }
-        }
-
-        // Calculate variance of perimeter brightness
-        if (perimeterBrightness.size() >= 6) {
-            double perimeterMean = 0.0;
-            for (double b : perimeterBrightness) {
-                perimeterMean += b;
-            }
-            perimeterMean /= perimeterBrightness.size();
-
-            double perimeterVariance = 0.0;
-            for (double b : perimeterBrightness) {
-                perimeterVariance += std::pow(b - perimeterMean, 2);
-            }
-            perimeterVariance /= perimeterBrightness.size();
-
-            // ADAPTIVE threshold: strict for new detections, relaxed when tracking
-            double circularityThreshold = nearLastPosition ? 50.0 : 30.0;
-            if (std::sqrt(perimeterVariance) > circularityThreshold) {
-                continue;  // Not spherical enough
-            }
-        }
+        // DISABLED - too strict without background subtraction
+        // Background subtraction handles texture noise elimination
+        // Size + Zone + Temporal tracking is sufficient for ball detection
 
         // ========== SHAPE-BASED DETECTION FOR ANY COLOR BALL ==========
         // NO brightness filtering - works with white, yellow, orange, any color ball
