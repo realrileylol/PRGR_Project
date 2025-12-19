@@ -1095,9 +1095,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (m_liveTrackingInitialized) {
             distFromLast = std::sqrt(std::pow(cx - m_smoothedBallX, 2) +
                                      std::pow(cy - m_smoothedBallY, 2));
-            // Adaptive search radius based on confidence
-            // High confidence = tight lock (30px), lower confidence = wider search (100px)
-            double searchRadius = 30.0 + (10 - m_trackingConfidence) * 7.0;  // 30-100px range
+            // Adaptive search radius based on confidence - MAGNETIC LOCK
+            // High confidence (10/10) = TIGHT 15px lock, low confidence (0/10) = 50px search
+            // This creates sticky tracking - once locked, ball can't jump away
+            double searchRadius = 15.0 + (10 - m_trackingConfidence) * 3.5;  // 15-50px range
             nearLastPosition = (distFromLast < searchRadius);
         }
 
@@ -1118,11 +1119,13 @@ QVariantMap CameraCalibration::detectBallLive() {
         double combinedScore = radiusScore;
 
         // HEAT-SEEKING BONUS: Proximity-based scoring for temporal consistency
-        // MLM2 Pro-style sticky tracking - ball doesn't jump to random circles
+        // MLM2 Pro-style MAGNETIC LOCK - once locked, stay locked
         if (nearLastPosition) {
-            // Inverse distance score: closer = higher score (0px = 1000, 100px = 0)
-            double proximityScore = 1000.0 * (1.0 - (distFromLast / 100.0));
-            combinedScore += proximityScore;  // Massive bonus - proportional to proximity
+            // EXPONENTIAL proximity score: creates magnetic lock effect
+            // 0px = 10000 pts, 10px = 8100 pts, 30px = 5100 pts, 100px = 0 pts
+            double normalizedDist = distFromLast / 100.0;  // 0.0 to 1.0
+            double proximityScore = 10000.0 * (1.0 - normalizedDist * normalizedDist);
+            combinedScore += proximityScore;  // HUGE bonus - ball won't jump away
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
