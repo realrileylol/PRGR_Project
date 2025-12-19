@@ -942,6 +942,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     cv::Scalar meanBrightness = cv::mean(gray);
     double brightness = meanBrightness[0];  // 0-255 range
 
+    // Get ball detection parameters from settings
+    int m_minRadius = m_settings ? m_settings->getNumber("detection/minRadius", 4) : 4;
+    int m_maxRadius = m_settings ? m_settings->getNumber("detection/maxRadius", 15) : 15;
+
     // Adapt HoughCircles parameters based on lighting
     // Tighter parameters to reduce false positives (was getting 80+ false circles)
     int cannyThreshold = static_cast<int>(std::max(60.0, std::min(140.0, brightness * 0.6)));
@@ -951,6 +955,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     static double lastBrightness = 0;
     if (std::abs(brightness - lastBrightness) > 10.0 || lastBrightness == 0) {
         qDebug() << "Scene brightness:" << brightness << "Canny:" << cannyThreshold << "Acc:" << accumulatorThreshold;
+        qDebug() << "Ball radius range:" << m_minRadius << "-" << m_maxRadius << "pixels";
         lastBrightness = brightness;
     }
 
@@ -996,11 +1001,11 @@ QVariantMap CameraCalibration::detectBallLive() {
     // STRICT size filtering - only detect objects matching golf ball dimensions
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 20,  // Allow closer circles (more detections)
-                     50,                   // LOW Canny threshold (detect subtle edges)
-                     10,                   // LOW accumulator (require less evidence)
-                     20,                   // Golf ball min radius (STRICT)
-                     30);                  // Golf ball max radius (STRICT)
+                     processed.rows / 16,  // Min distance between centers (tighter - reduce overlaps)
+                     70,                   // Canny threshold - INCREASED for cleaner edge detection
+                     15,                   // Accumulator - INCREASED to require more evidence (reduce false positives)
+                     m_minRadius,          // Use settings minRadius (default: 4px)
+                     m_maxRadius);         // Use settings maxRadius (default: 15px)
 
     // Only log if detection changes significantly
     static int lastCircleCount = 0;
@@ -1285,10 +1290,19 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_ballVelocityY = 0.3 * dy + 0.7 * m_ballVelocityY;
 
         qDebug() << "Velocity updated: vx=" << m_ballVelocityX << "vy=" << m_ballVelocityY;
+
+        // Apply temporal smoothing to ball position (MLM2 Pro-style smooth tracking)
+        // Exponential moving average: alpha = 0.4 (40% new, 60% old)
+        // This eliminates jitter while maintaining responsiveness
+        m_smoothedBallX = 0.4 * ballX + 0.6 * m_smoothedBallX;
+        m_smoothedBallY = 0.4 * ballY + 0.6 * m_smoothedBallY;
+        qDebug() << "Smoothed position:" << m_smoothedBallX << "," << m_smoothedBallY;
+    } else {
+        // First detection - use raw values
+        m_smoothedBallX = ballX;
+        m_smoothedBallY = ballY;
     }
 
-    m_smoothedBallX = ballX;  // Use raw detection
-    m_smoothedBallY = ballY;  // Use raw detection
     m_lastBallRadius = ballRadius;
 
     // Track initialization status
