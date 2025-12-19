@@ -1001,9 +1001,9 @@ QVariantMap CameraCalibration::detectBallLive() {
     // STRICT size filtering - only detect objects matching golf ball dimensions
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 16,  // Min distance between centers (tighter - reduce overlaps)
-                     70,                   // Canny threshold - INCREASED for cleaner edge detection
-                     15,                   // Accumulator - INCREASED to require more evidence (reduce false positives)
+                     processed.rows / 18,  // Min distance between centers (balanced)
+                     60,                   // Canny threshold - BALANCED for edge detection
+                     12,                   // Accumulator - BALANCED (reduce false positives while detecting ball)
                      m_minRadius,          // Use settings minRadius (default: 4px)
                      m_maxRadius);         // Use settings maxRadius (default: 15px)
 
