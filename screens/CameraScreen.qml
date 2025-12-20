@@ -12,6 +12,7 @@ Item {
     property bool recordingActive: false
     property bool snapshotCountdownActive: false
     property int snapshotCountdown: 10
+    property int selectedCamera: 0  // 0 = top camera, 1 = bottom camera
 
     // Theme colors matching MyBag.qml
     readonly property color bg: "#F5F7FA"
@@ -267,6 +268,36 @@ Item {
                             cameraManager.startPreview()
                             cameraActive = true
                         }
+                    }
+                }
+
+                // Camera selector button
+                Button {
+                    text: selectedCamera === 0 ? "📹 TOP" : "📹 BTM"
+                    implicitHeight: 50
+                    implicitWidth: 100
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? (selectedCamera === 0 ? "#1565c0" : "#2D9A4F") : (selectedCamera === 0 ? "#1976d2" : "#388e3c")
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        selectedCamera = (selectedCamera === 0) ? 1 : 0
+                        cameraManager.activeCameraIndex = selectedCamera
+                        soundManager.playClick()
                     }
                 }
 

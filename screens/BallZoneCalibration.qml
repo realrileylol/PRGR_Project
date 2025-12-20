@@ -302,18 +302,21 @@ Rectangle {
                             var scaleY = scaledHeight / cameraHeight
 
                             // ========== ALIGNMENT GUIDES (MLM2 Pro Style) ==========
+                            // ONLY SHOW FOR CAMERA 0 (top camera - ball tracking)
 
-                            // Vertical centerline - for horizontal ball alignment
-                            var centerX = offsetX + scaledWidth / 2
-                            ctx.strokeStyle = "#ffffff"
-                            ctx.lineWidth = 2
-                            ctx.shadowBlur = 4
-                            ctx.shadowColor = "#000000"
-                            ctx.beginPath()
-                            ctx.moveTo(centerX, offsetY)
-                            ctx.lineTo(centerX, offsetY + scaledHeight)
-                            ctx.stroke()
-                            ctx.shadowBlur = 0
+                            if (selectedCamera === 0) {
+                                // Vertical centerline - for horizontal ball alignment
+                                var centerX = offsetX + scaledWidth / 2
+                                ctx.strokeStyle = "#ffffff"
+                                ctx.lineWidth = 2
+                                ctx.shadowBlur = 4
+                                ctx.shadowColor = "#000000"
+                                ctx.beginPath()
+                                ctx.moveTo(centerX, offsetY)
+                                ctx.lineTo(centerX, offsetY + scaledHeight)
+                                ctx.stroke()
+                                ctx.shadowBlur = 0
+                            }
 
                             // Draw ball edge points (during clicking)
                             if (clickMode === "ball_edge" && ballEdgePoints.length > 0) {
@@ -407,7 +410,8 @@ Rectangle {
 
                             // Draw LIVE ball tracking (green when in zone, red when out)
                             // Circle matches EXACT ball dimensions (no offset)
-                            if (liveBallDetected && clickMode !== "ball_edge") {
+                            // Live ball tracking - ONLY FOR CAMERA 0 (top camera)
+                            if (selectedCamera === 0 && liveBallDetected && clickMode !== "ball_edge") {
                                 var liveX = liveBallX * scaleX + offsetX
                                 var liveY = liveBallY * scaleY + offsetY
                                 var liveR = liveBallRadius * Math.min(scaleX, scaleY)
@@ -454,7 +458,8 @@ Rectangle {
 
                             // Draw calibrated zone boundary (PERMANENT - always visible)
                             // This is the 12×12 inch hit zone that must be visible in finished product
-                            if (cameraCalibration.isZoneDefined) {
+                            // ONLY SHOW FOR CAMERA 0 (top camera - ball tracking)
+                            if (selectedCamera === 0 && cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
                                 if (corners.length === 4) {
                                     // MLM2 Pro zone box styling - orange dotted outline
