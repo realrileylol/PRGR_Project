@@ -22,6 +22,7 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
     , m_recordingActive(false)
     , m_previewWidth(320)
     , m_previewHeight(240)
+    , m_activeCameraIndex(0)
 {
     // Create videos folder
     QString videosPath = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/PRGR_Videos";
@@ -59,17 +60,48 @@ void CameraManager::cleanupNamedPipe() {
     }
 }
 
+void CameraManager::setActiveCameraIndex(int index) {
+    if (index < 0 || index > 1) {
+        qWarning() << "Invalid camera index:" << index << "(must be 0 or 1)";
+        return;
+    }
+
+    if (m_activeCameraIndex == index) {
+        return;  // Already on this camera
+    }
+
+    qDebug() << "Switching camera from" << m_activeCameraIndex << "to" << index;
+
+    // Remember if preview was active
+    bool wasActive = m_previewActive.load();
+
+    // Stop preview if active
+    if (wasActive) {
+        stopPreview();
+    }
+
+    // Change camera index
+    m_activeCameraIndex = index;
+    emit activeCameraIndexChanged();
+
+    // Restart preview if it was active
+    if (wasActive) {
+        startPreview();
+    }
+}
+
 void CameraManager::startPreview() {
     if (m_previewActive.load()) {
         qWarning() << "Preview already active";
         return;
     }
 
-    // Load camera settings
-    int shutterSpeed = m_settings->cameraShutterSpeed();
-    double gain = m_settings->cameraGain();
-    QString resolutionStr = m_settings->cameraResolution();
-    QString format = m_settings->cameraFormat();
+    // Load camera settings based on active camera index
+    QString cameraPrefix = QString("camera%1").arg(m_activeCameraIndex);
+    int shutterSpeed = m_settings->getNumber(cameraPrefix + "/shutterSpeed", 4000);
+    double gain = m_settings->getDouble(cameraPrefix + "/gain", 12.0);
+    QString resolutionStr = m_settings->getString(cameraPrefix + "/resolution", "640x480");
+    QString format = m_settings->getString(cameraPrefix + "/format", "YUV420");
 
     // Parse resolution
     QStringList resParts = resolutionStr.split('x');
@@ -87,14 +119,15 @@ void CameraManager::startPreview() {
     } else if (m_previewWidth == 640 && m_previewHeight == 400) {
         frameRate = 240;  // Wide VGA @ 240 FPS - maximum performance
     } else if (m_previewWidth == 1280 && m_previewHeight == 800) {
-        frameRate = 120;  // Full resolution @ 120 FPS
+        frameRate = 115;  // Full resolution @ 115 FPS (max for OV9281)
     } else if (m_previewWidth == 320 && m_previewHeight == 240) {
         frameRate = 120;  // Low res high speed
     } else {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
 
-    qDebug() << "Starting preview: Resolution=" << m_previewWidth << "x" << m_previewHeight
+    qDebug() << "Starting preview: Camera" << m_activeCameraIndex
+             << "- Resolution=" << m_previewWidth << "x" << m_previewHeight
              << "Format=" << format << "Shutter=" << shutterSpeed << "µs"
              << "Gain=" << gain << "x FPS=" << frameRate;
 
@@ -108,6 +141,7 @@ void CameraManager::startPreview() {
     m_previewProcess = new QProcess(this);
 
     QStringList args;
+    args << "--camera" << QString::number(m_activeCameraIndex);  // Select camera index
     args << "--timeout" << "0";  // No timeout
     args << "--width" << QString::number(m_previewWidth);
     args << "--height" << QString::number(m_previewHeight);

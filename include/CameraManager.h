@@ -26,6 +26,7 @@ class CameraManager : public QObject {
 
     Q_PROPERTY(bool previewActive READ previewActive NOTIFY previewActiveChanged)
     Q_PROPERTY(bool recordingActive READ recordingActive NOTIFY recordingActiveChanged)
+    Q_PROPERTY(int activeCameraIndex READ activeCameraIndex WRITE setActiveCameraIndex NOTIFY activeCameraIndexChanged)
 
 public:
     explicit CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent = nullptr);
@@ -33,6 +34,8 @@ public:
 
     bool previewActive() const { return m_previewActive.load(); }
     bool recordingActive() const { return m_recordingActive; }
+    int activeCameraIndex() const { return m_activeCameraIndex; }
+    void setActiveCameraIndex(int index);
 
 public slots:
     void startPreview();
@@ -45,6 +48,7 @@ public slots:
 signals:
     void previewActiveChanged();
     void recordingActiveChanged();
+    void activeCameraIndexChanged();
     void frameReady();
     void snapshotCaptured(const QString &filePath);
     void recordingSaved(const QString &filePath);
@@ -77,6 +81,9 @@ private:
     // Frame dimensions
     int m_previewWidth;
     int m_previewHeight;
+
+    // Camera selection (0 = camera 0, 1 = camera 1)
+    int m_activeCameraIndex;
 };
 
 /**

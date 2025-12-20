@@ -723,6 +723,7 @@ Rectangle {
 
                         onClicked: {
                             selectedCamera = (selectedCamera === 0) ? 1 : 0
+                            cameraManager.activeCameraIndex = selectedCamera
                             soundManager.playClick()
                             console.log("Switched to camera:", selectedCamera)
                         }
