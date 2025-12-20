@@ -26,6 +26,9 @@ Rectangle {
     property bool systemReady: false
     property bool systemArmed: false
 
+    // Camera selection
+    property int selectedCamera: 0  // 0 = top camera, 1 = bottom camera
+
     // Live ball tracking timer
     Timer {
         id: liveTrackingTimer
@@ -683,6 +686,45 @@ Rectangle {
                         onClicked: {
                             cameraCalibration.resetTracking()
                             soundManager.playClick()
+                        }
+                    }
+
+                    // Camera selector button
+                    Button {
+                        Layout.preferredWidth: 100
+                        Layout.fillHeight: true
+
+                        contentItem: Column {
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: selectedCamera === 0 ? "📹 TOP" : "📹 BTM"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: "#ffffff"
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: selectedCamera === 0 ? "Tracking" : "Angle"
+                                font.pixelSize: 8
+                                color: "#cccccc"
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? "#1565c0" : (selectedCamera === 0 ? "#1976d2" : "#388e3c")
+                            radius: 6
+                            border.color: selectedCamera === 0 ? "#0d47a1" : "#1b5e20"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            selectedCamera = (selectedCamera === 0) ? 1 : 0
+                            soundManager.playClick()
+                            console.log("Switched to camera:", selectedCamera)
                         }
                     }
 

@@ -40,12 +40,26 @@ SettingsManager::SettingsManager(QObject *parent)
 }
 
 void SettingsManager::loadDefaults() {
-    // Camera defaults optimized for OV9281 golf ball tracking @ 180 FPS
-    m_settings->setValue("camera/shutterSpeed", 4000);      // 4ms for brightness
-    m_settings->setValue("camera/gain", 12.0);              // Higher gain for brightness
-    m_settings->setValue("camera/frameRate", 180);          // 180 FPS @ 640×480 (good zoom level)
-    m_settings->setValue("camera/resolution", "640x480");   // VGA - portrait mode = 480×640
-    m_settings->setValue("camera/format", "YUV420");        // Standard format
+    // Camera 0 defaults (Top camera - ball tracking @ 180 FPS portrait mode)
+    m_settings->setValue("camera0/shutterSpeed", 4000);      // 4ms for brightness
+    m_settings->setValue("camera0/gain", 12.0);              // Higher gain for brightness
+    m_settings->setValue("camera0/frameRate", 180);          // 180 FPS @ 640×480 (good zoom level)
+    m_settings->setValue("camera0/resolution", "640x480");   // VGA - portrait mode = 480×640
+    m_settings->setValue("camera0/format", "YUV420");        // Standard format
+
+    // Camera 1 defaults (Bottom camera - launch angle @ 115 FPS)
+    m_settings->setValue("camera1/shutterSpeed", 4000);      // 4ms for brightness (tune later)
+    m_settings->setValue("camera1/gain", 12.0);              // Higher gain for brightness (tune later)
+    m_settings->setValue("camera1/frameRate", 115);          // 115 FPS @ 1280×800 (max quality)
+    m_settings->setValue("camera1/resolution", "1280x800");  // Full sensor resolution
+    m_settings->setValue("camera1/format", "YUV420");        // Standard format
+
+    // Legacy camera settings (for backward compatibility - map to camera0)
+    m_settings->setValue("camera/shutterSpeed", 4000);
+    m_settings->setValue("camera/gain", 12.0);
+    m_settings->setValue("camera/frameRate", 180);
+    m_settings->setValue("camera/resolution", "640x480");
+    m_settings->setValue("camera/format", "YUV420");
 
     // Ball detection defaults (for 640×480 rotated to 480×640: ball is 8-12 pixels diameter)
     m_settings->setValue("detection/minRadius", 4);     // Minimum 4 pixel radius (8px diameter)
