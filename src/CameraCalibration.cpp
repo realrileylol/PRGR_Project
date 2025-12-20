@@ -1027,7 +1027,7 @@ QVariantMap CameraCalibration::detectBallLive() {
             result["y"] = m_smoothedBallY;
             result["radius"] = m_lastBallRadius;
 
-            // Check zone with predicted position
+            // Check zone with predicted position (with edge tolerance)
             bool inZone = false;
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
@@ -1035,8 +1035,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                     zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
-                    cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
-                inZone = (distance >= 0);
+                    cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
+                inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
             }
             result["inZone"] = inZone;
 
@@ -1053,6 +1053,37 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
+    // ========== TEMPLATE MATCHING for Image-Based Ball Locking ==========
+    // Use template matching to find ball location precisely
+    // This locks onto EXACT ball appearance and follows it as it moves
+    cv::Point2f templateMatchLoc(-1, -1);
+    double templateMatchScore = 0.0;
+
+    if (m_templateInitialized && !m_ballTemplate.empty() && m_liveTrackingInitialized) {
+        // Search for template in current frame using TM_CCOEFF_NORMED
+        // This method is robust to lighting changes and returns correlation 0.0-1.0
+        cv::Mat matchResult;
+        cv::matchTemplate(gray, m_ballTemplate, matchResult, cv::TM_CCOEFF_NORMED);
+
+        // Find best match location
+        double minVal, maxVal;
+        cv::Point minLoc, maxLoc;
+        cv::minMaxLoc(matchResult, &minVal, &maxVal, &minLoc, &maxLoc);
+
+        // maxLoc is top-left corner of template, calculate center
+        templateMatchLoc = cv::Point2f(
+            maxLoc.x + m_templateSize.x / 2.0,
+            maxLoc.y + m_templateSize.y / 2.0
+        );
+        templateMatchScore = maxVal;  // 0.0 to 1.0
+
+        // Only log significant template matches
+        if (templateMatchScore > 0.5) {
+            qDebug() << "Template match found: location (" << templateMatchLoc.x << ","
+                     << templateMatchLoc.y << ") score:" << templateMatchScore;
+        }
+    }
+
     // ========== SIMPLE BRIGHTNESS-BASED TRACKING ==========
     // USER REQUIREMENT: Track the WHITEST object (golf ball)
     // Strategy: Find brightest circle IN THE ZONE (ignore bright lights outside zone)
@@ -1066,20 +1097,23 @@ QVariantMap CameraCalibration::detectBallLive() {
         double cy = circle[1];
         double r = circle[2];
 
-        // Check if circle center is in the zone
+        // Check if circle center is in the zone (with edge tolerance)
         bool inZone = false;
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto& corner : m_zoneCorners) {
                 zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
             }
-            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), false);
-            inZone = (distance >= 0);
+            // pointPolygonTest returns signed distance:
+            // > 0: inside, 0: on edge, < 0: outside
+            // With tolerance: allow ball even when slightly outside edge
+            double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(cx, cy), true);
+            inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
         }
 
         // ONLY consider circles in the zone (ignore bright lights outside)
         if (!inZone && m_isZoneDefined) {
-            continue;  // Skip circles outside zone
+            continue;  // Skip circles outside zone + tolerance
         }
 
         // STRICT SIZE FILTER: Only accept circles matching golf ball size (20-30 pixels)
@@ -1088,18 +1122,31 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
-        // When tracking, check if this circle is near last position
-        // WIDER search radius for occlusion handling (club head passing)
+        // When tracking, check if this circle is near last position OR template match
+        // WIDER search radius for ball movement and occlusion handling
         bool nearLastPosition = false;
+        bool nearTemplateMatch = false;
         double distFromLast = 0.0;
+        double distFromTemplate = 0.0;
+
         if (m_liveTrackingInitialized) {
+            // Distance from last smoothed position
             distFromLast = std::sqrt(std::pow(cx - m_smoothedBallX, 2) +
                                      std::pow(cy - m_smoothedBallY, 2));
-            // Adaptive search radius based on confidence - MAGNETIC LOCK
-            // High confidence (10/10) = TIGHT 15px lock, low confidence (0/10) = 50px search
-            // This creates sticky tracking - once locked, ball can't jump away
-            double searchRadius = 15.0 + (10 - m_trackingConfidence) * 3.5;  // 15-50px range
+
+            // WIDENED search radius - allows ball to move without losing lock
+            // High confidence (10/10) = 50px search, low confidence (0/10) = 150px search
+            // This prevents ball from jumping to false circles when it moves
+            double searchRadius = 50.0 + (10 - m_trackingConfidence) * 10.0;  // 50-150px range
             nearLastPosition = (distFromLast < searchRadius);
+
+            // Distance from template match (if available)
+            if (templateMatchScore > 0.5) {
+                distFromTemplate = std::sqrt(std::pow(cx - templateMatchLoc.x, 2) +
+                                            std::pow(cy - templateMatchLoc.y, 2));
+                // Template match creates TIGHT lock (30px) - very precise
+                nearTemplateMatch = (distFromTemplate < 30.0);
+            }
         }
 
         // ========== SPHERICAL/CIRCULARITY CHECK ==========
@@ -1113,7 +1160,7 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         circlesInZone++;
 
-        // COMBINED SCORE: Radius match + Temporal proximity + Distance score
+        // COMBINED SCORE: Radius match + Temporal proximity + Template match
         // Perfect radius match (r=25) gets score of 100, edges (r=20 or 30) get score of 0
         double radiusScore = 100.0 * (1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0));
         double combinedScore = radiusScore;
@@ -1122,10 +1169,24 @@ QVariantMap CameraCalibration::detectBallLive() {
         // MLM2 Pro-style MAGNETIC LOCK - once locked, stay locked
         if (nearLastPosition) {
             // EXPONENTIAL proximity score: creates magnetic lock effect
-            // 0px = 10000 pts, 10px = 8100 pts, 30px = 5100 pts, 100px = 0 pts
-            double normalizedDist = distFromLast / 100.0;  // 0.0 to 1.0
+            // 0px = 10000 pts, 50px = 7500 pts, 100px = 5000 pts, 150px = 0 pts
+            double normalizedDist = distFromLast / 150.0;  // 0.0 to 1.0
             double proximityScore = 10000.0 * (1.0 - normalizedDist * normalizedDist);
             combinedScore += proximityScore;  // HUGE bonus - ball won't jump away
+        }
+
+        // TEMPLATE MATCHING BONUS: Image-based locking (STRONGEST LOCK)
+        // Locks onto EXACT ball appearance - dimples, texture, lighting
+        if (nearTemplateMatch && templateMatchScore > 0.5) {
+            // MASSIVE bonus for template match - this is the PRIMARY lock
+            // Template match score 0.5-1.0 → 15,000-30,000 points
+            double templateBonus = templateMatchScore * 30000.0;
+            combinedScore += templateBonus;
+
+            // Extra bonus for proximity to template match center
+            double normalizedTemplateDist = distFromTemplate / 30.0;  // 0.0 to 1.0
+            double templateProximity = 5000.0 * (1.0 - normalizedTemplateDist * normalizedTemplateDist);
+            combinedScore += templateProximity;
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
@@ -1157,7 +1218,7 @@ QVariantMap CameraCalibration::detectBallLive() {
             result["y"] = predictedY;
             result["radius"] = m_lastBallRadius;
 
-            // Check if predicted position is in zone
+            // Check if predicted position is in zone (with edge tolerance)
             bool inZone = false;
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
@@ -1165,8 +1226,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                     zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
-                    cv::Point2f(predictedX, predictedY), false);
-                inZone = (distance >= 0);
+                    cv::Point2f(predictedX, predictedY), true);
+                inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
             }
             result["inZone"] = inZone;
 
@@ -1289,12 +1350,37 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_ballVelocityX = 0.0;  // Initialize velocity
         m_ballVelocityY = 0.0;
         qDebug() << "Tracking initialized at:" << ballX << "," << ballY;
+
+        // ========== TEMPLATE EXTRACTION for Image-Based Locking ==========
+        // Extract ball template from current frame for precise tracking
+        // This locks onto EXACT ball appearance (texture, dimples, lighting)
+        int templateRadius = static_cast<int>(ballRadius * 1.5);  // 1.5x ball size for context
+        int templateX = static_cast<int>(ballX - templateRadius);
+        int templateY = static_cast<int>(ballY - templateRadius);
+        int templateSize = templateRadius * 2;
+
+        // Ensure template is within frame bounds
+        if (templateX >= 0 && templateY >= 0 &&
+            templateX + templateSize < gray.cols &&
+            templateY + templateSize < gray.rows) {
+
+            cv::Rect templateROI(templateX, templateY, templateSize, templateSize);
+            m_ballTemplate = gray(templateROI).clone();
+            m_templateSize = cv::Point2f(templateSize, templateSize);
+            m_templateInitialized = true;
+
+            qDebug() << "✓ Ball template extracted: size" << templateSize << "x" << templateSize
+                     << "at (" << templateX << "," << templateY << ")";
+            qDebug() << "  Template will lock onto EXACT ball appearance (dimples, texture, lighting)";
+        } else {
+            qDebug() << "⚠ Ball too close to edge - template extraction skipped";
+        }
     } else {
         m_trackingConfidence = 10;  // Always high confidence in instant mode
     }
     m_missedFrames = 0;
 
-    // Check if ball is inside zone boundaries (using smoothed position)
+    // Check if ball is inside zone boundaries (using smoothed position with edge tolerance)
     bool inZone = false;
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
@@ -1302,9 +1388,11 @@ QVariantMap CameraCalibration::detectBallLive() {
             zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
         }
 
+        // With distance calculation enabled (true) to get signed distance
+        // Allow ball to be tracked even when on edge of zone
         double distance = cv::pointPolygonTest(zonePoints,
-            cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
-        inZone = (distance >= 0);
+            cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
+        inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
     // Fill result with smoothed values
@@ -1444,7 +1532,13 @@ void CameraCalibration::resetTracking() {
     m_ballZoneState = BallZoneState::NO_BALL;
     m_isArmed = false;
     m_ballPositionHistory.clear();
-    qDebug() << "Tracking reset complete - will re-acquire ball on next frame";
+
+    // Reset template matching
+    m_templateInitialized = false;
+    m_ballTemplate.release();
+    m_templateConfidence = 0;
+
+    qDebug() << "Tracking reset complete - will re-acquire ball and extract new template";
 }
 
 void CameraCalibration::setDebugMode(bool enabled) {
@@ -1743,8 +1837,8 @@ QString CameraCalibration::captureScreenshot() {
             zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
         }
         double distance = cv::pointPolygonTest(zonePoints,
-            cv::Point2f(m_smoothedBallX, m_smoothedBallY), false);
-        inZone = (distance >= 0);
+            cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
+        inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
     // Draw all overlays (same as video recording)
