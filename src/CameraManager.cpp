@@ -82,6 +82,13 @@ void CameraManager::setActiveCameraIndex(int index) {
 
     // Change camera index
     m_activeCameraIndex = index;
+
+    // Update FrameProvider rotation setting
+    // Camera 0 = portrait (90° rotation), Camera 1 = landscape (no rotation)
+    if (m_frameProvider) {
+        m_frameProvider->setActiveCameraIndex(index);
+    }
+
     emit activeCameraIndexChanged();
 
     // Restart preview if it was active

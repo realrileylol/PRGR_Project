@@ -3,6 +3,7 @@
 
 FrameProvider::FrameProvider()
     : QQuickImageProvider(QQuickImageProvider::Image)
+    , m_activeCameraIndex(0)
 {
     // Initialize with black image
     m_currentFrame = QImage(320, 240, QImage::Format_Grayscale8);
@@ -28,15 +29,26 @@ void FrameProvider::updateFrame(const cv::Mat &frame) {
     }
 
     // ========== CAMERA ROTATION ==========
-    // Camera is physically rotated 90° right/clockwise (portrait mode)
-    // Rotate frame to correct orientation for all downstream processing
-    cv::Mat rotatedFrame;
-    cv::rotate(frame, rotatedFrame, cv::ROTATE_90_CLOCKWISE);
+    // Camera 0 (top) is physically rotated 90° right/clockwise (portrait mode)
+    // Camera 1 (bottom) is in landscape mode (no rotation needed)
+    cv::Mat processedFrame;
+    if (m_activeCameraIndex == 0) {
+        // Camera 0: Rotate 90° clockwise for portrait mode
+        cv::rotate(frame, processedFrame, cv::ROTATE_90_CLOCKWISE);
+    } else {
+        // Camera 1: Use as-is (landscape)
+        processedFrame = frame;
+    }
 
     QMutexLocker locker(&m_mutex);
-    m_currentMat = rotatedFrame.clone();  // Store rotated cv::Mat for processing
-    m_currentFrame = cvMatToQImage(rotatedFrame);
+    m_currentMat = processedFrame.clone();  // Store processed cv::Mat for processing
+    m_currentFrame = cvMatToQImage(processedFrame);
     // Note: QML will poll for updates via requestImage()
+}
+
+void FrameProvider::setActiveCameraIndex(int index) {
+    QMutexLocker locker(&m_mutex);
+    m_activeCameraIndex = index;
 }
 
 cv::Mat FrameProvider::getLatestFrame() {
