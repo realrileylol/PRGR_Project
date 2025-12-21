@@ -1345,15 +1345,38 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     // Track initialization status
     if (!m_liveTrackingInitialized) {
+        // Check if ball is in roughly same position as last frame (stability check)
+        bool stablePosition = false;
+        if (m_lastBallX > 0 && m_lastBallY > 0) {
+            double distFromLast = std::sqrt(std::pow(ballX - m_lastBallX, 2) +
+                                           std::pow(ballY - m_lastBallY, 2));
+            stablePosition = (distFromLast < 10.0);  // Must be within 10px of last position
+        }
+
+        // Update last position
+        m_lastBallX = ballX;
+        m_lastBallY = ballY;
+
+        // Require 2 consecutive stable detections before locking
+        if (!stablePosition) {
+            qDebug() << "Ball detected at (" << ballX << "," << ballY << ") - waiting for stability";
+            result["detected"] = true;
+            result["x"] = ballX;
+            result["y"] = ballY;
+            result["radius"] = ballRadius;
+            result["inZone"] = true;
+            return result;  // Show green circle but don't lock yet
+        }
+
+        qDebug() << "Ball STABLE at (" << ballX << "," << ballY << ") - locking and extracting template";
         m_liveTrackingInitialized = true;
         m_trackingConfidence = 10;
         m_ballVelocityX = 0.0;  // Initialize velocity
         m_ballVelocityY = 0.0;
-        qDebug() << "Tracking initialized at:" << ballX << "," << ballY;
 
         // ========== TEMPLATE EXTRACTION for Image-Based Locking ==========
         // Extract ball template from current frame for precise tracking
-        // This locks onto EXACT ball appearance (texture, dimples, lighting)
+        // This locks onto EXACT ball appearance (texture, dimples, lighting, BLACK DOTS)
         int templateRadius = static_cast<int>(ballRadius * 1.5);  // 1.5x ball size for context
         int templateX = static_cast<int>(ballX - templateRadius);
         int templateY = static_cast<int>(ballY - templateRadius);
@@ -1371,6 +1394,7 @@ QVariantMap CameraCalibration::detectBallLive() {
 
             qDebug() << "✓ Ball template extracted: size" << templateSize << "x" << templateSize
                      << "at (" << templateX << "," << templateY << ")";
+            qDebug() << "  Template captures BLACK DOTS on ball for unique identification";
             qDebug() << "  Template will lock onto EXACT ball appearance (dimples, texture, lighting)";
         } else {
             qDebug() << "⚠ Ball too close to edge - template extraction skipped";
