@@ -33,6 +33,7 @@ set(SOURCES
     src/BallDetector.cpp
     src/TrajectoryTracker.cpp
     src/BallTracker.cpp
+    src/AutoExposureController.cpp
 )
 
 # Header files
@@ -48,6 +49,7 @@ set(HEADERS
     include/BallDetector.h
     include/TrajectoryTracker.h
     include/BallTracker.h
+    include/AutoExposureController.h
 )
 
 # QML resources
