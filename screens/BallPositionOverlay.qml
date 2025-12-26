@@ -10,7 +10,6 @@ Rectangle {
     property bool ballDetected: false
     property real ballX: 0.5  // Normalized 0-1 (0 = left, 1 = right)
     property real ballY: 0.5  // Normalized 0-1 (0 = front, 1 = back)
-    property bool visible: true
 
     // Sizing
     width: 300
@@ -25,8 +24,6 @@ Rectangle {
     // Position overlay in center of parent
     anchors.centerIn: parent
     z: 1000  // Above everything else
-
-    visible: root.visible
 
     ColumnLayout {
         anchors.fill: parent

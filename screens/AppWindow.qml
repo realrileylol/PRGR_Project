@@ -805,10 +805,6 @@ Item {
                                     verticalAlignment: Text.AlignVCenter
                                     leftPadding: ballPositionToggle.indicator.width + 6
                                 }
-
-                                onCheckedChanged: {
-                                    ballPositionOverlay.visible = checked
-                                }
                             }
 
                             Button {
@@ -1008,11 +1004,24 @@ Item {
             }
 
             // Ball Position Overlay (center popup)
-            BallPositionOverlay {
+            Loader {
                 id: ballPositionOverlay
-                visible: false
+                source: "BallPositionOverlay.qml"
+                active: ballPositionToggle.checked
                 anchors.centerIn: parent
                 z: 1000
+
+                onLoaded: {
+                    if (item) {
+                        item.visible = Qt.binding(function() { return ballPositionToggle.checked })
+                    }
+                }
+
+                function updateBallPosition(detected, x, y) {
+                    if (item) {
+                        item.updateBallPosition(detected, x, y)
+                    }
+                }
             }
         }
     }
