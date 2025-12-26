@@ -9,6 +9,8 @@
         <file>screens/SettingsScreen.qml</file>
         <file>screens/CalibrationScreen.qml</file>
         <file>screens/BallZoneCalibration.qml</file>
+        <file>screens/BallPositionOverlay.qml</file>
+        <file>screens/TrackingTest.qml</file>
         <file>screens/BallSettings.qml</file>
         <file>screens/LaunchSettings.qml</file>
         <file>screens/WindSettings.qml</file>

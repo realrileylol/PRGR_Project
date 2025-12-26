@@ -24,6 +24,38 @@ Item {
     readonly property color success: "#34C759"
     readonly property color danger: "#DA3633"
 
+    // Ball position update timer
+    Timer {
+        id: ballPositionTimer
+        interval: 100  // 10 FPS updates for smooth movement
+        running: false
+        repeat: true
+
+        property bool ballDetected: false
+        property real testX: 0.5
+        property real testY: 0.5
+
+        onTriggered: {
+            // For testing: simulate ball movement
+            // TODO: Replace with actual camera calibration ball detection
+            testX += (Math.random() - 0.5) * 0.05
+            testY += (Math.random() - 0.5) * 0.05
+            testX = Math.max(0, Math.min(1, testX))
+            testY = Math.max(0, Math.min(1, testY))
+
+            ballDetected = Math.random() > 0.2  // 80% detection rate for testing
+
+            ballPositionOverlay.updateBallPosition(ballDetected, testX, testY)
+        }
+    }
+
+    Connections {
+        target: ballPositionToggle
+        function onCheckedChanged() {
+            ballPositionTimer.running = ballPositionToggle.checked
+        }
+    }
+
     // Connect to capture manager signals
     Component.onCompleted: {
         captureManager.statusChanged.connect(function(status, color) {
@@ -741,18 +773,55 @@ Item {
                             }
                             
                             Item { Layout.fillWidth: true }
-                            
+
+                            // Ball position toggle
+                            CheckBox {
+                                id: ballPositionToggle
+                                checked: false
+
+                                indicator: Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    x: ballPositionToggle.leftPadding
+                                    y: parent.height / 2 - height / 2
+                                    radius: 4
+                                    border.color: ballPositionToggle.checked ? "#4CAF50" : "white"
+                                    border.width: 2
+                                    color: ballPositionToggle.checked ? "#4CAF50" : "transparent"
+
+                                    Text {
+                                        text: "✓"
+                                        color: "white"
+                                        font.pixelSize: 18
+                                        anchors.centerIn: parent
+                                        visible: ballPositionToggle.checked
+                                    }
+                                }
+
+                                contentItem: Text {
+                                    text: "Ball"
+                                    color: "white"
+                                    font.pixelSize: 13
+                                    verticalAlignment: Text.AlignVCenter
+                                    leftPadding: ballPositionToggle.indicator.width + 6
+                                }
+
+                                onCheckedChanged: {
+                                    ballPositionOverlay.visible = checked
+                                }
+                            }
+
                             Button {
                                 text: "+"
                                 implicitWidth: 36
                                 implicitHeight: 36
-                                
+
                                 background: Rectangle {
                                     color: parent.pressed ? "#2563EB" : "white"
                                     radius: 8
                                     opacity: 0.9
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: parent.pressed ? "white" : accent
@@ -761,7 +830,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                
+
                                 onClicked: {
                                     soundManager.playClick()
                                     addMetricDialog.selectedMetrics = []
@@ -936,6 +1005,14 @@ Item {
                         }
                     }
                 }
+            }
+
+            // Ball Position Overlay (center popup)
+            BallPositionOverlay {
+                id: ballPositionOverlay
+                visible: false
+                anchors.centerIn: parent
+                z: 1000
             }
         }
     }
