@@ -231,6 +231,12 @@ private:
     int m_templateConfidence = 0;      // Quality score of template match (0-100)
     cv::Point2f m_templateSize;        // Size of template (width, height)
 
+    // Multi-template verification (pre-loaded from ball_templates/)
+    std::vector<cv::Mat> m_verificationTemplates;  // Multiple ball templates at different angles
+    bool m_verificationTemplatesLoaded = false;
+    void loadVerificationTemplates();  // Load templates from ball_templates/
+    bool verifyBallAppearance(const cv::Mat &frame, int x, int y, int radius);  // Check if circle looks like golf ball
+
     // Kalman filter for professional-grade tracking (same as TrackMan/GCQuad)
     cv::KalmanFilter m_kalmanFilter;
     bool m_kalmanInitialized = false;

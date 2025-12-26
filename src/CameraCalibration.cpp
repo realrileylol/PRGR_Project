@@ -20,6 +20,9 @@ CameraCalibration::CameraCalibration(QObject *parent)
     m_rotationMatrix = cv::Mat::eye(3, 3, CV_64F);
     m_translationVector = cv::Mat::zeros(3, 1, CV_64F);
     m_homography = cv::Mat::eye(3, 3, CV_64F);
+
+    // Load golf ball verification templates
+    loadVerificationTemplates();
 }
 
 CameraCalibration::~CameraCalibration() = default;
@@ -1122,6 +1125,14 @@ QVariantMap CameraCalibration::detectBallLive() {
             continue;  // Not golf ball size - reject immediately
         }
 
+        // ========== GOLF BALL APPEARANCE VERIFICATION ==========
+        // Use multi-template matching to verify this circle looks like a golf ball
+        // Rejects carpet texture, false circles, and other non-ball objects
+        if (!verifyBallAppearance(gray, static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(r))) {
+            qDebug() << "  Circle at (" << cx << "," << cy << ") R=" << r << "REJECTED by appearance verification";
+            continue;  // Doesn't look like golf ball - reject
+        }
+
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
         // When tracking, check if this circle is near last position OR template match
         // WIDER search radius for ball movement and occlusion handling
@@ -1961,4 +1972,117 @@ QString CameraCalibration::captureScreenshot() {
 
     qDebug() << "Screenshot saved to:" << filepath;
     return filepath;
+}
+
+// ============================================================================
+// MULTI-TEMPLATE VERIFICATION (Golf Ball Appearance Check)
+// ============================================================================
+
+void CameraCalibration::loadVerificationTemplates() {
+    qDebug() << "Loading golf ball verification templates...";
+
+    // Template files to load (best quality images from repo)
+    QStringList templateFiles = {
+        "ball_templates/FrontLeft_1.png",
+        "ball_templates/FrontRight_1.png",
+        "ball_templates/BackLeft_1.png",
+        "ball_templates/BackRight_1.png",
+        "ball_templates/pic1.png",
+        "ball_templates/pic2.png",
+        "ball_templates/pic3.png",
+        "ball_templates/BallCalibration_1.png"
+    };
+
+    m_verificationTemplates.clear();
+
+    for (const QString &templatePath : templateFiles) {
+        cv::Mat templateImg = cv::imread(templatePath.toStdString(), cv::IMREAD_GRAYSCALE);
+
+        if (templateImg.empty()) {
+            qDebug() << "  ⚠ Template not found:" << templatePath << "- skipping";
+            continue;
+        }
+
+        // Resize template to standard size for faster matching (40x40 pixels)
+        cv::Mat resizedTemplate;
+        cv::resize(templateImg, resizedTemplate, cv::Size(40, 40));
+
+        // Normalize brightness (0-255 range)
+        cv::normalize(resizedTemplate, resizedTemplate, 0, 255, cv::NORM_MINMAX);
+
+        m_verificationTemplates.push_back(resizedTemplate.clone());
+        qDebug() << "  ✓ Loaded template:" << templatePath;
+    }
+
+    m_verificationTemplatesLoaded = !m_verificationTemplates.empty();
+
+    if (m_verificationTemplatesLoaded) {
+        qDebug() << "✅ Golf ball verification ready with" << m_verificationTemplates.size() << "templates";
+    } else {
+        qWarning() << "❌ No verification templates loaded! Ball detection will be less accurate.";
+    }
+}
+
+bool CameraCalibration::verifyBallAppearance(const cv::Mat &frame, int x, int y, int radius) {
+    // If no templates loaded, accept everything (fallback to old behavior)
+    if (!m_verificationTemplatesLoaded || m_verificationTemplates.empty()) {
+        return true;
+    }
+
+    // Extract region of interest around detected circle
+    int roiSize = radius * 2;
+    int roiX = std::max(0, x - radius);
+    int roiY = std::max(0, y - radius);
+    int roiWidth = std::min(roiSize, frame.cols - roiX);
+    int roiHeight = std::min(roiSize, frame.rows - roiY);
+
+    // Check if ROI is valid
+    if (roiWidth < radius || roiHeight < radius) {
+        return false;  // Circle too close to edge
+    }
+
+    cv::Rect roi(roiX, roiY, roiWidth, roiHeight);
+    cv::Mat candidate = frame(roi).clone();
+
+    // Resize candidate to match template size (40x40)
+    cv::Mat resizedCandidate;
+    cv::resize(candidate, resizedCandidate, cv::Size(40, 40));
+    cv::normalize(resizedCandidate, resizedCandidate, 0, 255, cv::NORM_MINMAX);
+
+    // Compare against all templates and find best match
+    double bestMatchScore = 0.0;
+    QString bestTemplateName = "none";
+    int bestTemplateIndex = -1;
+
+    for (size_t i = 0; i < m_verificationTemplates.size(); i++) {
+        const cv::Mat &templateImg = m_verificationTemplates[i];
+
+        // Use normalized cross-correlation for template matching
+        cv::Mat result;
+        cv::matchTemplate(resizedCandidate, templateImg, result, cv::TM_CCOEFF_NORMED);
+
+        double minVal, maxVal;
+        cv::minMaxLoc(result, &minVal, &maxVal);
+
+        if (maxVal > bestMatchScore) {
+            bestMatchScore = maxVal;
+            bestTemplateIndex = static_cast<int>(i);
+        }
+    }
+
+    // Threshold for accepting a match (0.0 to 1.0)
+    // 0.65 = 65% similarity required
+    const double MATCH_THRESHOLD = 0.65;
+
+    bool isGolfBall = bestMatchScore >= MATCH_THRESHOLD;
+
+    if (isGolfBall) {
+        qDebug() << "  ✅ Golf ball verified! Score:" << bestMatchScore
+                 << "Template:" << bestTemplateIndex;
+    } else {
+        qDebug() << "  ❌ REJECTED (not a golf ball) - Score:" << bestMatchScore
+                 << "< threshold" << MATCH_THRESHOLD;
+    }
+
+    return isGolfBall;
 }
