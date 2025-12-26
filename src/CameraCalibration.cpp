@@ -1249,6 +1249,32 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     qDebug() << "BALL DETECTED - Position:(" << ballX << "," << ballY << ") Radius:" << ballRadius << "pixels";
 
+    // ========== ANTI-JUMP FILTER ==========
+    // Reject detections that jump too far from last smoothed position
+    // This prevents false positives from HoughCircles that are far away
+    if (m_liveTrackingInitialized) {
+        double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
+                                   std::pow(ballY - m_smoothedBallY, 2));
+        const double MAX_JUMP_PX = 50.0;  // Maximum allowed jump per frame at 180 FPS
+
+        if (jumpDist > MAX_JUMP_PX) {
+            qDebug() << "⚠ ANTI-JUMP FILTER: Rejecting detection - jump of" << jumpDist
+                     << "pixels exceeds threshold of" << MAX_JUMP_PX
+                     << "| Keeping last position (" << m_smoothedBallX << "," << m_smoothedBallY << ")";
+
+            // Use predicted position based on velocity instead
+            double predictedX = m_smoothedBallX + m_ballVelocityX;
+            double predictedY = m_smoothedBallY + m_ballVelocityY;
+
+            ballX = predictedX;
+            ballY = predictedY;
+
+            m_missedFrames++;  // Count as partial miss
+
+            qDebug() << "  Using velocity prediction: (" << predictedX << "," << predictedY << ")";
+        }
+    }
+
     // ========== DEBUG VISUALIZATION ==========
     if (m_debugMode) {
         // Create color debug frame from PROCESSED image (same as what HoughCircles sees)
