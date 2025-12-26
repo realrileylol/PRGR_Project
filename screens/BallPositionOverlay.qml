@@ -41,12 +41,30 @@ Rectangle {
                 anchors.margins: 10
 
                 Text {
-                    text: ballDetected ? "BALL POSITION" : "NO BALL DETECTED"
+                    text: ballDetected ? "BALL FOUND" : "SEARCHING FOR BALL..."
                     font.pixelSize: 18
                     font.bold: true
-                    color: ballDetected ? "#4CAF50" : "#FF5722"
+                    color: ballDetected ? "#4CAF50" : "#FFC107"
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
+
+                    // Blinking animation when searching
+                    SequentialAnimation on opacity {
+                        running: !ballDetected
+                        loops: Animation.Infinite
+
+                        NumberAnimation {
+                            from: 1.0
+                            to: 0.4
+                            duration: 800
+                        }
+
+                        NumberAnimation {
+                            from: 0.4
+                            to: 1.0
+                            duration: 800
+                        }
+                    }
                 }
 
                 // Close button

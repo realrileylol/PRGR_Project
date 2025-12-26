@@ -28,7 +28,7 @@ Item {
     Timer {
         id: ballPositionTimer
         interval: 50  // 20 FPS for real-time tracking
-        running: swipeView.currentIndex === 1 && ballPositionToggle.checked  // Auto-run on metrics page
+        running: swipeView.currentIndex === 1  // Auto-run on metrics page
         repeat: true
 
         property real lastValidX: 0.5
@@ -822,39 +822,6 @@ Item {
                             
                             Item { Layout.fillWidth: true }
 
-                            // Ball position toggle
-                            CheckBox {
-                                id: ballPositionToggle
-                                checked: false
-
-                                indicator: Rectangle {
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    x: ballPositionToggle.leftPadding
-                                    y: parent.height / 2 - height / 2
-                                    radius: 4
-                                    border.color: ballPositionToggle.checked ? "#4CAF50" : "white"
-                                    border.width: 2
-                                    color: ballPositionToggle.checked ? "#4CAF50" : "transparent"
-
-                                    Text {
-                                        text: "✓"
-                                        color: "white"
-                                        font.pixelSize: 18
-                                        anchors.centerIn: parent
-                                        visible: ballPositionToggle.checked
-                                    }
-                                }
-
-                                contentItem: Text {
-                                    text: "Ball"
-                                    color: "white"
-                                    font.pixelSize: 13
-                                    verticalAlignment: Text.AlignVCenter
-                                    leftPadding: ballPositionToggle.indicator.width + 6
-                                }
-                            }
-
                             Button {
                                 text: "+"
                                 implicitWidth: 36
@@ -1055,15 +1022,9 @@ Item {
             Loader {
                 id: ballPositionOverlay
                 source: "BallPositionOverlay.qml"
-                active: ballPositionToggle.checked
+                active: swipeView.currentIndex === 1  // Auto-load on metrics page
                 anchors.centerIn: parent
                 z: 1000
-
-                onLoaded: {
-                    if (item) {
-                        item.visible = Qt.binding(function() { return ballPositionToggle.checked })
-                    }
-                }
 
                 function updateBallPosition(detected, x, y) {
                     if (item) {
