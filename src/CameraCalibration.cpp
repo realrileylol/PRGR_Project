@@ -1126,12 +1126,13 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== GOLF BALL APPEARANCE VERIFICATION ==========
-        // TEMPORARILY DISABLED - templates need to be cropped ball images, not full scenes
-        // TODO: Extract 60x60 cropped ball regions from template images
-        // if (!verifyBallAppearance(gray, static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(r))) {
-        //     qDebug() << "  Circle at (" << cx << "," << cy << ") R=" << r << "REJECTED by appearance verification";
-        //     continue;  // Doesn't look like golf ball - reject
-        // }
+        // Use edge density to verify this circle looks like a golf ball (has dimples)
+        // Golf ball: 8-20% edge density (dimples create edges)
+        // Carpet: 1-5% edge density (smooth gradients)
+        if (!verifyBallAppearance(gray, static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(r))) {
+            // qDebug() << "  Circle at (" << cx << "," << cy << ") R=" << r << "REJECTED by edge density check";
+            continue;  // Doesn't look like golf ball - reject
+        }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
         // When tracking, check if this circle is near last position OR template match
@@ -2024,64 +2025,68 @@ void CameraCalibration::loadVerificationTemplates() {
 }
 
 bool CameraCalibration::verifyBallAppearance(const cv::Mat &frame, int x, int y, int radius) {
-    // If no templates loaded, accept everything (fallback to old behavior)
-    if (!m_verificationTemplatesLoaded || m_verificationTemplates.empty()) {
-        return true;
-    }
+    // ========== EDGE DENSITY VERIFICATION ==========
+    // Golf balls have HIGH edge density (dimples create many edges)
+    // Carpet/turf has LOW edge density (smooth gradients)
 
-    // Extract region of interest around detected circle
-    int roiSize = radius * 2;
-    int roiX = std::max(0, x - radius);
-    int roiY = std::max(0, y - radius);
+    // Extract region around circle (radius + 5px margin)
+    int margin = 5;
+    int roiSize = (radius + margin) * 2;
+    int roiX = std::max(0, x - radius - margin);
+    int roiY = std::max(0, y - radius - margin);
     int roiWidth = std::min(roiSize, frame.cols - roiX);
     int roiHeight = std::min(roiSize, frame.rows - roiY);
 
     // Check if ROI is valid
-    if (roiWidth < radius || roiHeight < radius) {
-        return false;  // Circle too close to edge
+    if (roiWidth < radius * 2 || roiHeight < radius * 2) {
+        return true;  // Circle too close to edge - can't verify, accept it
     }
 
     cv::Rect roi(roiX, roiY, roiWidth, roiHeight);
-    cv::Mat candidate = frame(roi).clone();
+    cv::Mat circleRegion = frame(roi);
 
-    // Resize candidate to match template size (40x40)
-    cv::Mat resizedCandidate;
-    cv::resize(candidate, resizedCandidate, cv::Size(40, 40));
-    cv::normalize(resizedCandidate, resizedCandidate, 0, 255, cv::NORM_MINMAX);
+    // Apply Laplacian edge detection (detects high-frequency texture)
+    cv::Mat laplacian;
+    cv::Laplacian(circleRegion, laplacian, CV_16S, 3);  // 3x3 kernel
+    cv::convertScaleAbs(laplacian, laplacian);  // Convert to absolute values
 
-    // Compare against all templates and find best match
-    double bestMatchScore = 0.0;
-    QString bestTemplateName = "none";
-    int bestTemplateIndex = -1;
+    // Create circular mask (only count edges INSIDE the circle)
+    cv::Mat mask = cv::Mat::zeros(circleRegion.size(), CV_8U);
+    int centerX = radius + margin;
+    int centerY = radius + margin;
+    cv::circle(mask, cv::Point(centerX, centerY), radius, cv::Scalar(255), -1);
 
-    for (size_t i = 0; i < m_verificationTemplates.size(); i++) {
-        const cv::Mat &templateImg = m_verificationTemplates[i];
+    // Count strong edges inside circle (edge pixels > threshold)
+    int edgeCount = 0;
+    int totalPixels = 0;
+    const int EDGE_THRESHOLD = 40;  // Pixels with edge strength > 40 are considered edges
 
-        // Use normalized cross-correlation for template matching
-        cv::Mat result;
-        cv::matchTemplate(resizedCandidate, templateImg, result, cv::TM_CCOEFF_NORMED);
-
-        double minVal, maxVal;
-        cv::minMaxLoc(result, &minVal, &maxVal);
-
-        if (maxVal > bestMatchScore) {
-            bestMatchScore = maxVal;
-            bestTemplateIndex = static_cast<int>(i);
+    for (int i = 0; i < laplacian.rows; i++) {
+        for (int j = 0; j < laplacian.cols; j++) {
+            if (mask.at<uchar>(i, j) > 0) {  // Only count inside circle
+                totalPixels++;
+                if (laplacian.at<uchar>(i, j) > EDGE_THRESHOLD) {
+                    edgeCount++;
+                }
+            }
         }
     }
 
-    // Threshold for accepting a match (0.0 to 1.0)
-    // 0.65 = 65% similarity required
-    const double MATCH_THRESHOLD = 0.65;
+    // Calculate edge density (percentage of pixels that are edges)
+    double edgeDensity = (totalPixels > 0) ? (100.0 * edgeCount / totalPixels) : 0.0;
 
-    bool isGolfBall = bestMatchScore >= MATCH_THRESHOLD;
+    // Golf ball with dimples: 8-20% edge density
+    // Carpet/turf: 1-5% edge density
+    const double MIN_EDGE_DENSITY = 6.0;  // Require at least 6% edges
+
+    bool isGolfBall = (edgeDensity >= MIN_EDGE_DENSITY);
 
     if (isGolfBall) {
-        qDebug() << "  ✅ Golf ball verified! Score:" << bestMatchScore
-                 << "Template:" << bestTemplateIndex;
+        qDebug() << "  ✅ Golf ball verified! Edge density:" << QString::number(edgeDensity, 'f', 1) << "%"
+                 << "(" << edgeCount << "/" << totalPixels << "pixels)";
     } else {
-        qDebug() << "  ❌ REJECTED (not a golf ball) - Score:" << bestMatchScore
-                 << "< threshold" << MATCH_THRESHOLD;
+        qDebug() << "  ❌ REJECTED (not a golf ball) - Edge density:" << QString::number(edgeDensity, 'f', 1) << "%"
+                 << "< threshold" << MIN_EDGE_DENSITY << "% (carpet/smooth surface)";
     }
 
     return isGolfBall;
