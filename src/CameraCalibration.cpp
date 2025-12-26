@@ -1126,12 +1126,12 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== GOLF BALL APPEARANCE VERIFICATION ==========
-        // Use multi-template matching to verify this circle looks like a golf ball
-        // Rejects carpet texture, false circles, and other non-ball objects
-        if (!verifyBallAppearance(gray, static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(r))) {
-            qDebug() << "  Circle at (" << cx << "," << cy << ") R=" << r << "REJECTED by appearance verification";
-            continue;  // Doesn't look like golf ball - reject
-        }
+        // TEMPORARILY DISABLED - templates need to be cropped ball images, not full scenes
+        // TODO: Extract 60x60 cropped ball regions from template images
+        // if (!verifyBallAppearance(gray, static_cast<int>(cx), static_cast<int>(cy), static_cast<int>(r))) {
+        //     qDebug() << "  Circle at (" << cx << "," << cy << ") R=" << r << "REJECTED by appearance verification";
+        //     continue;  // Doesn't look like golf ball - reject
+        // }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
         // When tracking, check if this circle is near last position OR template match
@@ -1266,7 +1266,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_liveTrackingInitialized) {
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
                                    std::pow(ballY - m_smoothedBallY, 2));
-        const double MAX_JUMP_PX = 50.0;  // Maximum allowed jump per frame at 180 FPS
+        const double MAX_JUMP_PX = 15.0;  // Maximum allowed jump per frame at 180 FPS (stationary ball)
 
         if (jumpDist > MAX_JUMP_PX) {
             qDebug() << "⚠ ANTI-JUMP FILTER: Rejecting detection - jump of" << jumpDist
