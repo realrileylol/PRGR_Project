@@ -23,10 +23,20 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
     , m_previewWidth(320)
     , m_previewHeight(240)
     , m_activeCameraIndex(0)
+    , m_autoExposureEnabled(false)
+    , m_currentShutter(4000)
+    , m_currentGain(12.0)
+    , m_framesSinceLastAdjustment(0)
 {
     // Create videos folder
     QString videosPath = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/PRGR_Videos";
     QDir().mkpath(videosPath);
+
+    // Configure auto-exposure for golf ball tracking
+    m_autoExposure.setTargetBrightness(100, 180, 140);  // Target medium brightness
+    m_autoExposure.setShutterLimits(1000, 8000);  // 1ms to 8ms (prevent motion blur)
+    m_autoExposure.setGainLimits(1.0, 16.0);  // 1x to 16x gain
+    m_autoExposure.setAdjustmentSpeed(0.3);  // Moderate speed
 }
 
 CameraManager::~CameraManager() {
@@ -97,6 +107,46 @@ void CameraManager::setActiveCameraIndex(int index) {
     }
 }
 
+void CameraManager::setAutoExposureEnabled(bool enabled) {
+    if (m_autoExposureEnabled == enabled) {
+        return;
+    }
+
+    qDebug() << "Auto-exposure" << (enabled ? "ENABLED" : "DISABLED");
+    m_autoExposureEnabled = enabled;
+
+    if (enabled) {
+        // Reset auto-exposure controller
+        m_autoExposure.reset();
+        m_framesSinceLastAdjustment = 0;
+    }
+
+    emit autoExposureEnabledChanged();
+}
+
+void CameraManager::restartPreviewWithExposure(int shutter, double gain) {
+    if (!m_previewActive.load()) {
+        return;
+    }
+
+    qDebug() << "Restarting camera with new exposure: Shutter=" << shutter << "µs Gain=" << gain;
+
+    // Store new exposure values
+    m_currentShutter = shutter;
+    m_currentGain = gain;
+
+    // Stop current preview
+    stopPreview();
+
+    // Give it a moment to clean up
+    QThread::msleep(100);
+
+    // Restart with new settings
+    startPreview();
+
+    emit exposureChanged();
+}
+
 void CameraManager::startPreview() {
     if (m_previewActive.load()) {
         qWarning() << "Preview already active";
@@ -105,8 +155,15 @@ void CameraManager::startPreview() {
 
     // Load camera settings based on active camera index
     QString cameraPrefix = QString("camera%1").arg(m_activeCameraIndex);
-    int shutterSpeed = m_settings->getNumber(cameraPrefix + "/shutterSpeed", 4000);
-    double gain = m_settings->getDouble(cameraPrefix + "/gain", 12.0);
+
+    // Use current exposure values (for auto-exposure) or load from settings
+    if (m_currentShutter == 0 || m_currentGain == 0) {
+        m_currentShutter = m_settings->getNumber(cameraPrefix + "/shutterSpeed", 4000);
+        m_currentGain = m_settings->getDouble(cameraPrefix + "/gain", 12.0);
+    }
+    int shutterSpeed = m_currentShutter;
+    double gain = m_currentGain;
+
     QString resolutionStr = m_settings->getString(cameraPrefix + "/resolution", "640x480");
     QString format = m_settings->getString(cameraPrefix + "/format", "YUV420");
 
@@ -314,6 +371,31 @@ void CameraManager::previewLoop() {
             if (elapsed >= displayUpdateIntervalMs) {
                 emit frameReady();  // Notify QML to refresh
                 lastDisplayUpdate = now;
+            }
+        }
+
+        // ========== AUTO-EXPOSURE CONTROL ==========
+        if (m_autoExposureEnabled) {
+            m_framesSinceLastAdjustment++;
+
+            // Check every 30 frames (~0.16s at 180fps) to avoid excessive adjustments
+            if (m_framesSinceLastAdjustment >= ADJUST_INTERVAL_FRAMES) {
+                m_framesSinceLastAdjustment = 0;
+
+                // Measure brightness and get adjustment recommendation
+                auto result = m_autoExposure.update(frame.data, frame.cols, frame.rows, frame.step);
+
+                if (result.adjusted) {
+                    qDebug() << "AUTO-EXPOSURE: Brightness=" << result.brightness
+                             << "Adjusting: Shutter" << result.shutter_us << "µs Gain" << result.gain
+                             << "Reason:" << result.reason;
+
+                    // Restart camera with new exposure settings
+                    // Note: This causes a brief interruption (~100ms)
+                    QMetaObject::invokeMethod(this, [this, result]() {
+                        restartPreviewWithExposure(result.shutter_us, result.gain);
+                    }, Qt::QueuedConnection);
+                }
             }
         }
 

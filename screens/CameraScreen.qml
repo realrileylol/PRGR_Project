@@ -236,6 +236,35 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
+                // Auto-exposure toggle
+                Button {
+                    text: cameraManager.autoExposureEnabled ? "🌞 Auto: ON" : "🌙 Auto: OFF"
+                    implicitHeight: 50
+                    implicitWidth: 120
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: cameraManager.autoExposureEnabled ? success : hint
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 13
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        cameraManager.autoExposureEnabled = !cameraManager.autoExposureEnabled
+                    }
+                }
+
                 // Control buttons
                 Button {
                     text: cameraActive ? "Stop Camera" : "Start Camera"
