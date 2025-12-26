@@ -28,10 +28,14 @@ public:
     // Get latest frame for processing
     cv::Mat getLatestFrame();
 
+    // Set active camera index for rotation handling
+    void setActiveCameraIndex(int index);
+
 private:
     QImage cvMatToQImage(const cv::Mat &mat);
 
     QMutex m_mutex;
     QImage m_currentFrame;
     cv::Mat m_currentMat;  // Store cv::Mat for processing
+    int m_activeCameraIndex;  // 0 = camera 0 (portrait), 1 = camera 1 (landscape)
 };

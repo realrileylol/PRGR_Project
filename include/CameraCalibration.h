@@ -225,6 +225,12 @@ private:
     double m_ballVelocityY = 0.0;  // Pixels per frame
     qint64 m_lastDetectionTime = 0;  // Timestamp of last successful detection
 
+    // Template matching for image-based ball locking
+    cv::Mat m_ballTemplate;            // Ball template image (extracted from first detection)
+    bool m_templateInitialized = false;  // True when template is captured
+    int m_templateConfidence = 0;      // Quality score of template match (0-100)
+    cv::Point2f m_templateSize;        // Size of template (width, height)
+
     // Kalman filter for professional-grade tracking (same as TrackMan/GCQuad)
     cv::KalmanFilter m_kalmanFilter;
     bool m_kalmanInitialized = false;
@@ -248,6 +254,9 @@ private:
     const double m_stabilityThreshold = 2.0;        // Max 2px movement for "stable"
     qint64 m_stableStartTime = 0;                   // When ball became stable
     const qint64 m_readyRequiredMs = 1000;          // 1 second stable = READY
+
+    // Zone boundary tolerance (allow ball on edge of zone)
+    const double m_zoneEdgeTolerance = 15.0;        // Pixels - track ball even when on zone edge
 
     // Impact detection
     bool m_isArmed = false;                         // True when in READY state

@@ -7,6 +7,7 @@ Rectangle {
     color: "#1e1e1e"
 
     property var win  // Main window reference
+    property int selectedCamera: 0  // 0 = top camera, 1 = bottom camera
 
     // Ensure camera is running
     Component.onCompleted: {
@@ -318,6 +319,36 @@ Rectangle {
 
                         onClicked: {
                             ballTracker.resetTracking()
+                            soundManager.playClick()
+                        }
+                    }
+
+                    // Camera selector button
+                    Button {
+                        text: selectedCamera === 0 ? "📹 TOP" : "📹 BTM"
+                        Layout.preferredWidth: 140
+                        Layout.preferredHeight: 70
+                        font.pixelSize: 18
+                        font.bold: true
+
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            color: "#ffffff"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        background: Rectangle {
+                            color: parent.pressed ? (selectedCamera === 0 ? "#1565c0" : "#2D9A4F") : (selectedCamera === 0 ? "#1976d2" : "#388e3c")
+                            radius: 8
+                            border.color: selectedCamera === 0 ? "#0d47a1" : "#1b5e20"
+                            border.width: 2
+                        }
+
+                        onClicked: {
+                            selectedCamera = (selectedCamera === 0) ? 1 : 0
+                            cameraManager.activeCameraIndex = selectedCamera
                             soundManager.playClick()
                         }
                     }
