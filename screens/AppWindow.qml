@@ -31,21 +31,50 @@ Item {
         running: false
         repeat: true
 
-        property bool ballDetected: false
-        property real testX: 0.5
-        property real testY: 0.5
-
         onTriggered: {
-            // For testing: simulate ball movement
-            // TODO: Replace with actual camera calibration ball detection
-            testX += (Math.random() - 0.5) * 0.05
-            testY += (Math.random() - 0.5) * 0.05
-            testX = Math.max(0, Math.min(1, testX))
-            testY = Math.max(0, Math.min(1, testY))
+            // Get ball position from camera calibration
+            if (!calibration || !calibration.isZoneDefined) {
+                ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
+                return
+            }
 
-            ballDetected = Math.random() > 0.2  // 80% detection rate for testing
+            var detected = calibration.isBallZoneCalibrated
+            var ballX = calibration.ballCenterX
+            var ballY = calibration.ballCenterY
 
-            ballPositionOverlay.updateBallPosition(ballDetected, testX, testY)
+            // Get zone corners (trapezoid)
+            var corners = calibration.zoneCorners
+            if (!corners || corners.length < 4) {
+                ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
+                return
+            }
+
+            // Zone corners from camera view (trapezoid):
+            // corners[0] = FL (Front Left) - bottom left in camera
+            // corners[1] = FR (Front Right) - bottom right in camera
+            // corners[2] = BR (Back Right) - top right in camera
+            // corners[3] = BL (Back Left) - top left in camera
+
+            // Get bounding box of zone
+            var minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x)
+            var maxX = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x)
+            var minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y)
+            var maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].x)
+
+            // Map pixel position to normalized 0-1
+            var normalizedX = (ballX - minX) / (maxX - minX)
+            var normalizedY = (ballY - minY) / (maxY - minY)
+
+            // IMPORTANT: Invert Y axis for top-down view
+            // Camera view: Bottom (large Y) = Front, Top (small Y) = Back
+            // Top-down view: Top (small Y) = Front, Bottom (large Y) = Back
+            normalizedY = 1.0 - normalizedY
+
+            // Clamp to 0-1
+            normalizedX = Math.max(0, Math.min(1, normalizedX))
+            normalizedY = Math.max(0, Math.min(1, normalizedY))
+
+            ballPositionOverlay.updateBallPosition(detected, normalizedX, normalizedY)
         }
     }
 
