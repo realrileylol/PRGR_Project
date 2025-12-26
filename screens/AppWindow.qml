@@ -37,15 +37,24 @@ Item {
         property real lastBallPixelY: 0
 
         onTriggered: {
-            // Get ball position from camera calibration
-            if (!cameraCalibration || !cameraCalibration.isZoneDefined) {
+            // Run live ball detection (updates ballCenterX, ballCenterY, etc.)
+            var result = cameraCalibration.detectBallLive()
+
+            if (!result || !result.detected) {
                 ballPositionOverlay.updateBallPosition(false, lastValidX, lastValidY)
                 return
             }
 
-            var detected = cameraCalibration.isBallZoneCalibrated
-            var ballX = cameraCalibration.ballCenterX
-            var ballY = cameraCalibration.ballCenterY
+            var detected = result.detected
+            var ballX = result.x
+            var ballY = result.y
+            var inZone = result.inZone || false
+
+            // Only process if ball is in the calibrated zone
+            if (!inZone) {
+                ballPositionOverlay.updateBallPosition(false, lastValidX, lastValidY)
+                return
+            }
 
             // Get zone corners (trapezoid)
             var corners = cameraCalibration.zoneCorners
