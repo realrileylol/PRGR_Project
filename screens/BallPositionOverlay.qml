@@ -133,67 +133,112 @@ Rectangle {
                     anchors.margins: 5
                 }
 
-                // Ball indicator (moves based on ballX, ballY)
-                Rectangle {
+                // 3D Golf Ball indicator with dimples
+                Item {
                     id: ballIndicator
-                    width: 30
-                    height: 30
-                    radius: 15
+                    width: 35
+                    height: 35
 
                     // Position based on normalized coordinates
                     x: (hitBox.width - width) * ballX
                     y: (hitBox.height - height) * ballY
 
-                    color: ballDetected ? "#FFFFFF" : "transparent"
-                    border.color: ballDetected ? "#4CAF50" : "#FF5722"
-                    border.width: 2
-
                     visible: true
 
-                    // Smooth movement animation
+                    // Smooth movement animation (instant for real-time tracking)
                     Behavior on x {
-                        SmoothedAnimation {
-                            velocity: 500  // Pixels per second
+                        NumberAnimation {
+                            duration: 50  // Very fast for real-time
+                            easing.type: Easing.OutQuad
                         }
                     }
 
                     Behavior on y {
-                        SmoothedAnimation {
-                            velocity: 500
+                        NumberAnimation {
+                            duration: 50
+                            easing.type: Easing.OutQuad
                         }
                     }
 
-                    // Pulsing animation when detected
+                    // Main ball body with 3D gradient
+                    Rectangle {
+                        id: ballBody
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: ballDetected ? "#FFFFFF" : "transparent"
+                        border.color: ballDetected ? "#4CAF50" : "#FF5722"
+                        border.width: 2
+
+                        // 3D lighting gradient
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: ballDetected ? "#FFFFFF" : "transparent" }
+                            GradientStop { position: 0.5; color: ballDetected ? "#F5F5F5" : "transparent" }
+                            GradientStop { position: 1.0; color: ballDetected ? "#D0D0D0" : "transparent" }
+                        }
+
+                        // Top highlight (makes it look 3D)
+                        Rectangle {
+                            width: parent.width * 0.4
+                            height: parent.height * 0.4
+                            radius: width / 2
+                            color: "#FFFFFF"
+                            opacity: 0.7
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.topMargin: parent.height * 0.15
+                            anchors.leftMargin: parent.width * 0.15
+                            visible: ballDetected
+                        }
+
+                        // Dimples (golf ball texture)
+                        Repeater {
+                            model: ballDetected ? 8 : 0
+
+                            Rectangle {
+                                property real angle: index * 45 * Math.PI / 180
+                                property real distance: ballBody.width * 0.3
+
+                                width: 3
+                                height: 3
+                                radius: 1.5
+                                color: "#C0C0C0"
+                                opacity: 0.5
+
+                                x: ballBody.width / 2 + Math.cos(angle) * distance - width / 2
+                                y: ballBody.height / 2 + Math.sin(angle) * distance - height / 2
+                            }
+                        }
+
+                        // Center dimple
+                        Rectangle {
+                            width: 3
+                            height: 3
+                            radius: 1.5
+                            color: "#B0B0B0"
+                            opacity: 0.6
+                            anchors.centerIn: parent
+                            visible: ballDetected
+                        }
+                    }
+
+                    // Subtle pulse when detected
                     SequentialAnimation on scale {
                         running: ballDetected
                         loops: Animation.Infinite
 
                         NumberAnimation {
                             from: 1.0
-                            to: 1.15
-                            duration: 600
+                            to: 1.08
+                            duration: 800
                             easing.type: Easing.InOutQuad
                         }
 
                         NumberAnimation {
-                            from: 1.15
+                            from: 1.08
                             to: 1.0
-                            duration: 600
+                            duration: 800
                             easing.type: Easing.InOutQuad
                         }
-                    }
-
-                    // Ball details (inner shadow/highlight)
-                    Rectangle {
-                        width: 12
-                        height: 12
-                        radius: 6
-                        color: "#FFFFFF"
-                        opacity: 0.6
-                        anchors.centerIn: parent
-                        anchors.horizontalCenterOffset: -3
-                        anchors.verticalCenterOffset: -3
-                        visible: ballDetected
                     }
                 }
 

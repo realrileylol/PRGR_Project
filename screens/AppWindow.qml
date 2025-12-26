@@ -27,14 +27,19 @@ Item {
     // Ball position update timer
     Timer {
         id: ballPositionTimer
-        interval: 100  // 10 FPS updates for smooth movement
-        running: false
+        interval: 50  // 20 FPS for real-time tracking
+        running: swipeView.currentIndex === 1 && ballPositionToggle.checked  // Auto-run on metrics page
         repeat: true
+
+        property real lastValidX: 0.5
+        property real lastValidY: 0.5
+        property real lastBallPixelX: 0
+        property real lastBallPixelY: 0
 
         onTriggered: {
             // Get ball position from camera calibration
             if (!cameraCalibration || !cameraCalibration.isZoneDefined) {
-                ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
+                ballPositionOverlay.updateBallPosition(false, lastValidX, lastValidY)
                 return
             }
 
@@ -45,8 +50,21 @@ Item {
             // Get zone corners (trapezoid)
             var corners = cameraCalibration.zoneCorners
             if (!corners || corners.length < 4) {
-                ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
+                ballPositionOverlay.updateBallPosition(false, lastValidX, lastValidY)
                 return
+            }
+
+            // Anti-jump filter: Reject large jumps (likely false detections)
+            if (detected && lastBallPixelX > 0 && lastBallPixelY > 0) {
+                var deltaX = Math.abs(ballX - lastBallPixelX)
+                var deltaY = Math.abs(ballY - lastBallPixelY)
+                var maxJump = 60  // Max 60 pixels per frame at 20 FPS
+
+                if (deltaX > maxJump || deltaY > maxJump) {
+                    // Reject - likely false positive, keep showing last valid position
+                    ballPositionOverlay.updateBallPosition(true, lastValidX, lastValidY)
+                    return
+                }
             }
 
             // Zone corners from camera view (trapezoid):
@@ -59,7 +77,7 @@ Item {
             var minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x)
             var maxX = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x)
             var minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y)
-            var maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].x)
+            var maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y)
 
             // Map pixel position to normalized 0-1
             var normalizedX = (ballX - minX) / (maxX - minX)
@@ -74,14 +92,15 @@ Item {
             normalizedX = Math.max(0, Math.min(1, normalizedX))
             normalizedY = Math.max(0, Math.min(1, normalizedY))
 
-            ballPositionOverlay.updateBallPosition(detected, normalizedX, normalizedY)
-        }
-    }
+            // Save last valid position
+            if (detected) {
+                lastValidX = normalizedX
+                lastValidY = normalizedY
+                lastBallPixelX = ballX
+                lastBallPixelY = ballY
+            }
 
-    Connections {
-        target: ballPositionToggle
-        function onCheckedChanged() {
-            ballPositionTimer.running = ballPositionToggle.checked
+            ballPositionOverlay.updateBallPosition(detected, normalizedX, normalizedY)
         }
     }
 
