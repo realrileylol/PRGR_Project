@@ -33,17 +33,17 @@ Item {
 
         onTriggered: {
             // Get ball position from camera calibration
-            if (!calibration || !calibration.isZoneDefined) {
+            if (!cameraCalibration || !cameraCalibration.isZoneDefined) {
                 ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
                 return
             }
 
-            var detected = calibration.isBallZoneCalibrated
-            var ballX = calibration.ballCenterX
-            var ballY = calibration.ballCenterY
+            var detected = cameraCalibration.isBallZoneCalibrated
+            var ballX = cameraCalibration.ballCenterX
+            var ballY = cameraCalibration.ballCenterY
 
             // Get zone corners (trapezoid)
-            var corners = calibration.zoneCorners
+            var corners = cameraCalibration.zoneCorners
             if (!corners || corners.length < 4) {
                 ballPositionOverlay.updateBallPosition(false, 0.5, 0.5)
                 return
