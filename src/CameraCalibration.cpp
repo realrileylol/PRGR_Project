@@ -21,8 +21,7 @@ CameraCalibration::CameraCalibration(QObject *parent)
     m_translationVector = cv::Mat::zeros(3, 1, CV_64F);
     m_homography = cv::Mat::eye(3, 3, CV_64F);
 
-    // Load golf ball verification templates
-    loadVerificationTemplates();
+    // Note: Using edge density verification (no templates needed)
 }
 
 CameraCalibration::~CameraCalibration() = default;
@@ -1976,52 +1975,17 @@ QString CameraCalibration::captureScreenshot() {
 }
 
 // ============================================================================
-// MULTI-TEMPLATE VERIFICATION (Golf Ball Appearance Check)
+// EDGE DENSITY VERIFICATION (Golf Ball Appearance Check)
 // ============================================================================
 
+// NOTE: Template matching (loadVerificationTemplates) has been replaced with
+// edge density verification for better performance and accuracy.
+// Templates are no longer needed - verification is now based on Laplacian edge detection.
+
 void CameraCalibration::loadVerificationTemplates() {
-    qDebug() << "Loading golf ball verification templates...";
-
-    // Template files to load (best quality images from repo)
-    QStringList templateFiles = {
-        "ball_templates/FrontLeft_1.png",
-        "ball_templates/FrontRight_1.png",
-        "ball_templates/BackLeft_1.png",
-        "ball_templates/BackRight_1.png",
-        "ball_templates/pic1.png",
-        "ball_templates/pic2.png",
-        "ball_templates/pic3.png",
-        "ball_templates/BallCalibration_1.png"
-    };
-
-    m_verificationTemplates.clear();
-
-    for (const QString &templatePath : templateFiles) {
-        cv::Mat templateImg = cv::imread(templatePath.toStdString(), cv::IMREAD_GRAYSCALE);
-
-        if (templateImg.empty()) {
-            qDebug() << "  ⚠ Template not found:" << templatePath << "- skipping";
-            continue;
-        }
-
-        // Resize template to standard size for faster matching (40x40 pixels)
-        cv::Mat resizedTemplate;
-        cv::resize(templateImg, resizedTemplate, cv::Size(40, 40));
-
-        // Normalize brightness (0-255 range)
-        cv::normalize(resizedTemplate, resizedTemplate, 0, 255, cv::NORM_MINMAX);
-
-        m_verificationTemplates.push_back(resizedTemplate.clone());
-        qDebug() << "  ✓ Loaded template:" << templatePath;
-    }
-
-    m_verificationTemplatesLoaded = !m_verificationTemplates.empty();
-
-    if (m_verificationTemplatesLoaded) {
-        qDebug() << "✅ Golf ball verification ready with" << m_verificationTemplates.size() << "templates";
-    } else {
-        qWarning() << "❌ No verification templates loaded! Ball detection will be less accurate.";
-    }
+    // OBSOLETE: Templates no longer used (edge density verification instead)
+    // Keeping function stub to avoid breaking existing code
+    m_verificationTemplatesLoaded = false;
 }
 
 bool CameraCalibration::verifyBallAppearance(const cv::Mat &frame, int x, int y, int radius) {
