@@ -1263,7 +1263,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     // ========== ANTI-JUMP FILTER ==========
     // Reject detections that jump too far from last smoothed position
     // This prevents false positives from HoughCircles that are far away
-    if (m_liveTrackingInitialized) {
+    // BUT: Disable during re-acquisition (when frames were recently missed)
+    if (m_liveTrackingInitialized && m_missedFrames < 3) {
+        // Only apply strict filter when tracking is stable (< 3 missed frames)
+        // If we missed 3+ frames, ball may have exited/re-entered - allow re-acquisition
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
                                    std::pow(ballY - m_smoothedBallY, 2));
         const double MAX_JUMP_PX = 15.0;  // Maximum allowed jump per frame at 180 FPS (stationary ball)
@@ -1284,6 +1287,9 @@ QVariantMap CameraCalibration::detectBallLive() {
 
             qDebug() << "  Using velocity prediction: (" << predictedX << "," << predictedY << ")";
         }
+    } else if (m_missedFrames >= 3) {
+        qDebug() << "⚡ RE-ACQUISITION MODE: Missed" << m_missedFrames
+                 << "frames - disabling anti-jump filter for ball re-entry";
     }
 
     // ========== DEBUG VISUALIZATION ==========
