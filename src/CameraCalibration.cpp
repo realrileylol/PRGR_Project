@@ -1269,7 +1269,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         // If we missed 3+ frames, ball may have exited/re-entered - allow re-acquisition
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
                                    std::pow(ballY - m_smoothedBallY, 2));
-        const double MAX_JUMP_PX = 15.0;  // Maximum allowed jump per frame at 180 FPS (stationary ball)
+        const double MAX_JUMP_PX = 8.0;  // Maximum allowed jump per frame at 180 FPS (very strict for stationary ball)
 
         if (jumpDist > MAX_JUMP_PX) {
             qDebug() << "⚠ ANTI-JUMP FILTER: Rejecting detection - jump of" << jumpDist
@@ -2047,7 +2047,7 @@ bool CameraCalibration::verifyBallAppearance(const cv::Mat &frame, int x, int y,
 
     // Golf ball with dimples: 8-20% edge density
     // Carpet/turf: 1-5% edge density
-    const double MIN_EDGE_DENSITY = 6.0;  // Require at least 6% edges
+    const double MIN_EDGE_DENSITY = 8.0;  // Require at least 8% edges (strictest threshold)
 
     bool isGolfBall = (edgeDensity >= MIN_EDGE_DENSITY);
 
