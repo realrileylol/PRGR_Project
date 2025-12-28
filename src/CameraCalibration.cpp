@@ -1056,36 +1056,8 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
-    // ========== TEMPLATE MATCHING for Image-Based Ball Locking ==========
-    // Use template matching to find ball location precisely
-    // This locks onto EXACT ball appearance and follows it as it moves
-    cv::Point2f templateMatchLoc(-1, -1);
-    double templateMatchScore = 0.0;
-
-    if (m_templateInitialized && !m_ballTemplate.empty() && m_liveTrackingInitialized) {
-        // Search for template in current frame using TM_CCOEFF_NORMED
-        // This method is robust to lighting changes and returns correlation 0.0-1.0
-        cv::Mat matchResult;
-        cv::matchTemplate(gray, m_ballTemplate, matchResult, cv::TM_CCOEFF_NORMED);
-
-        // Find best match location
-        double minVal, maxVal;
-        cv::Point minLoc, maxLoc;
-        cv::minMaxLoc(matchResult, &minVal, &maxVal, &minLoc, &maxLoc);
-
-        // maxLoc is top-left corner of template, calculate center
-        templateMatchLoc = cv::Point2f(
-            maxLoc.x + m_templateSize.x / 2.0,
-            maxLoc.y + m_templateSize.y / 2.0
-        );
-        templateMatchScore = maxVal;  // 0.0 to 1.0
-
-        // Only log significant template matches
-        if (templateMatchScore > 0.5) {
-            qDebug() << "Template match found: location (" << templateMatchLoc.x << ","
-                     << templateMatchLoc.y << ") score:" << templateMatchScore;
-        }
-    }
+    // ========== TEMPLATE MATCHING REMOVED ==========
+    // Replaced with edge density verification (see verifyBallAppearance)
 
     // ========== SIMPLE BRIGHTNESS-BASED TRACKING ==========
     // USER REQUIREMENT: Track the WHITEST object (golf ball)
@@ -1134,12 +1106,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== ADAPTIVE FILTERS FOR HEAT-SEEKING MODE ==========
-        // When tracking, check if this circle is near last position OR template match
+        // When tracking, check if this circle is near last position
         // WIDER search radius for ball movement and occlusion handling
         bool nearLastPosition = false;
-        bool nearTemplateMatch = false;
         double distFromLast = 0.0;
-        double distFromTemplate = 0.0;
 
         if (m_liveTrackingInitialized) {
             // Distance from last smoothed position
@@ -1151,14 +1121,6 @@ QVariantMap CameraCalibration::detectBallLive() {
             // This prevents ball from jumping to false circles when it moves
             double searchRadius = 50.0 + (10 - m_trackingConfidence) * 10.0;  // 50-150px range
             nearLastPosition = (distFromLast < searchRadius);
-
-            // Distance from template match (if available)
-            if (templateMatchScore > 0.5) {
-                distFromTemplate = std::sqrt(std::pow(cx - templateMatchLoc.x, 2) +
-                                            std::pow(cy - templateMatchLoc.y, 2));
-                // Template match creates TIGHT lock (30px) - very precise
-                nearTemplateMatch = (distFromTemplate < 30.0);
-            }
         }
 
         // ========== SPHERICAL/CIRCULARITY CHECK ==========
@@ -1172,7 +1134,7 @@ QVariantMap CameraCalibration::detectBallLive() {
 
         circlesInZone++;
 
-        // COMBINED SCORE: Radius match + Temporal proximity + Template match
+        // COMBINED SCORE: Radius match + Temporal proximity
         // Perfect radius match (r=25) gets score of 100, edges (r=20 or 30) get score of 0
         double radiusScore = 100.0 * (1.0 - std::min(1.0, std::abs(r - 25.0) / 5.0));
         double combinedScore = radiusScore;
@@ -1185,20 +1147,6 @@ QVariantMap CameraCalibration::detectBallLive() {
             double normalizedDist = distFromLast / 150.0;  // 0.0 to 1.0
             double proximityScore = 10000.0 * (1.0 - normalizedDist * normalizedDist);
             combinedScore += proximityScore;  // HUGE bonus - ball won't jump away
-        }
-
-        // TEMPLATE MATCHING BONUS: Image-based locking (STRONGEST LOCK)
-        // Locks onto EXACT ball appearance - dimples, texture, lighting
-        if (nearTemplateMatch && templateMatchScore > 0.5) {
-            // MASSIVE bonus for template match - this is the PRIMARY lock
-            // Template match score 0.5-1.0 → 15,000-30,000 points
-            double templateBonus = templateMatchScore * 30000.0;
-            combinedScore += templateBonus;
-
-            // Extra bonus for proximity to template match center
-            double normalizedTemplateDist = distFromTemplate / 30.0;  // 0.0 to 1.0
-            double templateProximity = 5000.0 * (1.0 - normalizedTemplateDist * normalizedTemplateDist);
-            combinedScore += templateProximity;
         }
 
         // Pick the best circle IN THE ZONE (brightness + size preference)
@@ -2029,7 +1977,7 @@ bool CameraCalibration::verifyBallAppearance(const cv::Mat &frame, int x, int y,
     // Count strong edges inside circle (edge pixels > threshold)
     int edgeCount = 0;
     int totalPixels = 0;
-    const int EDGE_THRESHOLD = 40;  // Pixels with edge strength > 40 are considered edges
+    const int EDGE_THRESHOLD = 80;  // Pixels with edge strength > 80 are considered edges (only strong dimple edges)
 
     for (int i = 0; i < laplacian.rows; i++) {
         for (int j = 0; j < laplacian.cols; j++) {
