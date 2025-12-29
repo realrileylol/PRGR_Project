@@ -1001,9 +1001,19 @@ QVariantMap CameraCalibration::detectBallLive() {
                      20,                   // Golf ball min radius (20 pixels)
                      30);                  // Golf ball max radius (30 pixels)
 
-    // Only log if detection changes significantly
+    // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;
-    if (std::abs(static_cast<int>(circles.size()) - lastCircleCount) > 5 || circles.size() == 0) {
+    static qint64 lastZeroLogTime = 0;
+
+    if (circles.size() == 0) {
+        // Throttle "0 candidates" logging to once every 5 seconds (avoid spam when dark)
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (currentTime - lastZeroLogTime > 5000 || lastZeroLogTime == 0) {
+            qDebug() << "HoughCircles detected: 0 candidates (dark frame or no ball visible)";
+            lastZeroLogTime = currentTime;
+        }
+        lastCircleCount = 0;
+    } else if (std::abs(static_cast<int>(circles.size()) - lastCircleCount) > 5) {
         qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
         lastCircleCount = circles.size();
     }
@@ -1042,10 +1052,18 @@ QVariantMap CameraCalibration::detectBallLive() {
         } else {
             // Lost tracking after too many missed frames
             if (m_missedFrames > 15) {
+                // Throttle "lost tracking" spam to once every 5 seconds (avoid spam when no ball present)
+                static qint64 lastLostTrackingLogTime = 0;
+                qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+                if (currentTime - lastLostTrackingLogTime > 5000 || lastLostTrackingLogTime == 0) {
+                    qDebug() << "Lost ball tracking (no ball visible or too dark)";
+                    lastLostTrackingLogTime = currentTime;
+                }
+
                 m_liveTrackingInitialized = false;
                 m_kalmanInitialized = false;
                 m_trackingConfidence = 0;
-                qDebug() << "Lost ball tracking, resetting Kalman filter";
             }
         }
         return result;

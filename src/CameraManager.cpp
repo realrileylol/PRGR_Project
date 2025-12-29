@@ -24,8 +24,8 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
     , m_previewHeight(240)
     , m_activeCameraIndex(0)
     , m_autoExposureEnabled(false)
-    , m_currentShutter(4000)
-    , m_currentGain(12.0)
+    , m_currentShutter(8000)  // Increased for better indoor lighting (was 4000 - too dark)
+    , m_currentGain(16.0)      // Increased for better indoor lighting (was 12.0 - too dark)
     , m_framesSinceLastAdjustment(0)
 {
     // Create videos folder
@@ -158,8 +158,9 @@ void CameraManager::startPreview() {
 
     // Use current exposure values (for auto-exposure) or load from settings
     if (m_currentShutter == 0 || m_currentGain == 0) {
-        m_currentShutter = m_settings->getNumber(cameraPrefix + "/shutterSpeed", 4000);
-        m_currentGain = m_settings->getDouble(cameraPrefix + "/gain", 12.0);
+        // Increased defaults for better indoor lighting (was 4000µs/12.0x - too dark, brightness only 3.0/255)
+        m_currentShutter = m_settings->getNumber(cameraPrefix + "/shutterSpeed", 8000);
+        m_currentGain = m_settings->getDouble(cameraPrefix + "/gain", 16.0);
     }
     int shutterSpeed = m_currentShutter;
     double gain = m_currentGain;
