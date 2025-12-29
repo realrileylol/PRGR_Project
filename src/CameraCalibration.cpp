@@ -992,12 +992,12 @@ QVariantMap CameraCalibration::detectBallLive() {
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
     // Golf ball appears as ~25 pixels at camera distance
     // STRICT size filtering - only detect objects matching golf ball dimensions
-    // STRICT PARAMETERS - eliminate false circles from carpet texture
+    // Balanced STRICT PARAMETERS - reliable ball detection while eliminating carpet texture
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 12,  // Min distance: 40px (eliminates duplicate detections of same ball)
-                     100,                  // Canny threshold: STRICT (only strong ball edges, not weak carpet texture)
-                     22,                   // Accumulator: STRICT (require complete circle, not partial arcs)
+                     90,                   // Canny threshold: Balanced (strong ball edges, filters most carpet)
+                     18,                   // Accumulator: Balanced (complete circles, tolerates slight imperfections)
                      20,                   // Golf ball min radius (20 pixels)
                      30);                  // Golf ball max radius (30 pixels)
 
@@ -1385,37 +1385,13 @@ QVariantMap CameraCalibration::detectBallLive() {
             return result;  // Show green circle but don't lock yet
         }
 
-        qDebug() << "Ball STABLE at (" << ballX << "," << ballY << ") - locking and extracting template";
+        qDebug() << "Ball STABLE at (" << ballX << "," << ballY << ") - locking onto ball";
         m_liveTrackingInitialized = true;
         m_trackingConfidence = 10;
         m_ballVelocityX = 0.0;  // Initialize velocity
         m_ballVelocityY = 0.0;
 
-        // ========== TEMPLATE EXTRACTION for Image-Based Locking ==========
-        // Extract ball template from current frame for precise tracking
-        // This locks onto EXACT ball appearance (texture, dimples, lighting, BLACK DOTS)
-        int templateRadius = static_cast<int>(ballRadius * 1.5);  // 1.5x ball size for context
-        int templateX = static_cast<int>(ballX - templateRadius);
-        int templateY = static_cast<int>(ballY - templateRadius);
-        int templateSize = templateRadius * 2;
-
-        // Ensure template is within frame bounds
-        if (templateX >= 0 && templateY >= 0 &&
-            templateX + templateSize < gray.cols &&
-            templateY + templateSize < gray.rows) {
-
-            cv::Rect templateROI(templateX, templateY, templateSize, templateSize);
-            m_ballTemplate = gray(templateROI).clone();
-            m_templateSize = cv::Point2f(templateSize, templateSize);
-            m_templateInitialized = true;
-
-            qDebug() << "✓ Ball template extracted: size" << templateSize << "x" << templateSize
-                     << "at (" << templateX << "," << templateY << ")";
-            qDebug() << "  Template captures BLACK DOTS on ball for unique identification";
-            qDebug() << "  Template will lock onto EXACT ball appearance (dimples, texture, lighting)";
-        } else {
-            qDebug() << "⚠ Ball too close to edge - template extraction skipped";
-        }
+        // Template extraction removed - using edge density verification instead
     } else {
         m_trackingConfidence = 10;  // Always high confidence in instant mode
     }
