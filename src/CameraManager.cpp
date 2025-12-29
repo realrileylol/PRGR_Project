@@ -386,9 +386,15 @@ void CameraManager::previewLoop() {
                 auto result = m_autoExposure.update(frame.data, frame.cols, frame.rows, frame.step);
 
                 if (result.adjusted) {
-                    qDebug() << "AUTO-EXPOSURE: Brightness=" << result.brightness
-                             << "Adjusting: Shutter" << result.shutter_us << "µs Gain" << result.gain
-                             << "Reason:" << result.reason;
+                    // Throttle logging to every 5 seconds (avoid terminal spam)
+                    static qint64 lastLogTime = 0;
+                    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+                    if (currentTime - lastLogTime > 5000 || lastLogTime == 0) {
+                        qDebug() << "AUTO-EXPOSURE: Brightness=" << result.brightness
+                                 << "→ Shutter" << result.shutter_us << "µs Gain" << result.gain;
+                        lastLogTime = currentTime;
+                    }
 
                     // Restart camera with new exposure settings
                     // Note: This causes a brief interruption (~100ms)
@@ -399,12 +405,13 @@ void CameraManager::previewLoop() {
             }
         }
 
-        // FPS tracking
+        // FPS tracking (log every 5 seconds to avoid terminal spam)
         fpsCounter++;
         auto fpsNow = std::chrono::steady_clock::now();
         auto fpsElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(fpsNow - fpsStart).count();
-        if (fpsElapsed >= 1000) {
-            qDebug() << "Preview FPS:" << fpsCounter;
+        if (fpsElapsed >= 5000) {
+            int avgFps = fpsCounter / 5;  // Average FPS over 5 seconds
+            qDebug() << "Preview FPS:" << avgFps;
             fpsCounter = 0;
             fpsStart = fpsNow;
         }

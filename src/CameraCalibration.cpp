@@ -949,11 +949,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     int cannyThreshold = static_cast<int>(std::max(60.0, std::min(140.0, brightness * 0.6)));
     int accumulatorThreshold = static_cast<int>(std::max(12.0, std::min(20.0, brightness * 0.08)));
 
-    // Only log lighting changes significantly
+    // Only log lighting changes significantly (avoid terminal spam)
     static double lastBrightness = 0;
     if (std::abs(brightness - lastBrightness) > 10.0 || lastBrightness == 0) {
-        qDebug() << "Scene brightness:" << brightness << "Canny:" << cannyThreshold << "Acc:" << accumulatorThreshold;
-        qDebug() << "Ball radius range: 20-30 pixels";
+        qDebug() << "Scene brightness:" << brightness << "→ Canny:" << cannyThreshold << "Acc:" << accumulatorThreshold;
         lastBrightness = brightness;
     }
 
