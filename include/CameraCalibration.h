@@ -259,7 +259,7 @@ private:
     const size_t m_stabilityHistorySize = 15;       // 0.5 seconds at 30 FPS
     const double m_stabilityThreshold = 2.0;        // Max 2px movement for "stable"
     qint64 m_stableStartTime = 0;                   // When ball became stable
-    const qint64 m_readyRequiredMs = 1000;          // 1 second stable = READY
+    const qint64 m_readyRequiredMs = 2500;          // 2.5 seconds stable = READY (gives ball time to settle on tee)
 
     // Zone boundary tolerance (allow ball on edge of zone)
     const double m_zoneEdgeTolerance = 15.0;        // Pixels - track ball even when on zone edge

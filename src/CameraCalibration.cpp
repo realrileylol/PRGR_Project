@@ -997,12 +997,12 @@ QVariantMap CameraCalibration::detectBallLive() {
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
     // Golf ball appears as ~25 pixels at camera distance
     // STRICT size filtering - only detect objects matching golf ball dimensions
-    // BALANCED PARAMETERS - reduce false circles while still detecting ball reliably
+    // STRICT PARAMETERS - eliminate false circles from carpet texture
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 18,  // Min distance between centers (balanced)
-                     80,                   // Canny threshold - BALANCED (between 60 too loose, 100 too strict)
-                     15,                   // Accumulator - BALANCED (between 12 too loose, 18 too strict)
+                     processed.rows / 12,  // Min distance: 40px (eliminates duplicate detections of same ball)
+                     100,                  // Canny threshold: STRICT (only strong ball edges, not weak carpet texture)
+                     22,                   // Accumulator: STRICT (require complete circle, not partial arcs)
                      20,                   // Golf ball min radius (20 pixels)
                      30);                  // Golf ball max radius (30 pixels)
 
@@ -1154,6 +1154,18 @@ QVariantMap CameraCalibration::detectBallLive() {
             bestBrightness = combinedScore;  // Actually storing combined score
             bestCircle = circle;
         }
+    }
+
+    // ========== MULTI-BALL REJECTION ==========
+    // If too many circles in zone, reject all (multiple balls or too much noise)
+    if (circlesInZone > 2 && !m_liveTrackingInitialized) {
+        qDebug() << "⚠️ WARNING: Too many objects in zone (" << circlesInZone << ") - cannot determine which is the ball";
+        qDebug() << "   → Remove extra balls or adjust lighting to reduce false detections";
+
+        QVariantMap result;
+        result["detected"] = false;
+        result["inZone"] = false;
+        return result;
     }
 
     // Did we find any circles in zone?
