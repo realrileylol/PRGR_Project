@@ -380,7 +380,7 @@ void CameraManager::previewLoop() {
         }
 
         // ========== AUTO-EXPOSURE CONTROL ==========
-        if (m_autoExposureEnabled) {
+        if (m_autoExposureEnabled && frameCount > 180) {  // Wait 1 second (180 frames) for camera to stabilize
             m_framesSinceLastAdjustment++;
 
             // Check every 30 frames (~0.16s at 180fps) to avoid excessive adjustments
