@@ -726,7 +726,7 @@ void CameraCalibration::detectBallForZoneCalibration() {
         return;
     }
 
-    qDebug() << "HoughCircles found" << circles.size() << "candidates";
+    qDebug() << "Calibration: Found" << circles.size() << "circle candidates, selecting best...";
 
     // Score each circle based on proximity to center and reasonable size
     // Ball should be near center of frame since that's where we expect it
@@ -754,9 +754,8 @@ void CameraCalibration::detectBallForZoneCalibration() {
         // Combined score (weight center proximity heavily)
         double score = 0.7 * centerScore + 0.3 * radiusScore;
 
-        qDebug() << "  Circle at (" << cx << "," << cy << ") r=" << r
-                 << " centerScore=" << centerScore << " radiusScore=" << radiusScore
-                 << " totalScore=" << score;
+        // Only log scoring details in debug mode (avoid spam)
+        // qDebug() << "  Circle at (" << cx << "," << cy << ") r=" << r << " score=" << score;
 
         if (score > bestScore) {
             bestScore = score;
@@ -771,8 +770,7 @@ void CameraCalibration::detectBallForZoneCalibration() {
     // Calculate confidence based on score
     double confidence = std::min(0.95, bestScore);
 
-    qDebug() << "Best ball candidate at" << centerX << "," << centerY
-             << "radius:" << radius << "confidence:" << confidence;
+    qDebug() << "Calibration: Selected ball at (" << centerX << "," << centerY << ") radius:" << radius;
 
     // Save ball zone calibration
     setBallZone(centerX, centerY, radius);
@@ -787,9 +785,7 @@ void CameraCalibration::setBallZone(double centerX, double centerY, double radiu
     m_ballRadius = radius;
     m_isBallZoneCalibrated = true;
 
-    qDebug() << "Ball zone calibration complete:";
-    qDebug() << "  Center:" << m_ballCenterX << "," << m_ballCenterY;
-    qDebug() << "  Radius:" << m_ballRadius << "pixels";
+    qDebug() << "✅ Ball zone calibration complete → Center:(" << m_ballCenterX << "," << m_ballCenterY << ") Radius:" << m_ballRadius << "px";
 
     // Save to settings
     saveCalibration();
