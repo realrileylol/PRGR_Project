@@ -55,7 +55,7 @@ bool CameraManager::createNamedPipe(const QString &pipePath) {
         return false;
     }
 
-    qDebug() << "Created named pipe:" << pipePath;
+    // qDebug() << "Created named pipe:" << pipePath;  // Suppress to reduce restart spam
     return true;
 }
 
@@ -129,7 +129,7 @@ void CameraManager::restartPreviewWithExposure(int shutter, double gain) {
         return;
     }
 
-    qDebug() << "Restarting camera with new exposure: Shutter=" << shutter << "µs Gain=" << gain;
+    // qDebug() << "Restarting camera with new exposure: Shutter=" << shutter << "µs Gain=" << gain;  // Suppress (logged in AUTO-EXPOSURE line)
 
     // Store new exposure values
     m_currentShutter = shutter;
@@ -190,10 +190,15 @@ void CameraManager::startPreview() {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
 
-    qDebug() << "Starting preview: Camera" << m_activeCameraIndex
-             << "- Resolution=" << m_previewWidth << "x" << m_previewHeight
-             << "Format=" << format << "Shutter=" << shutterSpeed << "µs"
-             << "Gain=" << gain << "x FPS=" << frameRate;
+    // Only log camera start during initial startup or manual changes (reduce auto-exposure restart spam)
+    static bool firstStart = true;
+    if (firstStart) {
+        qDebug() << "Starting preview: Camera" << m_activeCameraIndex
+                 << "- Resolution=" << m_previewWidth << "x" << m_previewHeight
+                 << "Format=" << format << "Shutter=" << shutterSpeed << "µs"
+                 << "Gain=" << gain << "x FPS=" << frameRate;
+        firstStart = false;
+    }
 
     // Create named pipe
     if (!createNamedPipe(m_pipePath)) {
@@ -216,7 +221,7 @@ void CameraManager::startPreview() {
     args << "--output" << m_pipePath;  // Output to named pipe
     args << "--nopreview";  // No X11 preview window
 
-    qDebug() << "Starting rpicam-vid with args:" << args.join(" ");
+    // qDebug() << "Starting rpicam-vid with args:" << args.join(" ");  // Suppress spam
 
     // Monitor process errors
     connect(m_previewProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
@@ -246,7 +251,7 @@ void CameraManager::startPreview() {
         return;
     }
 
-    qDebug() << "rpicam-vid started, opening pipe for reading...";
+    // qDebug() << "rpicam-vid started, opening pipe for reading...";  // Suppress spam
 
     // Start preview thread to read from pipe
     m_previewActive.store(true);
@@ -254,7 +259,7 @@ void CameraManager::startPreview() {
     m_previewThread->start();
 
     emit previewActiveChanged();
-    qDebug() << "Preview active";
+    // qDebug() << "Preview active";  // Suppress spam
 }
 
 void CameraManager::stopPreview() {
@@ -262,7 +267,7 @@ void CameraManager::stopPreview() {
         return;
     }
 
-    qDebug() << "Stopping preview...";
+    // qDebug() << "Stopping preview...";  // Suppress spam
     m_previewActive.store(false);
 
     // Wait for thread to finish
@@ -287,11 +292,11 @@ void CameraManager::stopPreview() {
     cleanupNamedPipe();
 
     emit previewActiveChanged();
-    qDebug() << "Preview stopped";
+    // qDebug() << "Preview stopped";  // Suppress spam
 }
 
 void CameraManager::previewLoop() {
-    qDebug() << "Preview loop starting, opening pipe for reading...";
+    // qDebug() << "Preview loop starting, opening pipe for reading...";  // Suppress spam
 
     // Open pipe for reading (blocks until rpicam-vid opens it for writing)
     m_pipeFd = open(m_pipePath.toLocal8Bit().constData(), O_RDONLY);
@@ -302,7 +307,7 @@ void CameraManager::previewLoop() {
         return;
     }
 
-    qDebug() << "Pipe opened, starting frame capture loop...";
+    // qDebug() << "Pipe opened, starting frame capture loop...";  // Suppress spam
 
     // Calculate frame size for YUV420
     // YUV420: Y (width*height) + U (width/2*height/2) + V (width/2*height/2)
@@ -351,13 +356,13 @@ void CameraManager::previewLoop() {
         // Extract Y channel from YUV420
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
 
-        // Debug first few frames
-        if (frameCount < 3) {
-            double minVal, maxVal;
-            cv::minMaxLoc(frame, &minVal, &maxVal);
-            qDebug() << "Frame" << frameCount << "shape:" << frame.cols << "x" << frame.rows
-                     << "type:" << frame.type() << "min/max:" << minVal << "/" << maxVal;
-        }
+        // Debug first few frames (suppressed - too spammy during restarts)
+        // if (frameCount < 3) {
+        //     double minVal, maxVal;
+        //     cv::minMaxLoc(frame, &minVal, &maxVal);
+        //     qDebug() << "Frame" << frameCount << "shape:" << frame.cols << "x" << frame.rows
+        //              << "type:" << frame.type() << "min/max:" << minVal << "/" << maxVal;
+        // }
         frameCount++;
 
         // Update frame provider (thread-safe)
@@ -386,10 +391,19 @@ void CameraManager::previewLoop() {
                 auto result = m_autoExposure.update(frame.data, frame.cols, frame.rows, frame.step);
 
                 if (result.adjusted) {
+                    // CRITICAL: Prevent restart loop - minimum 5 seconds between camera restarts
+                    static qint64 lastRestartTime = 0;
+                    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+                    qint64 timeSinceLastRestart = currentTime - lastRestartTime;
+
+                    if (timeSinceLastRestart < 5000 && lastRestartTime != 0) {
+                        // Too soon - skip this adjustment to prevent restart loop
+                        // Camera needs time to stabilize before checking brightness again
+                        return;
+                    }
+
                     // Throttle logging to every 5 seconds (avoid terminal spam)
                     static qint64 lastLogTime = 0;
-                    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-
                     if (currentTime - lastLogTime > 5000 || lastLogTime == 0) {
                         qDebug() << "AUTO-EXPOSURE: Brightness=" << result.brightness
                                  << "→ Shutter" << result.shutter_us << "µs Gain" << result.gain;
@@ -397,7 +411,7 @@ void CameraManager::previewLoop() {
                     }
 
                     // Restart camera with new exposure settings
-                    // Note: This causes a brief interruption (~100ms)
+                    lastRestartTime = currentTime;
                     QMetaObject::invokeMethod(this, [this, result]() {
                         restartPreviewWithExposure(result.shutter_us, result.gain);
                     }, Qt::QueuedConnection);
@@ -417,7 +431,7 @@ void CameraManager::previewLoop() {
         }
     }
 
-    qDebug() << "Preview loop exiting";
+    // qDebug() << "Preview loop exiting";  // Suppress spam
 
     if (m_pipeFd >= 0) {
         close(m_pipeFd);
