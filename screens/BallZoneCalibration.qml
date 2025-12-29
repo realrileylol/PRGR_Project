@@ -55,8 +55,22 @@ Rectangle {
 
     // Ensure camera preview is active when screen loads
     Component.onCompleted: {
+        // Disable auto-exposure during calibration (prevents restart crashes)
+        if (cameraManager && cameraManager.autoExposureEnabled) {
+            cameraManager.autoExposureEnabled = false
+            console.log("Auto-exposure disabled during ball zone calibration")
+        }
+
         if (!cameraManager.previewActive) {
             cameraManager.startPreview()
+        }
+    }
+
+    Component.onDestruction: {
+        // Re-enable auto-exposure when leaving calibration
+        if (cameraManager && !cameraManager.autoExposureEnabled) {
+            cameraManager.autoExposureEnabled = true
+            console.log("Auto-exposure re-enabled after ball zone calibration")
         }
     }
 
