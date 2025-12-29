@@ -1194,6 +1194,21 @@ QVariantMap CameraCalibration::detectBallLive() {
             double predictedX = m_smoothedBallX + (m_ballVelocityX * m_missedFrames);
             double predictedY = m_smoothedBallY + (m_ballVelocityY * m_missedFrames);
 
+            // If predicted position goes off-screen, ball left the zone → reset tracking
+            if (predictedX < 0 || predictedX >= 640 || predictedY < 0 || predictedY >= 480) {
+                qDebug() << "⚠️ Ball left frame - predicted position off-screen (" << predictedX << "," << predictedY << ")";
+                qDebug() << "   Resetting tracking (velocity prediction stopped)";
+
+                m_liveTrackingInitialized = false;
+                m_kalmanInitialized = false;
+                m_trackingConfidence = 0;
+                m_missedFrames = 0;
+
+                result["detected"] = false;
+                result["inZone"] = false;
+                return result;
+            }
+
             qDebug() << "⚡ PREDICTION mode (occlusion) - missed:" << m_missedFrames
                      << "frames | velocity:(" << m_ballVelocityX << "," << m_ballVelocityY << ")"
                      << "| predicted:(" << predictedX << "," << predictedY << ")";
@@ -1233,11 +1248,44 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     qDebug() << "BALL DETECTED - Position:(" << ballX << "," << ballY << ") Radius:" << ballRadius << "pixels";
 
+    // Check if detected ball is inside zone (before anti-jump filter)
+    bool detectedBallInZone = false;
+    if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+        std::vector<cv::Point2f> zonePoints;
+        for (const auto &corner : m_zoneCorners) {
+            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+        }
+        double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), true);
+        detectedBallInZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
+    }
+
+    // Check if last smoothed position was in bounds (not way off-screen from velocity prediction)
+    bool lastPositionInBounds = (m_smoothedBallX >= 0 && m_smoothedBallX < 640 &&
+                                  m_smoothedBallY >= 0 && m_smoothedBallY < 480);
+
+    // ========== ZONE RE-ENTRY DETECTION ==========
+    // If ball is detected IN ZONE but last position was out of bounds or way off,
+    // this is a re-entry from outside → force accept and reset tracking
+    bool forceAcceptZoneReEntry = (detectedBallInZone && !lastPositionInBounds && m_liveTrackingInitialized);
+
+    if (forceAcceptZoneReEntry) {
+        qDebug() << "🎯 ZONE RE-ENTRY: Ball re-entered hitbox at (" << ballX << "," << ballY << ")";
+        qDebug() << "   Forcing re-lock (last position was off-screen at " << m_smoothedBallX << "," << m_smoothedBallY << ")";
+
+        // Reset tracking to new ball position
+        m_smoothedBallX = ballX;
+        m_smoothedBallY = ballY;
+        m_ballVelocityX = 0.0;
+        m_ballVelocityY = 0.0;
+        m_missedFrames = 0;
+        m_trackingConfidence = 10;
+        // Don't run anti-jump filter below
+    }
     // ========== ANTI-JUMP FILTER ==========
     // Reject detections that jump too far from last smoothed position
     // This prevents false positives from HoughCircles that are far away
-    // BUT: Disable during re-acquisition (when frames were recently missed)
-    if (m_liveTrackingInitialized && m_missedFrames < 3) {
+    // BUT: Disable during re-acquisition (when frames were recently missed) or zone re-entry
+    else if (m_liveTrackingInitialized && m_missedFrames < 3) {
         // Only apply strict filter when tracking is stable (< 3 missed frames)
         // If we missed 3+ frames, ball may have exited/re-entered - allow re-acquisition
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
