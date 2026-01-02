@@ -36,10 +36,10 @@ Item {
     }
 
     Component.onCompleted: {
-        // Disable auto-exposure during calibration (prevents restart crashes from dark initial frames)
-        if (cameraManager && cameraManager.autoExposureEnabled) {
-            cameraManager.autoExposureEnabled = false
-            console.log("Auto-exposure disabled during calibration")
+        // Enable auto-exposure when entering calibration for better brightness
+        if (cameraManager && !cameraManager.autoExposureEnabled) {
+            cameraManager.autoExposureEnabled = true
+            console.log("Auto-exposure enabled for calibration screen")
         }
 
         // Ensure camera preview is running for calibration
@@ -56,14 +56,6 @@ Item {
         if (cameraCalibration && cameraCalibration.isIntrinsicCalibrated) {
             isComplete = true
             framesCaptured = framesNeeded
-        }
-    }
-
-    Component.onDestruction: {
-        // Re-enable auto-exposure when leaving calibration screen
-        if (cameraManager && !cameraManager.autoExposureEnabled) {
-            cameraManager.autoExposureEnabled = true
-            console.log("Auto-exposure re-enabled after calibration")
         }
     }
 

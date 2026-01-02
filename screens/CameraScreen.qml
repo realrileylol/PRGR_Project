@@ -638,6 +638,14 @@ Item {
         onTriggered: trainingMessage.visible = false
     }
 
+    Component.onCompleted: {
+        // Enable auto-exposure when entering camera screen for better brightness
+        if (cameraManager && !cameraManager.autoExposureEnabled) {
+            cameraManager.autoExposureEnabled = true
+            console.log("Auto-exposure enabled for camera screen")
+        }
+    }
+
     Component.onDestruction: {
         if (cameraActive) {
             cameraManager.stopPreview()
