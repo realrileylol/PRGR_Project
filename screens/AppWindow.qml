@@ -90,10 +90,8 @@ Item {
             var normalizedX = (ballX - minX) / (maxX - minX)
             var normalizedY = (ballY - minY) / (maxY - minY)
 
-            // IMPORTANT: Invert Y axis for top-down view
-            // Camera view: Bottom (large Y) = Front, Top (small Y) = Back
-            // Top-down view: Top (small Y) = Front, Bottom (large Y) = Back
-            normalizedY = 1.0 - normalizedY
+            // Direct 1:1 mapping - top of camera = top of mockup
+            // No Y-axis inversion needed
 
             // Allow tracking outside zone (for ball flight) with extended range
             // Clamp to -0.2 to 1.2 range (shows ball slightly outside hitbox visualization)
