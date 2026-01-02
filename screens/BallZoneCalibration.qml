@@ -44,21 +44,54 @@ Rectangle {
             liveBallInZone = result.inZone
 
             // Update state machine properties
+            var previousArmedState = systemArmed
             ballZoneState = result.zoneState || "NO_BALL"
             ballZoneStateDisplay = result.zoneStateDisplay || "Place ball in zone"
             systemReady = result.isReady || false
             systemArmed = result.isArmed || false
 
+            // CRITICAL: Disable auto-exposure when system is ARMED to prevent freezing during shot
+            if (systemArmed && !previousArmedState) {
+                // Just became armed - lock exposure
+                if (cameraManager && cameraManager.autoExposureEnabled) {
+                    cameraManager.autoExposureEnabled = false
+                    console.log("🔒 Auto-exposure LOCKED - system armed (prevents freezing during swing)")
+                }
+            } else if (!systemArmed && previousArmedState) {
+                // Just became disarmed - re-enable auto-exposure for next shot
+                if (cameraManager && !cameraManager.autoExposureEnabled && !autoExposureLockTimer.running) {
+                    cameraManager.autoExposureEnabled = true
+                    console.log("🔓 Auto-exposure UNLOCKED - system disarmed (adjusting for lighting changes)")
+                }
+            }
+
             clickOverlay.requestPaint()
+        }
+    }
+
+    // One-time auto-exposure adjustment timer (for initial screen load)
+    Timer {
+        id: autoExposureLockTimer
+        interval: 6000  // 6 seconds - enough for one auto-exposure adjustment cycle
+        running: false
+        repeat: false
+        onTriggered: {
+            // Only lock if system is NOT armed (let armed state control exposure)
+            if (cameraManager && cameraManager.autoExposureEnabled && !systemArmed) {
+                cameraManager.autoExposureEnabled = false
+                console.log("✓ Auto-exposure locked at current brightness (ball zone calibration)")
+            }
         }
     }
 
     // Ensure camera preview is active when screen loads
     Component.onCompleted: {
-        // Enable auto-exposure when entering ball zone calibration for better brightness
+        // Enable auto-exposure for ONE initial adjustment, then lock it
+        // During shots, the armed state will control auto-exposure dynamically
         if (cameraManager && !cameraManager.autoExposureEnabled) {
             cameraManager.autoExposureEnabled = true
-            console.log("Auto-exposure enabled for ball zone calibration screen")
+            console.log("Auto-exposure enabled for initial brightness adjustment (ball zone calibration)")
+            autoExposureLockTimer.start()
         }
 
         if (!cameraManager.previewActive) {

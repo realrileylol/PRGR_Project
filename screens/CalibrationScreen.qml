@@ -35,11 +35,27 @@ Item {
         color: bg
     }
 
+    // One-time auto-exposure adjustment timer
+    Timer {
+        id: autoExposureLockTimer
+        interval: 6000  // 6 seconds - enough for one auto-exposure adjustment cycle
+        running: false
+        repeat: false
+        onTriggered: {
+            if (cameraManager && cameraManager.autoExposureEnabled) {
+                cameraManager.autoExposureEnabled = false
+                console.log("✓ Auto-exposure locked at current brightness (calibration screen)")
+            }
+        }
+    }
+
     Component.onCompleted: {
-        // Enable auto-exposure when entering calibration for better brightness
+        // Enable auto-exposure for ONE adjustment, then lock it
+        // This prevents freezing during calibration while ensuring good initial brightness
         if (cameraManager && !cameraManager.autoExposureEnabled) {
             cameraManager.autoExposureEnabled = true
-            console.log("Auto-exposure enabled for calibration screen")
+            console.log("Auto-exposure enabled for initial brightness adjustment (calibration screen)")
+            autoExposureLockTimer.start()
         }
 
         // Ensure camera preview is running for calibration
