@@ -1099,9 +1099,16 @@ QVariantMap CameraCalibration::detectBallLive() {
             inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
         }
 
-        // ONLY consider circles in the zone (ignore bright lights outside)
-        if (!inZone && m_isZoneDefined) {
-            continue;  // Skip circles outside zone + tolerance
+        // ========== ZONE FILTERING (Initial Lock vs Tracking) ==========
+        // INITIAL LOCK (not tracking yet): Only accept circles IN ZONE to prevent false locks on background
+        // DURING TRACKING: Accept circles ANYWHERE to follow ball flight after impact
+        if (!m_liveTrackingInitialized && m_isZoneDefined && !inZone) {
+            continue;  // Not tracking yet - skip circles outside zone
+        }
+
+        // Track whether this circle is in zone for scoring purposes
+        if (inZone) {
+            circlesInZone++;
         }
 
         // STRICT SIZE FILTER: Only accept circles matching golf ball size (20-30 pixels)
@@ -1144,8 +1151,6 @@ QVariantMap CameraCalibration::detectBallLive() {
         // ========== SHAPE-BASED DETECTION FOR ANY COLOR BALL ==========
         // NO brightness filtering - works with white, yellow, orange, any color ball
         // Detection based ONLY on: SIZE (20-30px) + SHAPE (circular) + ZONE + TEMPORAL
-
-        circlesInZone++;
 
         // COMBINED SCORE: Radius match + Temporal proximity
         // Perfect radius match (r=25) gets score of 100, edges (r=20 or 30) get score of 0
