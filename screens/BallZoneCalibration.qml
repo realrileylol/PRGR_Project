@@ -88,13 +88,16 @@ Rectangle {
     Component.onCompleted: {
         // Enable auto-exposure for ONE initial adjustment, then lock it
         // During shots, the armed state will control auto-exposure dynamically
-        if (cameraManager && !cameraManager.autoExposureEnabled) {
-            cameraManager.autoExposureEnabled = true
-            console.log("Auto-exposure enabled for initial brightness adjustment (ball zone calibration)")
+        if (cameraManager) {
+            if (!cameraManager.autoExposureEnabled) {
+                cameraManager.autoExposureEnabled = true
+                console.log("Auto-exposure enabled for initial brightness adjustment (ball zone calibration)")
+            }
+            // ALWAYS start the lock timer, even if auto-exposure was already on
             autoExposureLockTimer.start()
         }
 
-        if (!cameraManager.previewActive) {
+        if (cameraManager && !cameraManager.previewActive) {
             cameraManager.startPreview()
         }
     }

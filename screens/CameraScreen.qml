@@ -655,9 +655,12 @@ Item {
     Component.onCompleted: {
         // Enable auto-exposure for ONE adjustment, then lock it
         // This prevents freezing during camera viewing while ensuring good initial brightness
-        if (cameraManager && !cameraManager.autoExposureEnabled) {
-            cameraManager.autoExposureEnabled = true
-            console.log("Auto-exposure enabled for initial brightness adjustment (camera screen)")
+        if (cameraManager) {
+            if (!cameraManager.autoExposureEnabled) {
+                cameraManager.autoExposureEnabled = true
+                console.log("Auto-exposure enabled for initial brightness adjustment (camera screen)")
+            }
+            // ALWAYS start the lock timer, even if auto-exposure was already on
             autoExposureLockTimer.start()
         }
     }
