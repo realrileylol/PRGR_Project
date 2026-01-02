@@ -262,6 +262,15 @@ Item {
                     onClicked: {
                         soundManager.playClick()
                         cameraManager.autoExposureEnabled = !cameraManager.autoExposureEnabled
+
+                        // If user manually enables auto-exposure, restart the lock timer
+                        // This prevents infinite auto-exposure while allowing manual control
+                        if (cameraManager.autoExposureEnabled) {
+                            console.log("Auto-exposure manually enabled - will lock in 6 seconds")
+                            autoExposureLockTimer.restart()
+                        } else {
+                            console.log("Auto-exposure manually disabled")
+                        }
                     }
                 }
 

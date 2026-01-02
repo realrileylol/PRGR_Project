@@ -50,18 +50,21 @@ Rectangle {
             systemReady = result.isReady || false
             systemArmed = result.isArmed || false
 
-            // CRITICAL: Disable auto-exposure when system is ARMED to prevent freezing during shot
-            if (systemArmed && !previousArmedState) {
-                // Just became armed - lock exposure
-                if (cameraManager && cameraManager.autoExposureEnabled) {
-                    cameraManager.autoExposureEnabled = false
-                    console.log("🔒 Auto-exposure LOCKED - system armed (prevents freezing during swing)")
-                }
-            } else if (!systemArmed && previousArmedState) {
-                // Just became disarmed - re-enable auto-exposure for next shot
-                if (cameraManager && !cameraManager.autoExposureEnabled && !autoExposureLockTimer.running) {
-                    cameraManager.autoExposureEnabled = true
-                    console.log("🔓 Auto-exposure UNLOCKED - system disarmed (adjusting for lighting changes)")
+            // CRITICAL: Auto-exposure control based on armed state
+            // Only active AFTER initial calibration period (6 seconds)
+            if (initialCalibrationComplete) {
+                if (systemArmed && !previousArmedState) {
+                    // Just became armed - lock exposure to prevent freezing during swing
+                    if (cameraManager && cameraManager.autoExposureEnabled) {
+                        cameraManager.autoExposureEnabled = false
+                        console.log("🔒 Auto-exposure LOCKED - system armed (prevents freezing during swing)")
+                    }
+                } else if (!systemArmed && previousArmedState) {
+                    // Just became disarmed - re-enable auto-exposure to adapt to lighting changes
+                    if (cameraManager && !cameraManager.autoExposureEnabled) {
+                        cameraManager.autoExposureEnabled = true
+                        console.log("🔓 Auto-exposure UNLOCKED - system disarmed (adjusting for lighting changes)")
+                    }
                 }
             }
 
@@ -69,31 +72,29 @@ Rectangle {
         }
     }
 
-    // One-time auto-exposure adjustment timer (for initial screen load)
+    // One-time auto-exposure adjustment timer (initial screen load only)
+    property bool initialCalibrationComplete: false
     Timer {
         id: autoExposureLockTimer
         interval: 6000  // 6 seconds - enough for one auto-exposure adjustment cycle
         running: false
         repeat: false
         onTriggered: {
-            // Only lock if system is NOT armed (let armed state control exposure)
-            if (cameraManager && cameraManager.autoExposureEnabled && !systemArmed) {
-                cameraManager.autoExposureEnabled = false
-                console.log("✓ Auto-exposure locked at current brightness (ball zone calibration)")
-            }
+            initialCalibrationComplete = true
+            console.log("✓ Initial auto-exposure calibration complete (ball zone)")
+            // After this point, armed state takes full control of auto-exposure
         }
     }
 
     // Ensure camera preview is active when screen loads
     Component.onCompleted: {
-        // Enable auto-exposure for ONE initial adjustment, then lock it
-        // During shots, the armed state will control auto-exposure dynamically
+        // Enable auto-exposure for initial brightness adjustment
         if (cameraManager) {
             if (!cameraManager.autoExposureEnabled) {
                 cameraManager.autoExposureEnabled = true
                 console.log("Auto-exposure enabled for initial brightness adjustment (ball zone calibration)")
             }
-            // ALWAYS start the lock timer, even if auto-exposure was already on
+            // Start 6-second calibration period
             autoExposureLockTimer.start()
         }
 
