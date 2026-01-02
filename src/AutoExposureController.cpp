@@ -3,12 +3,13 @@
 #include <algorithm>
 
 // Preset configurations (optimized for golf ball tracking)
+// SAFETY: Minimum shutter 2000µs to prevent camera crashes
 const AutoExposureController::Preset AutoExposureController::PRESETS[] = {
-    {800,  10.0f, 180.0f},  // AUTO (default starting point)
-    {500,   2.0f, 170.0f},  // OUTDOOR_BRIGHT
-    {700,   4.0f, 180.0f},  // OUTDOOR_NORMAL
-    {1200, 12.0f, 190.0f},  // INDOOR
-    {1500, 16.0f, 200.0f}   // INDOOR_DIM
+    {8000,  12.0f, 180.0f},  // AUTO (default starting point - safe indoor/outdoor)
+    {2000,   2.0f, 170.0f},  // OUTDOOR_BRIGHT
+    {4000,   6.0f, 180.0f},  // OUTDOOR_NORMAL
+    {8000,  12.0f, 190.0f},  // INDOOR
+    {10000, 16.0f, 200.0f}   // INDOOR_DIM
 };
 
 AutoExposureController::AutoExposureController()
@@ -19,12 +20,12 @@ AutoExposureController::AutoExposureController()
     , m_target_min(160.0f)
     , m_target_max(200.0f)
     , m_target_ideal(180.0f)
-    , m_min_shutter(500)
-    , m_max_shutter(1500)
+    , m_min_shutter(2000)    // SAFETY: Minimum 2000µs (prevents camera crashes)
+    , m_max_shutter(15000)   // Maximum 15000µs (allows dimmer conditions)
     , m_min_gain(1.0f)
     , m_max_gain(16.0f)
-    , m_current_shutter(800)
-    , m_current_gain(10.0f)
+    , m_current_shutter(8000)  // Start at safe 8000µs (matches CameraManager default)
+    , m_current_gain(12.0f)    // Start at moderate gain
     , m_current_mode(PresetMode::AUTO)
     , m_auto_enabled(true)
     , m_adjustment_speed(0.3f)
@@ -311,10 +312,23 @@ AutoExposureController::update(const uint8_t* frame, int width, int height, int 
         return result;
     }
 
+    // SAFETY: Reject completely black frames (camera not ready, pipe error, etc.)
+    // Brightness < 5.0 indicates invalid/corrupt frame data
+    if (stats.mean < 5.0f) {
+        result.reason = "frame_too_dark";
+        return result;
+    }
+
     // Add to history and get smoothed value
     addToHistory(stats.mean);
     float smoothed = getSmoothedBrightness();
     result.brightness = smoothed;
+
+    // SAFETY: Reject invalid smoothed brightness
+    if (smoothed < 10.0f) {
+        result.reason = "smoothed_too_dark";
+        return result;
+    }
 
     // Calculate adjustment
     int new_shutter;
@@ -342,8 +356,8 @@ AutoExposureController::update(const uint8_t* frame, int width, int height, int 
 // ============================================================================
 
 void AutoExposureController::reset() {
-    m_current_shutter = 800;
-    m_current_gain = 10.0f;
+    m_current_shutter = 8000;   // Reset to safe default (not 800µs!)
+    m_current_gain = 12.0f;     // Reset to moderate gain
     m_auto_enabled = true;
     m_current_mode = PresetMode::AUTO;
     m_history_count = 0;

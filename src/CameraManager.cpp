@@ -129,6 +129,16 @@ void CameraManager::restartPreviewWithExposure(int shutter, double gain) {
         return;
     }
 
+    // SAFETY: Enforce minimum/maximum limits to prevent camera crashes
+    // Shutter < 2000µs can cause crashes, > 33000µs causes motion blur
+    const int MIN_SAFE_SHUTTER = 2000;
+    const int MAX_SAFE_SHUTTER = 33000;
+    const double MIN_SAFE_GAIN = 1.0;
+    const double MAX_SAFE_GAIN = 16.0;
+
+    shutter = std::max(MIN_SAFE_SHUTTER, std::min(MAX_SAFE_SHUTTER, shutter));
+    gain = std::max(MIN_SAFE_GAIN, std::min(MAX_SAFE_GAIN, gain));
+
     // qDebug() << "Restarting camera with new exposure: Shutter=" << shutter << "µs Gain=" << gain;  // Suppress (logged in AUTO-EXPOSURE line)
 
     // Store new exposure values
