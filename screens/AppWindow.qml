@@ -50,11 +50,8 @@ Item {
             var ballY = result.y
             var inZone = result.inZone || false
 
-            // Only process if ball is in the calibrated zone
-            if (!inZone) {
-                ballPositionOverlay.updateBallPosition(false, lastValidX, lastValidY)
-                return
-            }
+            // REAL-TIME TRACKING: Show ball even if outside zone during tracking
+            // (Ball flight tracking allows tracking outside hitbox after initial lock)
 
             // Get zone corners (trapezoid)
             var corners = cameraCalibration.zoneCorners
@@ -89,6 +86,7 @@ Item {
             var maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y)
 
             // Map pixel position to normalized 0-1
+            // NOTE: If ball is outside zone, coordinates may be < 0 or > 1
             var normalizedX = (ballX - minX) / (maxX - minX)
             var normalizedY = (ballY - minY) / (maxY - minY)
 
@@ -97,9 +95,10 @@ Item {
             // Top-down view: Top (small Y) = Front, Bottom (large Y) = Back
             normalizedY = 1.0 - normalizedY
 
-            // Clamp to 0-1
-            normalizedX = Math.max(0, Math.min(1, normalizedX))
-            normalizedY = Math.max(0, Math.min(1, normalizedY))
+            // Allow tracking outside zone (for ball flight) with extended range
+            // Clamp to -0.2 to 1.2 range (shows ball slightly outside hitbox visualization)
+            normalizedX = Math.max(-0.2, Math.min(1.2, normalizedX))
+            normalizedY = Math.max(-0.2, Math.min(1.2, normalizedY))
 
             // Save last valid position
             if (detected) {
