@@ -1,0 +1,29 @@
+import QmlProject 1.1
+
+Project {
+    mainFile: "screens/AppWindow.qml"
+
+    // Include all QML files
+    QmlFiles {
+        directory: "screens"
+    }
+    QmlFiles {
+        directory: "screens/components"
+    }
+
+    // Include JavaScript files if any
+    JavaScriptFiles {
+        directory: "."
+    }
+
+    // Include image resources
+    ImageFiles {
+        directory: "."
+    }
+
+    // Qt Quick components to use
+    importPaths: [ "." ]
+
+    // Target Qt version
+    qt6Project: true
+}
