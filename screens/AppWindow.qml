@@ -292,6 +292,73 @@ Item {
 
     Rectangle { anchors.fill: parent; color: bg }
 
+    // 3D Rotating 'R' at top-left
+    Rectangle {
+        id: rotatingR
+        width: 60
+        height: 60
+        x: 20
+        y: 20
+        z: 200
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: accent
+            radius: 8
+            border.color: "white"
+            border.width: 3
+
+            // Drop shadow effect
+            layer.enabled: true
+            layer.effect: Item {
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    color: "black"
+                    opacity: 0.3
+                    radius: 8
+                    z: -1
+                }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "R"
+                font.pixelSize: 36
+                font.bold: true
+                color: "white"
+                style: Text.Raised
+                styleColor: "#2563EB"
+            }
+
+            // 3D rotation animation
+            transform: Rotation {
+                id: rotation
+                origin.x: 30
+                origin.y: 30
+                axis { x: 0.5; y: 1; z: 0 }
+                angle: 0
+
+                NumberAnimation on angle {
+                    from: 0
+                    to: 360
+                    duration: 3000
+                    loops: Animation.Infinite
+                    running: true
+                }
+            }
+
+            // Pulsing scale effect
+            scale: 1.0
+            SequentialAnimation on scale {
+                loops: Animation.Infinite
+                NumberAnimation { to: 1.1; duration: 1500; easing.type: Easing.InOutQuad }
+                NumberAnimation { to: 1.0; duration: 1500; easing.type: Easing.InOutQuad }
+            }
+        }
+    }
+
     // ---------- Calculations ----------
     function estimateCarry7i(clubSpeed, spinRpm) {
         const baseCS = 92.0
