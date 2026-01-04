@@ -345,9 +345,9 @@ Rectangle {
                             var scaleY = scaledHeight / cameraHeight
 
                             // ========== ALIGNMENT GUIDES (MLM2 Pro Style) ==========
-                            // ONLY SHOW FOR CAMERA 0 (top camera - ball tracking)
+                            // SHOW FOR BOTH CAMERAS (top and bottom)
 
-                            if (selectedCamera === 0) {
+                            if (selectedCamera === 0 || selectedCamera === 1) {
                                 // Vertical centerline - for horizontal ball alignment
                                 var centerX = offsetX + scaledWidth / 2
                                 ctx.strokeStyle = "#ffffff"
