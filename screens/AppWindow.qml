@@ -400,21 +400,21 @@ Item {
                             var reflectZ = 2 * mainDiffuse * rotNormalZ - mainLightDirZ
 
                             var specDot = Math.max(0, reflectX * viewDirX + reflectY * viewDirY + reflectZ * viewDirZ)
-                            var specular = Math.pow(specDot, 48) * 0.9  // Tighter, brighter highlight (was 32, 0.6)
+                            var specular = Math.pow(specDot, 40) * 1.1  // Strong glossy highlight like real golf balls
 
                             // Rim lighting (edge glow) for 3D pop
                             var viewDot = Math.abs(rotNormalX * viewDirX + normalY * viewDirY + rotNormalZ * viewDirZ)
                             var rimLight = Math.pow(1.0 - viewDot, 3.0) * 0.3  // Subtle glow at edges
 
-                            // Combine all lighting
-                            var ambient = 0.35  // Base ambient light
-                            var diffuse = mainDiffuse * 0.5 + fillDiffuse * 0.25  // Main + fill
+                            // Combine all lighting - brighter for white golf ball
+                            var ambient = 0.55  // Higher ambient for bright white appearance
+                            var diffuse = mainDiffuse * 0.35 + fillDiffuse * 0.2  // Main + fill
                             var brightness = ambient + diffuse + specular + rimLight
-                            brightness = Math.max(0.3, Math.min(1.0, brightness))
+                            brightness = Math.max(0.5, Math.min(1.0, brightness))
 
-                            // Realistic dimple pattern - smaller, more numerous
-                            var dimpleSize = 1.8  // Smaller dimples (was 3)
-                            var dimpleSpacing = 4.5  // Closer together (was 6)
+                            // Realistic dimple pattern - visible but shallow like Pinnacle balls
+                            var dimpleSize = 2.2  // Slightly larger for visibility
+                            var dimpleSpacing = 4.8  // Good coverage
                             var isDimple = false
 
                             // Check if this pixel is in a dimple
@@ -436,12 +436,17 @@ Item {
 
                             if (dimpleDist < dimpleSize/2) {
                                 isDimple = true
-                                // Gradual dimple depth - darker in center, lighter at edges
+                                // Shallow dimple depth like Pinnacle balls
                                 var dimpleDepth = 1.0 - (dimpleDist / (dimpleSize/2))
-                                dimpleDepth = Math.pow(dimpleDepth, 1.5)  // Curved depth profile
+                                dimpleDepth = Math.pow(dimpleDepth, 2.0)  // Sharper edge, shallower center
 
-                                // Apply shadow based on depth
-                                brightness *= (1.0 - dimpleDepth * 0.35)  // Max 35% darker at center
+                                // Subtle shadow - dimples visible but not too dark
+                                brightness *= (1.0 - dimpleDepth * 0.20)  // Max 20% darker (was 35%)
+
+                                // Add slight highlight on dimple edges for definition
+                                if (dimpleDepth < 0.4 && dimpleDepth > 0.1) {
+                                    brightness *= 1.05  // Slight edge highlight
+                                }
                             }
 
                             // Color calculation with edge smoothing
