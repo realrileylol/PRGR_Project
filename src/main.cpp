@@ -15,6 +15,8 @@
 #include "BallDetector.h"
 #include "TrajectoryTracker.h"
 #include "BallTracker.h"
+#include "ProfileManager.h"
+#include "HistoryManager.h"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -39,6 +41,8 @@ int main(int argc, char *argv[]) {
     CameraManager cameraManager(&frameProvider, &settingsManager);
     CaptureManager captureManager(&kld2Manager, &settingsManager);
     BallTracker ballTracker(&cameraManager, &cameraCalibration);
+    ProfileManager profileManager;
+    HistoryManager historyManager;
 
     // Connect calibration manager to frame provider and settings
     calibrationManager.setFrameProvider(&frameProvider);
@@ -76,6 +80,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("ballTracker", &ballTracker);
     engine.rootContext()->setContextProperty("cameraManager", &cameraManager);
     engine.rootContext()->setContextProperty("captureManager", &captureManager);
+    engine.rootContext()->setContextProperty("profileManager", &profileManager);
+    engine.rootContext()->setContextProperty("historyManager", &historyManager);
 
     // Load main QML file
     const QUrl url(QStringLiteral("qrc:/main.qml"));
@@ -103,6 +109,8 @@ int main(int argc, char *argv[]) {
     qDebug() << "✓ TrajectoryTracker initialized (Kalman filter + launch angle)";
     qDebug() << "✓ BallTracker initialized (high-speed tracking with adaptive search)";
     qDebug() << "✓ CameraCalibration initialized (intrinsic + extrinsic)";
+    qDebug() << "✓ ProfileManager initialized (JSON persistence)";
+    qDebug() << "✓ HistoryManager initialized (shot history tracking)";
 
     return app.exec();
 }

@@ -34,6 +34,8 @@ set(SOURCES
     src/TrajectoryTracker.cpp
     src/BallTracker.cpp
     src/AutoExposureController.cpp
+    src/ProfileManager.cpp
+    src/HistoryManager.cpp
 )
 
 # Header files
@@ -50,6 +52,8 @@ set(HEADERS
     include/TrajectoryTracker.h
     include/BallTracker.h
     include/AutoExposureController.h
+    include/ProfileManager.h
+    include/HistoryManager.h
 )
 
 # QML resources
