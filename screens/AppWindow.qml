@@ -308,6 +308,10 @@ Item {
             id: golfBallCanvas
             anchors.fill: parent
 
+            property real currentRotation: rotatingGolfBall.rotationAngle
+
+            onCurrentRotationChanged: requestPaint()
+
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
@@ -318,7 +322,7 @@ Item {
                 var pixelSize = 2.5  // Smaller pixels for more detail
 
                 // Calculate rotation offset for spinning effect
-                var rotOffset = (rotationAngle / 360) * 12
+                var rotOffset = (currentRotation / 360) * 12
 
                 // Draw pixelated ball
                 for (var py = -radius; py <= radius; py += pixelSize) {
@@ -332,8 +336,8 @@ Item {
                             var sphereY = py
 
                             // Rotate coordinates for spinning effect
-                            var rotX = sphereX * Math.cos(rotationAngle * Math.PI / 180) - z * Math.sin(rotationAngle * Math.PI / 180)
-                            var rotZ = sphereX * Math.sin(rotationAngle * Math.PI / 180) + z * Math.cos(rotationAngle * Math.PI / 180)
+                            var rotX = sphereX * Math.cos(currentRotation * Math.PI / 180) - z * Math.sin(currentRotation * Math.PI / 180)
+                            var rotZ = sphereX * Math.sin(currentRotation * Math.PI / 180) + z * Math.cos(currentRotation * Math.PI / 180)
 
                             // Lighting based on Z position (3D shading)
                             var brightness = (rotZ + radius) / (radius * 2)
