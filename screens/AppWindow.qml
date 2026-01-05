@@ -544,8 +544,8 @@ Item {
         Item {
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 20
-                spacing: 16
+                anchors.margins: 14
+                spacing: 12
 
                 // Top Bar
                 RowLayout {
@@ -556,17 +556,17 @@ Item {
                         id: profileLabel
                         text: "👤 " + (win && win.activeProfile ? win.activeProfile : "No Profile")
                         color: text
-                        font.pixelSize: 20
+                        font.pixelSize: 18
                         font.bold: true
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                         Layout.leftMargin: 60  // Space for golf ball logo
                     }
-                    
+
                     Label {
                         text: "Swipe for metrics"
                         color: hint
-                        font.pixelSize: 14
+                        font.pixelSize: 13
                         font.italic: true
                     }
                 }
@@ -579,7 +579,7 @@ Item {
                     Button {
                         text: "Profile"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 64
+                        Layout.preferredHeight: 58
 
                         scale: pressed ? 0.95 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
@@ -608,7 +608,7 @@ Item {
                     Button {
                         text: "Settings"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 64
+                        Layout.preferredHeight: 58
 
                         scale: pressed ? 0.95 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
@@ -637,7 +637,7 @@ Item {
                     Button {
                         text: "Camera"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 64
+                        Layout.preferredHeight: 58
 
                         scale: pressed ? 0.95 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
@@ -666,7 +666,7 @@ Item {
                     Button {
                         text: "History"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 64
+                        Layout.preferredHeight: 58
 
                         scale: pressed ? 0.95 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
@@ -701,7 +701,7 @@ Item {
                     Button {
                         text: "🧪 Calibration"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 64
+                        Layout.preferredHeight: 58
 
                         scale: pressed ? 0.95 : 1.0
                         Behavior on scale { NumberAnimation { duration: 100 } }
@@ -731,7 +731,7 @@ Item {
                 // Start Capture Button with Status Indicator
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 70
+                    height: 64
                     radius: 12
                     color: card
                     border.color: edge
@@ -850,11 +850,12 @@ Item {
                     border.color: edge
                     border.width: 2
                     Layout.fillHeight: true
+                    Layout.minimumHeight: 90
                     
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 16
-                        spacing: 12
+                        anchors.margins: 12
+                        spacing: 10
                         
                         Label {
                             text: "CLUB SELECTION"
@@ -961,7 +962,7 @@ Item {
                 // Status
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 44
+                    height: 40
                     radius: 10
                     color: "#E9F5E9"
                     border.color: "#C6E6C3"
