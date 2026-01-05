@@ -228,6 +228,13 @@ void CameraManager::startPreview() {
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
+
+    // ROI crop for Camera 1 (bottom camera) - zoom in closer to ball
+    // Center 60% of image = 1.66x zoom, no quality loss
+    if (m_activeCameraIndex == 1) {
+        args << "--roi" << "0.2,0.2,0.6,0.6";  // x, y, width, height (0-1 normalized)
+    }
+
     args << "--codec" << "yuv420";  // Raw YUV420 output
     args << "--output" << m_pipePath;  // Output to named pipe
     args << "--nopreview";  // No X11 preview window
