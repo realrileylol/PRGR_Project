@@ -345,10 +345,16 @@ Item {
                             var rotX = sphereX * Math.cos(currentRotation * Math.PI / 180) - z * Math.sin(currentRotation * Math.PI / 180)
                             var rotZ = sphereX * Math.sin(currentRotation * Math.PI / 180) + z * Math.cos(currentRotation * Math.PI / 180)
 
-                            // Enhanced 3D lighting - light source from top-right
-                            var lightX = radius * 0.5
-                            var lightY = -radius * 0.5
-                            var lightZ = radius * 1.5
+                            // Enhanced 3D lighting - multiple light sources for depth
+                            // Main light from top-right-front
+                            var mainLightX = radius * 0.8
+                            var mainLightY = -radius * 0.6
+                            var mainLightZ = radius * 2.0
+
+                            // Fill light from left (softer, prevents harsh shadows)
+                            var fillLightX = -radius * 0.5
+                            var fillLightY = 0
+                            var fillLightZ = radius * 1.0
 
                             // Calculate surface normal (normalized sphere normal)
                             var normalX = sphereX / radius
@@ -357,28 +363,54 @@ Item {
 
                             // Rotate normal with sphere
                             var rotNormalX = normalX * Math.cos(currentRotation * Math.PI / 180) - normalZ * Math.sin(currentRotation * Math.PI / 180)
-                            var rotNormalZ = normalX * Math.cos(currentRotation * Math.PI / 180) + normalZ * Math.cos(currentRotation * Math.PI / 180)
+                            var rotNormalZ = normalX * Math.sin(currentRotation * Math.PI / 180) + normalZ * Math.cos(currentRotation * Math.PI / 180)
 
-                            // Light direction (from light to surface point)
-                            var lightDirX = lightX - rotX
-                            var lightDirY = lightY - sphereY
-                            var lightDirZ = lightZ - rotZ
-                            var lightDist = Math.sqrt(lightDirX*lightDirX + lightDirY*lightDirY + lightDirZ*lightDirZ)
-                            lightDirX /= lightDist
-                            lightDirY /= lightDist
-                            lightDirZ /= lightDist
+                            // Main light direction
+                            var mainLightDirX = mainLightX - rotX
+                            var mainLightDirY = mainLightY - sphereY
+                            var mainLightDirZ = mainLightZ - rotZ
+                            var mainLightDist = Math.sqrt(mainLightDirX*mainLightDirX + mainLightDirY*mainLightDirY + mainLightDirZ*mainLightDirZ)
+                            mainLightDirX /= mainLightDist
+                            mainLightDirY /= mainLightDist
+                            mainLightDirZ /= mainLightDist
 
-                            // Diffuse lighting (Lambertian)
-                            var diffuse = Math.max(0, rotNormalX * lightDirX + normalY * lightDirY + rotNormalZ * lightDirZ)
+                            // Fill light direction
+                            var fillLightDirX = fillLightX - rotX
+                            var fillLightDirY = fillLightY - sphereY
+                            var fillLightDirZ = fillLightZ - rotZ
+                            var fillLightDist = Math.sqrt(fillLightDirX*fillLightDirX + fillLightDirY*fillLightDirY + fillLightDirZ*fillLightDirZ)
+                            fillLightDirX /= fillLightDist
+                            fillLightDirY /= fillLightDist
+                            fillLightDirZ /= fillLightDist
 
-                            // Specular highlight (Phong)
-                            var viewZ = 1.0  // Camera looking straight at ball
-                            var reflectZ = 2 * diffuse * rotNormalZ - lightDirZ
-                            var specular = Math.pow(Math.max(0, reflectZ * viewZ), 32) * 0.6
+                            // Main diffuse lighting (Lambertian)
+                            var mainDiffuse = Math.max(0, rotNormalX * mainLightDirX + normalY * mainLightDirY + rotNormalZ * mainLightDirZ)
 
-                            // Ambient + Diffuse + Specular - brighter for white golf ball
-                            var brightness = 0.5 + (diffuse * 0.4) + specular
-                            brightness = Math.max(0.4, Math.min(1.0, brightness))
+                            // Fill diffuse lighting
+                            var fillDiffuse = Math.max(0, rotNormalX * fillLightDirX + normalY * fillLightDirY + rotNormalZ * fillLightDirZ)
+
+                            // Specular highlight (Phong) - brighter, tighter for glossy golf ball
+                            var viewDirX = 0
+                            var viewDirY = 0
+                            var viewDirZ = 1.0  // Camera looking straight at ball
+
+                            // Reflect vector for main light
+                            var reflectX = 2 * mainDiffuse * rotNormalX - mainLightDirX
+                            var reflectY = 2 * mainDiffuse * normalY - mainLightDirY
+                            var reflectZ = 2 * mainDiffuse * rotNormalZ - mainLightDirZ
+
+                            var specDot = Math.max(0, reflectX * viewDirX + reflectY * viewDirY + reflectZ * viewDirZ)
+                            var specular = Math.pow(specDot, 48) * 0.9  // Tighter, brighter highlight (was 32, 0.6)
+
+                            // Rim lighting (edge glow) for 3D pop
+                            var viewDot = Math.abs(rotNormalX * viewDirX + normalY * viewDirY + rotNormalZ * viewDirZ)
+                            var rimLight = Math.pow(1.0 - viewDot, 3.0) * 0.3  // Subtle glow at edges
+
+                            // Combine all lighting
+                            var ambient = 0.35  // Base ambient light
+                            var diffuse = mainDiffuse * 0.5 + fillDiffuse * 0.25  // Main + fill
+                            var brightness = ambient + diffuse + specular + rimLight
+                            brightness = Math.max(0.3, Math.min(1.0, brightness))
 
                             // Realistic dimple pattern - smaller, more numerous
                             var dimpleSize = 1.8  // Smaller dimples (was 3)
@@ -441,7 +473,7 @@ Item {
             property: "rotationAngle"
             from: 0
             to: 360
-            duration: 2200  // Slightly quicker rotation (was 3000ms)
+            duration: 4000  // Slower, more elegant rotation
             loops: Animation.Infinite
             running: true
             onRunningChanged: {
