@@ -297,7 +297,7 @@ Item {
         id: rotatingGolfBall
         width: 50
         height: 50
-        x: 130  // Moved right to avoid overlapping "No Profile"
+        x: 10
         y: 10
         z: 200
 
@@ -319,7 +319,7 @@ Item {
                 var centerX = width / 2
                 var centerY = height / 2
                 var radius = 23
-                var pixelSize = 2.5  // Smaller pixels for more detail
+                var pixelSize = 2.0  // Smoother pixels (was 2.5)
 
                 // Calculate rotation offset for spinning effect
                 var rotOffset = (currentRotation / 360) * 12
@@ -330,6 +330,12 @@ Item {
                         var dist = Math.sqrt(px * px + py * py)
 
                         if (dist <= radius) {
+                            // Smooth edge anti-aliasing
+                            var edgeFade = 1.0
+                            if (dist > radius - pixelSize * 1.5) {
+                                edgeFade = (radius - dist) / (pixelSize * 1.5)
+                                edgeFade = Math.max(0, Math.min(1, edgeFade))
+                            }
                             // Calculate 3D position on sphere
                             var z = Math.sqrt(Math.max(0, radius * radius - px * px - py * py))
                             var sphereX = px
@@ -402,11 +408,17 @@ Item {
                                 brightness *= 0.5
                             }
 
-                            // Color calculation
+                            // Color calculation with edge smoothing
                             var baseColor = 255
                             var colorValue = Math.floor(baseColor * brightness)
 
-                            ctx.fillStyle = "rgb(" + colorValue + "," + colorValue + "," + colorValue + ")"
+                            // Apply edge anti-aliasing
+                            if (edgeFade < 1.0) {
+                                ctx.fillStyle = "rgba(" + colorValue + "," + colorValue + "," + colorValue + "," + edgeFade + ")"
+                            } else {
+                                ctx.fillStyle = "rgb(" + colorValue + "," + colorValue + "," + colorValue + ")"
+                            }
+
                             ctx.fillRect(
                                 centerX + px,
                                 centerY + py,
@@ -498,7 +510,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
-                    
+
                     Label {
                         id: profileLabel
                         text: "👤 " + (win && win.activeProfile ? win.activeProfile : "No Profile")
@@ -507,6 +519,7 @@ Item {
                         font.bold: true
                         elide: Text.ElideRight
                         Layout.fillWidth: true
+                        Layout.leftMargin: 60  // Space for golf ball logo
                     }
                     
                     Label {
