@@ -376,9 +376,52 @@ Item {
                             var reflectZ = 2 * diffuse * rotNormalZ - lightDirZ
                             var specular = Math.pow(Math.max(0, reflectZ * viewZ), 32) * 0.6
 
-                            // Ambient + Diffuse + Specular
-                            var brightness = 0.3 + (diffuse * 0.6) + specular
-                            brightness = Math.max(0.2, Math.min(1.0, brightness))
+                            // Ambient + Diffuse + Specular - brighter for white golf ball
+                            var brightness = 0.5 + (diffuse * 0.4) + specular
+                            brightness = Math.max(0.4, Math.min(1.0, brightness))
+
+                            // "Maxfli Tour-X" branding - check if pixel is in text area
+                            var isText = false
+                            var textY = -8  // Position text near top of ball
+                            var textHeight = 8
+
+                            // Simple pixelated text check (rotates with ball)
+                            if (Math.abs(sphereY - textY) < textHeight) {
+                                // Text pattern for "MAXFLI TOUR-X" (simplified, pixelated)
+                                var textX = rotX + rotOffset * 2  // Scroll with rotation
+                                var relX = ((textX + 20) % 40) - 20  // Wrap around
+                                var relY = sphereY - textY
+
+                                // Very simplified letter positions (just marks for effect)
+                                if (Math.abs(relY) < 2) {
+                                    if ((Math.abs(relX + 15) < 1.5) ||  // M
+                                        (Math.abs(relX + 10) < 1.5) ||  // A
+                                        (Math.abs(relX + 5) < 1.5) ||   // X
+                                        (Math.abs(relX) < 1.5) ||       // F
+                                        (Math.abs(relX - 5) < 1.5) ||   // L
+                                        (Math.abs(relX - 10) < 1.5)) {  // I
+                                        isText = true
+                                    }
+                                }
+                            }
+
+                            // Second line "TOUR-X"
+                            var textY2 = 0
+                            if (Math.abs(sphereY - textY2) < 6) {
+                                var textX2 = rotX + rotOffset * 2
+                                var relX2 = ((textX2 + 15) % 30) - 15
+                                var relY2 = sphereY - textY2
+
+                                if (Math.abs(relY2) < 1.5) {
+                                    if ((Math.abs(relX2 + 8) < 1) ||   // T
+                                        (Math.abs(relX2 + 4) < 1) ||   // O
+                                        (Math.abs(relX2) < 1) ||       // U
+                                        (Math.abs(relX2 - 4) < 1) ||   // R
+                                        (Math.abs(relX2 - 8) < 1)) {   // X
+                                        isText = true
+                                    }
+                                }
+                            }
 
                             // Dimple pattern - hexagonal layout
                             var dimpleSize = 3
@@ -406,6 +449,11 @@ Item {
                                 isDimple = true
                                 // Dimples are darker (shadowed inside)
                                 brightness *= 0.5
+                            }
+
+                            // Apply branding text (darker for realistic golf ball print)
+                            if (isText) {
+                                brightness *= 0.25  // Dark text like real golf ball
                             }
 
                             // Color calculation with edge smoothing
