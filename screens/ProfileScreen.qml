@@ -884,7 +884,7 @@ Item {
 
             // Name Input
             TextField {
-                id: nameInput
+                id: editNameInput
                 Layout.fillWidth: true
                 implicitHeight: 50
                 text: editDialog.newProfileName
@@ -895,7 +895,7 @@ Item {
                 background: Rectangle {
                     color: bg
                     radius: 10
-                    border.color: nameInput.activeFocus ? accent : edge
+                    border.color: editNameInput.activeFocus ? accent : edge
                     border.width: 2
                     Behavior on border.color { ColorAnimation { duration: 200 } }
                 }
