@@ -372,7 +372,7 @@ Item {
                                                 radius: 6
                                                 Behavior on color { ColorAnimation { duration: 200 } }
                                             }
-                                            
+
                                             contentItem: Text {
                                                 text: parent.text
                                                 color: "white"
@@ -381,7 +381,7 @@ Item {
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
                                             }
-                                            
+
                                             onClicked: {
                                                 soundManager.playClick()
                                                 profileScreen.activeProfile = modelData
@@ -389,7 +389,40 @@ Item {
                                                 stack.push(Qt.resolvedUrl("MyBag.qml"), { win: win })
                                             }
                                         }
-                                        
+
+                                        Button {
+                                            text: "✎"
+                                            implicitWidth: 40
+                                            implicitHeight: 40
+                                            visible: true
+                                            scale: pressed ? 0.95 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                                            background: Rectangle {
+                                                color: parent.pressed ? "#E5E7EB" : "transparent"
+                                                radius: 6
+                                                border.color: "#5F6B7A"
+                                                border.width: 2
+                                                Behavior on color { ColorAnimation { duration: 200 } }
+                                            }
+
+                                            contentItem: Text {
+                                                text: parent.text
+                                                color: "#5F6B7A"
+                                                font.pixelSize: 18
+                                                font.bold: true
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+
+                                            onClicked: {
+                                                soundManager.playClick()
+                                                editDialog.oldProfileName = modelData
+                                                editDialog.newProfileName = modelData
+                                                editDialog.open()
+                                            }
+                                        }
+
                                         Button {
                                             text: "✕"
                                             implicitWidth: 40
@@ -801,5 +834,236 @@ Item {
                 }
             }
         }
+    }
+
+    // Edit Profile Dialog
+    Dialog {
+        id: editDialog
+        anchors.centerIn: parent
+        width: 450
+        height: 250
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        z: 1000
+
+        property string oldProfileName: ""
+        property string newProfileName: ""
+
+        Overlay.modal: Rectangle {
+            color: "#80000000"
+        }
+
+        background: Rectangle {
+            color: card
+            radius: 16
+            border.color: accent
+            border.width: 3
+
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0
+                verticalOffset: 4
+                radius: 12
+                samples: 25
+                color: "#40000000"
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 24
+            spacing: 16
+
+            // Edit Icon
+            Rectangle {
+                width: 56
+                height: 56
+                radius: 28
+                color: "#E8F0FE"
+                border.color: accent
+                border.width: 2
+                Layout.alignment: Qt.AlignHCenter
+
+                Label {
+                    text: "✎"
+                    font.pixelSize: 28
+                    color: accent
+                    anchors.centerIn: parent
+                }
+            }
+
+            // Title
+            Label {
+                text: "Edit Profile Name"
+                color: text
+                font.pixelSize: 22
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            // Name Input
+            TextField {
+                id: nameInput
+                Layout.fillWidth: true
+                implicitHeight: 50
+                text: editDialog.newProfileName
+                placeholderText: "Enter profile name"
+                font.pixelSize: 16
+                selectByMouse: true
+
+                background: Rectangle {
+                    color: bg
+                    radius: 10
+                    border.color: nameInput.activeFocus ? accent : edge
+                    border.width: 2
+                    Behavior on border.color { ColorAnimation { duration: 200 } }
+                }
+
+                onTextChanged: {
+                    editDialog.newProfileName = text
+                }
+
+                onAccepted: {
+                    if (editDialog.newProfileName && editDialog.newProfileName !== editDialog.oldProfileName) {
+                        renameProfile()
+                    }
+                }
+
+                Component.onCompleted: {
+                    forceActiveFocus()
+                    selectAll()
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            // Buttons
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Button {
+                    text: "Cancel"
+                    Layout.fillWidth: true
+                    implicitHeight: 50
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
+                        radius: 10
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: profileScreen.text
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        editDialog.close()
+                    }
+                }
+
+                Button {
+                    text: "Save"
+                    Layout.fillWidth: true
+                    implicitHeight: 50
+                    enabled: editDialog.newProfileName.trim() !== "" && editDialog.newProfileName !== editDialog.oldProfileName
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.enabled ? (parent.pressed ? "#2563EB" : accent) : "#C8CCD4"
+                        radius: 10
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.enabled ? "white" : "#5F6B7A"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        renameProfile()
+                    }
+                }
+            }
+        }
+    }
+
+    function renameProfile() {
+        var oldName = editDialog.oldProfileName
+        var newName = editDialog.newProfileName.trim()
+
+        if (!newName) {
+            showSuccess("Profile name cannot be empty")
+            return
+        }
+
+        if (newName === oldName) {
+            editDialog.close()
+            return
+        }
+
+        // Check if new name already exists
+        if (profiles.indexOf(newName) !== -1) {
+            showSuccess("Profile name already exists")
+            return
+        }
+
+        // Get the profile's bag data
+        var bagsJson = profileManager.getProfilesJson("bags")
+        var bags = JSON.parse(bagsJson)
+
+        var activePresetsJson = profileManager.getProfilesJson("active_presets")
+        var activePresets = JSON.parse(activePresetsJson)
+
+        // Rename in bags
+        if (bags[oldName]) {
+            bags[newName] = bags[oldName]
+            delete bags[oldName]
+        }
+
+        // Rename in active presets
+        if (activePresets[oldName]) {
+            activePresets[newName] = activePresets[oldName]
+            delete activePresets[oldName]
+        }
+
+        // Update profile list
+        var newProfiles = []
+        for (var i = 0; i < profiles.length; i++) {
+            if (profiles[i] === oldName) {
+                newProfiles.push(newName)
+            } else {
+                newProfiles.push(profiles[i])
+            }
+        }
+
+        // Save everything
+        profileManager.saveProfilesJson("profiles", JSON.stringify(newProfiles))
+        profileManager.saveProfilesJson("bags", JSON.stringify(bags))
+        profileManager.saveProfilesJson("active_presets", JSON.stringify(activePresets))
+
+        // Update active profile if it was the renamed one
+        if (profileScreen.activeProfile === oldName) {
+            profileScreen.activeProfile = newName
+            profileManager.setActiveProfile(newName)
+        }
+
+        loadProfiles()
+        showSuccess("Profile renamed to " + newName)
+        editDialog.close()
     }
 }
