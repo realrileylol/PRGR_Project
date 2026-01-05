@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import Qt.labs.settings 1.0
 
 Item {
     id: myBag
@@ -26,34 +25,38 @@ Item {
     readonly property color success: "#34C759"
     readonly property color danger: "#DA3633"
 
-    Settings {
-        id: clubStorage
-        category: "clubs"
-        property string presetsJson: ""
-        property string activePreset: "Default Set"
-    }
-
     Component.onCompleted: {
         loadPresets()
     }
 
     function loadPresets() {
-        if (clubStorage.presetsJson) {
-            try {
-                presets = JSON.parse(clubStorage.presetsJson)
-            } catch(e) {
-                presets = win ? win.clubPresets : { "Default Set": getDefaultClubs() }
-            }
-        } else {
-            presets = win ? win.clubPresets : { "Default Set": getDefaultClubs() }
+        // Load from ProfileManager
+        if (!win || !win.activeProfile) {
+            presets = { "Default Set": getDefaultClubs() }
+            currentPreset = "Default Set"
+            currentClubs = presets[currentPreset]
+            return
         }
-        
-        currentPreset = clubStorage.activePreset || "Default Set"
+
+        try {
+            var bagsJson = profileManager.getProfilesJson("bags")
+            var allBags = JSON.parse(bagsJson)
+            presets = allBags[win.activeProfile] || { "Default Set": getDefaultClubs() }
+
+            var activePresetsJson = profileManager.getProfilesJson("active_presets")
+            var activePresets = JSON.parse(activePresetsJson)
+            currentPreset = activePresets[win.activeProfile] || "Default Set"
+        } catch(e) {
+            console.log("Error loading presets:", e)
+            presets = { "Default Set": getDefaultClubs() }
+            currentPreset = "Default Set"
+        }
+
         if (!presets[currentPreset]) {
             currentPreset = Object.keys(presets)[0] || "Default Set"
         }
         currentClubs = presets[currentPreset] || {}
-        
+
         // Update dropdown
         presetSelector.currentIndex = Object.keys(presets).indexOf(currentPreset)
     }
@@ -78,10 +81,25 @@ Item {
     }
 
     function savePresets() {
+        if (!win || !win.activeProfile) return
+
         presets[currentPreset] = currentClubs
-        clubStorage.presetsJson = JSON.stringify(presets)
-        clubStorage.activePreset = currentPreset
-        
+
+        // Save to ProfileManager
+        try {
+            var bagsJson = profileManager.getProfilesJson("bags")
+            var allBags = JSON.parse(bagsJson)
+            allBags[win.activeProfile] = presets
+            profileManager.saveProfilesJson("bags", JSON.stringify(allBags))
+
+            var activePresetsJson = profileManager.getProfilesJson("active_presets")
+            var activePresets = JSON.parse(activePresetsJson)
+            activePresets[win.activeProfile] = currentPreset
+            profileManager.saveProfilesJson("active_presets", JSON.stringify(activePresets))
+        } catch(e) {
+            console.log("Error saving presets:", e)
+        }
+
         if (win) {
             win.clubPresets = presets
             win.activePreset = currentPreset
