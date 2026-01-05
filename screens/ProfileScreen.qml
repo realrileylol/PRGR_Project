@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtGraphicalEffects 1.15
 
 Item {
     id: profileScreen
@@ -674,15 +673,6 @@ Item {
             radius: 16
             border.color: danger
             border.width: 3
-
-            layer.enabled: true
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 4
-                radius: 12
-                samples: 25
-                color: "#40000000"
-            }
         }
 
         ColumnLayout {
@@ -858,15 +848,6 @@ Item {
             radius: 16
             border.color: accent
             border.width: 3
-
-            layer.enabled: true
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 4
-                radius: 12
-                samples: 25
-                color: "#40000000"
-            }
         }
 
         ColumnLayout {
