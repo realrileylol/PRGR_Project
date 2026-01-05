@@ -292,115 +292,140 @@ Item {
 
     Rectangle { anchors.fill: parent; color: bg }
 
-    // 3D Rotating Retro Pixel 'R' in Diamond - Top-left corner
+    // 3D Rotating Pixelated Golf Ball - Top-left corner
     Item {
-        id: rotatingR
+        id: rotatingGolfBall
         width: 50
         height: 50
         x: 10
         y: 10
         z: 200
 
-        // Diamond background
+        property real rotationAngle: 0
+
+        // Pixelated golf ball with dimples
         Canvas {
-            id: diamondCanvas
+            id: golfBallCanvas
             anchors.fill: parent
 
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
 
-                // Draw diamond (rotated square)
-                ctx.save()
-                ctx.translate(width / 2, height / 2)
+                var centerX = width / 2
+                var centerY = height / 2
+                var radius = 23
+                var pixelSize = 2.5  // Smaller pixels for more detail
 
-                // Gradient fill for retro look
-                var gradient = ctx.createLinearGradient(-25, -25, 25, 25)
-                gradient.addColorStop(0, "#FF6EC7")    // Pink
-                gradient.addColorStop(0.5, "#BF40BF")  // Purple
-                gradient.addColorStop(1, "#8B008B")    // Dark purple
+                // Calculate rotation offset for spinning effect
+                var rotOffset = (rotationAngle / 360) * 12
 
-                ctx.fillStyle = gradient
-                ctx.strokeStyle = "#FF00FF"
-                ctx.lineWidth = 3
+                // Draw pixelated ball
+                for (var py = -radius; py <= radius; py += pixelSize) {
+                    for (var px = -radius; px <= radius; px += pixelSize) {
+                        var dist = Math.sqrt(px * px + py * py)
 
-                // Diamond shape
-                ctx.beginPath()
-                ctx.moveTo(0, -23)    // Top
-                ctx.lineTo(23, 0)     // Right
-                ctx.lineTo(0, 23)     // Bottom
-                ctx.lineTo(-23, 0)    // Left
-                ctx.closePath()
-                ctx.fill()
-                ctx.stroke()
+                        if (dist <= radius) {
+                            // Calculate 3D position on sphere
+                            var z = Math.sqrt(Math.max(0, radius * radius - px * px - py * py))
+                            var sphereX = px
+                            var sphereY = py
 
-                ctx.restore()
-            }
-        }
+                            // Rotate coordinates for spinning effect
+                            var rotX = sphereX * Math.cos(rotationAngle * Math.PI / 180) - z * Math.sin(rotationAngle * Math.PI / 180)
+                            var rotZ = sphereX * Math.sin(rotationAngle * Math.PI / 180) + z * Math.cos(rotationAngle * Math.PI / 180)
 
-        // Pixel-style 'R' using Canvas for 8-bit look
-        Canvas {
-            id: pixelR
-            anchors.centerIn: parent
-            width: 32
-            height: 32
+                            // Lighting based on Z position (3D shading)
+                            var brightness = (rotZ + radius) / (radius * 2)
+                            brightness = Math.max(0.3, Math.min(1.0, brightness))
 
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
+                            // Dimple pattern - hexagonal layout
+                            var dimpleSize = 3
+                            var dimpleSpacing = 6
+                            var isDimple = false
 
-                // Pixel size for 8-bit look
-                var pxSize = 4
+                            // Check if this pixel is in a dimple
+                            var gridX = Math.floor((px + rotOffset) / dimpleSpacing)
+                            var gridY = Math.floor(py / dimpleSpacing)
+                            var offsetX = ((px + rotOffset) % dimpleSpacing + dimpleSpacing) % dimpleSpacing
+                            var offsetY = (py % dimpleSpacing + dimpleSpacing) % dimpleSpacing
 
-                // Draw pixel 'R' - 8x8 grid
-                // R pattern (8-bit style)
-                var pixels = [
-                    [1,1,1,1,0,0,0,0],
-                    [1,0,0,0,1,0,0,0],
-                    [1,0,0,0,1,0,0,0],
-                    [1,1,1,1,0,0,0,0],
-                    [1,0,1,0,0,0,0,0],
-                    [1,0,0,1,0,0,0,0],
-                    [1,0,0,0,1,0,0,0],
-                    [1,0,0,0,0,1,0,0]
-                ]
+                            // Hexagonal offset for even rows
+                            if (gridY % 2 === 0) {
+                                offsetX = ((px + rotOffset + dimpleSpacing/2) % dimpleSpacing + dimpleSpacing) % dimpleSpacing
+                            }
 
-                ctx.fillStyle = "#FFFFFF"
-                for (var y = 0; y < 8; y++) {
-                    for (var x = 0; x < 8; x++) {
-                        if (pixels[y][x] === 1) {
-                            ctx.fillRect(x * pxSize, y * pxSize, pxSize, pxSize)
+                            // Check if in dimple center
+                            var dimpleDist = Math.sqrt(
+                                Math.pow(offsetX - dimpleSpacing/2, 2) +
+                                Math.pow(offsetY - dimpleSpacing/2, 2)
+                            )
+
+                            if (dimpleDist < dimpleSize/2) {
+                                isDimple = true
+                                brightness *= 0.7  // Darker for dimples
+                            }
+
+                            // Color calculation
+                            var baseColor = 255
+                            var colorValue = Math.floor(baseColor * brightness)
+
+                            ctx.fillStyle = "rgb(" + colorValue + "," + colorValue + "," + colorValue + ")"
+                            ctx.fillRect(
+                                centerX + px,
+                                centerY + py,
+                                pixelSize,
+                                pixelSize
+                            )
                         }
                     }
+                }
+
+                // Outer pixel border for retro look
+                ctx.strokeStyle = "#888888"
+                ctx.lineWidth = 2
+
+                // Pixelated circle outline
+                var steps = 24
+                for (var i = 0; i < steps; i++) {
+                    var angle1 = (i / steps) * Math.PI * 2
+                    var angle2 = ((i + 1) / steps) * Math.PI * 2
+                    var x1 = centerX + Math.cos(angle1) * radius
+                    var y1 = centerY + Math.sin(angle1) * radius
+                    var x2 = centerX + Math.cos(angle2) * radius
+                    var y2 = centerY + Math.sin(angle2) * radius
+
+                    ctx.beginPath()
+                    ctx.moveTo(Math.round(x1 / pixelSize) * pixelSize, Math.round(y1 / pixelSize) * pixelSize)
+                    ctx.lineTo(Math.round(x2 / pixelSize) * pixelSize, Math.round(y2 / pixelSize) * pixelSize)
+                    ctx.stroke()
                 }
             }
         }
 
-        // 3D rotation animation
-        transform: Rotation {
-            id: rotation
-            origin.x: 25
-            origin.y: 25
-            axis { x: 0; y: 1; z: 0 }  // Rotate around Y-axis
-            angle: 0
-
-            NumberAnimation on angle {
-                from: 0
-                to: 360
-                duration: 4000
-                loops: Animation.Infinite
-                running: true
+        // Continuous rotation animation
+        NumberAnimation {
+            target: rotatingGolfBall
+            property: "rotationAngle"
+            from: 0
+            to: 360
+            duration: 3000
+            loops: Animation.Infinite
+            running: true
+            onRunningChanged: {
+                if (running) {
+                    golfBallCanvas.requestPaint()
+                }
             }
         }
 
-        // Redraw canvases when rotation changes for 3D effect
+        // Redraw canvas for rotation animation
         Timer {
-            interval: 16  // ~60 FPS
+            interval: 33  // ~30 FPS for smooth rotation
             running: true
             repeat: true
             onTriggered: {
-                diamondCanvas.requestPaint()
-                pixelR.requestPaint()
+                golfBallCanvas.requestPaint()
             }
         }
     }
