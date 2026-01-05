@@ -297,7 +297,7 @@ Item {
         id: rotatingGolfBall
         width: 50
         height: 50
-        x: 10
+        x: 130  // Moved right to avoid overlapping "No Profile"
         y: 10
         z: 200
 
@@ -339,9 +339,40 @@ Item {
                             var rotX = sphereX * Math.cos(currentRotation * Math.PI / 180) - z * Math.sin(currentRotation * Math.PI / 180)
                             var rotZ = sphereX * Math.sin(currentRotation * Math.PI / 180) + z * Math.cos(currentRotation * Math.PI / 180)
 
-                            // Lighting based on Z position (3D shading)
-                            var brightness = (rotZ + radius) / (radius * 2)
-                            brightness = Math.max(0.3, Math.min(1.0, brightness))
+                            // Enhanced 3D lighting - light source from top-right
+                            var lightX = radius * 0.5
+                            var lightY = -radius * 0.5
+                            var lightZ = radius * 1.5
+
+                            // Calculate surface normal (normalized sphere normal)
+                            var normalX = sphereX / radius
+                            var normalY = sphereY / radius
+                            var normalZ = z / radius
+
+                            // Rotate normal with sphere
+                            var rotNormalX = normalX * Math.cos(currentRotation * Math.PI / 180) - normalZ * Math.sin(currentRotation * Math.PI / 180)
+                            var rotNormalZ = normalX * Math.cos(currentRotation * Math.PI / 180) + normalZ * Math.cos(currentRotation * Math.PI / 180)
+
+                            // Light direction (from light to surface point)
+                            var lightDirX = lightX - rotX
+                            var lightDirY = lightY - sphereY
+                            var lightDirZ = lightZ - rotZ
+                            var lightDist = Math.sqrt(lightDirX*lightDirX + lightDirY*lightDirY + lightDirZ*lightDirZ)
+                            lightDirX /= lightDist
+                            lightDirY /= lightDist
+                            lightDirZ /= lightDist
+
+                            // Diffuse lighting (Lambertian)
+                            var diffuse = Math.max(0, rotNormalX * lightDirX + normalY * lightDirY + rotNormalZ * lightDirZ)
+
+                            // Specular highlight (Phong)
+                            var viewZ = 1.0  // Camera looking straight at ball
+                            var reflectZ = 2 * diffuse * rotNormalZ - lightDirZ
+                            var specular = Math.pow(Math.max(0, reflectZ * viewZ), 32) * 0.6
+
+                            // Ambient + Diffuse + Specular
+                            var brightness = 0.3 + (diffuse * 0.6) + specular
+                            brightness = Math.max(0.2, Math.min(1.0, brightness))
 
                             // Dimple pattern - hexagonal layout
                             var dimpleSize = 3
@@ -367,7 +398,8 @@ Item {
 
                             if (dimpleDist < dimpleSize/2) {
                                 isDimple = true
-                                brightness *= 0.7  // Darker for dimples
+                                // Dimples are darker (shadowed inside)
+                                brightness *= 0.5
                             }
 
                             // Color calculation
