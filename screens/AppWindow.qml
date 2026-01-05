@@ -437,7 +437,7 @@ Item {
             property: "rotationAngle"
             from: 0
             to: 360
-            duration: 3000
+            duration: 2200  // Slightly quicker rotation (was 3000ms)
             loops: Animation.Infinite
             running: true
             onRunningChanged: {
