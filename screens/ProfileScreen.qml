@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import QtGraphicalEffects 1.15
 
 Item {
     id: profileScreen
@@ -623,69 +624,133 @@ Item {
     Dialog {
         id: deleteDialog
         anchors.centerIn: parent
-        width: 420
-        height: 260
+        width: 450
+        height: 300
         modal: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        
+        z: 1000
+
         property string profileToDelete: ""
-        
+
         Overlay.modal: Rectangle {
-            color: "#000000CC"
+            color: "#80000000"
         }
-        
+
         background: Rectangle {
             color: card
-            radius: 12
-            border.color: edge
-            border.width: 2
+            radius: 16
+            border.color: danger
+            border.width: 3
+
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0
+                verticalOffset: 4
+                radius: 12
+                samples: 25
+                color: "#40000000"
+            }
         }
-        
+
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 25
-            spacing: 20
-            
-            Label {
-                text: "!"
-                font.pixelSize: 48
-                font.bold: true
+            anchors.margins: 24
+            spacing: 16
+
+            // Warning Icon
+            Rectangle {
+                width: 56
+                height: 56
+                radius: 28
+                color: "#FFEBEE"
+                border.color: danger
+                border.width: 2
                 Layout.alignment: Qt.AlignHCenter
+
+                Label {
+                    text: "⚠"
+                    font.pixelSize: 32
+                    anchors.centerIn: parent
+                }
             }
-            
+
+            // Title
             Label {
                 text: "Delete Profile?"
                 color: text
-                font.pixelSize: 24
+                font.pixelSize: 22
                 font.bold: true
                 Layout.alignment: Qt.AlignHCenter
             }
-            
+
+            // Profile name
             Label {
-                text: "Are you sure you want to delete \"" + deleteDialog.profileToDelete + "\"?\n\nThis will permanently remove:\n• All club presets\n• All saved settings\n• This action cannot be undone"
-                color: hint
-                font.pixelSize: 14
-                wrapMode: Text.WordWrap
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
+                text: '"' + deleteDialog.profileToDelete + '"'
+                color: danger
+                font.pixelSize: 18
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
             }
-            
+
+            // Warning text
+            Rectangle {
+                Layout.fillWidth: true
+                height: childrenRect.height + 16
+                color: "#FFF3E0"
+                radius: 8
+                border.color: "#FFB74D"
+                border.width: 1
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+
+                    Label {
+                        text: "This will permanently remove:"
+                        color: "#E65100"
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+
+                    Label {
+                        text: "• All club presets"
+                        color: "#E65100"
+                        font.pixelSize: 11
+                    }
+
+                    Label {
+                        text: "• All saved settings"
+                        color: "#E65100"
+                        font.pixelSize: 11
+                    }
+
+                    Label {
+                        text: "• This action cannot be undone"
+                        color: "#E65100"
+                        font.pixelSize: 11
+                        font.bold: true
+                    }
+                }
+            }
+
             Item { Layout.fillHeight: true }
-            
+
+            // Buttons
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
-                
+
                 Button {
                     text: "Cancel"
                     Layout.fillWidth: true
-                    implicitHeight: 55
+                    implicitHeight: 50
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#B8BBC1" : "#C8CCD4"
-                        radius: 8
+                        radius: 10
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
@@ -703,20 +768,20 @@ Item {
                         deleteDialog.close()
                     }
                 }
-                
+
                 Button {
                     text: "Delete"
                     Layout.fillWidth: true
-                    implicitHeight: 55
+                    implicitHeight: 50
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
                         color: parent.pressed ? "#B02A2A" : danger
-                        radius: 8
+                        radius: 10
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
-                    
+
                     contentItem: Text {
                         text: parent.text
                         color: "white"
@@ -725,7 +790,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    
+
                     onClicked: {
                         soundManager.playClick()
                         profileManager.deleteProfile(deleteDialog.profileToDelete)
