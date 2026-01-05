@@ -292,69 +292,115 @@ Item {
 
     Rectangle { anchors.fill: parent; color: bg }
 
-    // 3D Rotating 'R' at top-left
-    Rectangle {
+    // 3D Rotating Retro Pixel 'R' in Diamond - Top-left corner
+    Item {
         id: rotatingR
-        width: 60
-        height: 60
-        x: 20
-        y: 20
+        width: 50
+        height: 50
+        x: 10
+        y: 10
         z: 200
-        color: "transparent"
 
-        Rectangle {
+        // Diamond background
+        Canvas {
+            id: diamondCanvas
             anchors.fill: parent
-            color: accent
-            radius: 8
-            border.color: "white"
-            border.width: 3
 
-            // Drop shadow effect
-            layer.enabled: true
-            layer.effect: Item {
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    color: "black"
-                    opacity: 0.3
-                    radius: 8
-                    z: -1
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+
+                // Draw diamond (rotated square)
+                ctx.save()
+                ctx.translate(width / 2, height / 2)
+
+                // Gradient fill for retro look
+                var gradient = ctx.createLinearGradient(-25, -25, 25, 25)
+                gradient.addColorStop(0, "#FF6EC7")    // Pink
+                gradient.addColorStop(0.5, "#BF40BF")  // Purple
+                gradient.addColorStop(1, "#8B008B")    // Dark purple
+
+                ctx.fillStyle = gradient
+                ctx.strokeStyle = "#FF00FF"
+                ctx.lineWidth = 3
+
+                // Diamond shape
+                ctx.beginPath()
+                ctx.moveTo(0, -23)    // Top
+                ctx.lineTo(23, 0)     // Right
+                ctx.lineTo(0, 23)     // Bottom
+                ctx.lineTo(-23, 0)    // Left
+                ctx.closePath()
+                ctx.fill()
+                ctx.stroke()
+
+                ctx.restore()
+            }
+        }
+
+        // Pixel-style 'R' using Canvas for 8-bit look
+        Canvas {
+            id: pixelR
+            anchors.centerIn: parent
+            width: 32
+            height: 32
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+
+                // Pixel size for 8-bit look
+                var pxSize = 4
+
+                // Draw pixel 'R' - 8x8 grid
+                // R pattern (8-bit style)
+                var pixels = [
+                    [1,1,1,1,0,0,0,0],
+                    [1,0,0,0,1,0,0,0],
+                    [1,0,0,0,1,0,0,0],
+                    [1,1,1,1,0,0,0,0],
+                    [1,0,1,0,0,0,0,0],
+                    [1,0,0,1,0,0,0,0],
+                    [1,0,0,0,1,0,0,0],
+                    [1,0,0,0,0,1,0,0]
+                ]
+
+                ctx.fillStyle = "#FFFFFF"
+                for (var y = 0; y < 8; y++) {
+                    for (var x = 0; x < 8; x++) {
+                        if (pixels[y][x] === 1) {
+                            ctx.fillRect(x * pxSize, y * pxSize, pxSize, pxSize)
+                        }
+                    }
                 }
             }
+        }
 
-            Text {
-                anchors.centerIn: parent
-                text: "R"
-                font.pixelSize: 36
-                font.bold: true
-                color: "white"
-                style: Text.Raised
-                styleColor: "#2563EB"
-            }
+        // 3D rotation animation
+        transform: Rotation {
+            id: rotation
+            origin.x: 25
+            origin.y: 25
+            axis { x: 0; y: 1; z: 0 }  // Rotate around Y-axis
+            angle: 0
 
-            // 3D rotation animation
-            transform: Rotation {
-                id: rotation
-                origin.x: 30
-                origin.y: 30
-                axis { x: 0.5; y: 1; z: 0 }
-                angle: 0
-
-                NumberAnimation on angle {
-                    from: 0
-                    to: 360
-                    duration: 3000
-                    loops: Animation.Infinite
-                    running: true
-                }
-            }
-
-            // Pulsing scale effect
-            scale: 1.0
-            SequentialAnimation on scale {
+            NumberAnimation on angle {
+                from: 0
+                to: 360
+                duration: 4000
                 loops: Animation.Infinite
-                NumberAnimation { to: 1.1; duration: 1500; easing.type: Easing.InOutQuad }
-                NumberAnimation { to: 1.0; duration: 1500; easing.type: Easing.InOutQuad }
+                running: true
+            }
+        }
+
+        // Redraw canvases when rotation changes for 3D effect
+        Timer {
+            interval: 16  // ~60 FPS
+            running: true
+            repeat: true
+            onTriggered: {
+                diamondCanvas.requestPaint()
+                pixelR.requestPaint()
             }
         }
     }
