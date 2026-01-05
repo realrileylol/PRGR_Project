@@ -384,26 +384,6 @@ Item {
                         }
                     }
                 }
-
-                // Outer pixel border for retro look
-                ctx.strokeStyle = "#888888"
-                ctx.lineWidth = 2
-
-                // Pixelated circle outline
-                var steps = 24
-                for (var i = 0; i < steps; i++) {
-                    var angle1 = (i / steps) * Math.PI * 2
-                    var angle2 = ((i + 1) / steps) * Math.PI * 2
-                    var x1 = centerX + Math.cos(angle1) * radius
-                    var y1 = centerY + Math.sin(angle1) * radius
-                    var x2 = centerX + Math.cos(angle2) * radius
-                    var y2 = centerY + Math.sin(angle2) * radius
-
-                    ctx.beginPath()
-                    ctx.moveTo(Math.round(x1 / pixelSize) * pixelSize, Math.round(y1 / pixelSize) * pixelSize)
-                    ctx.lineTo(Math.round(x2 / pixelSize) * pixelSize, Math.round(y2 / pixelSize) * pixelSize)
-                    ctx.stroke()
-                }
             }
         }
 
