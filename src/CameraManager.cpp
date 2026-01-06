@@ -191,13 +191,18 @@ void CameraManager::startPreview() {
         m_previewHeight = resParts[1].toInt();
     }
 
-    // NOTE: Custom resolutions like 320×480 are NOT supported by OV9281
-    // Must use valid sensor modes: 640×480, 640×400, 1280×800, or 320×240
-    // Using 640×480 @ 180 FPS for reliable performance
+    // HIGH-SPEED SPIN CAPTURE MODE (Camera 0)
+    // Override for Camera 0: Use hardware ROI crop for 350-420 FPS
+    if (m_activeCameraIndex == 0) {
+        m_previewWidth = 640;   // Output width after ROI crop
+        m_previewHeight = 240;  // Output height after ROI crop (reduced rows = higher FPS)
+    }
 
-    // Determine frame rate based on OV9281 resolution capabilities
+    // Determine frame rate based on resolution and ROI usage
     int frameRate = 120;  // Safe default
-    if (m_previewWidth == 640 && m_previewHeight == 480) {
+    if (m_previewWidth == 640 && m_previewHeight == 240) {
+        frameRate = 400;  // ROI crop to 640×240 from 1280×800 - high-speed spin capture
+    } else if (m_previewWidth == 640 && m_previewHeight == 480) {
         frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
     } else if (m_previewWidth == 640 && m_previewHeight == 400) {
         frameRate = 240;  // Wide VGA @ 240 FPS - maximum performance
@@ -205,8 +210,6 @@ void CameraManager::startPreview() {
         frameRate = 115;  // Full resolution @ 115 FPS (max for OV9281)
     } else if (m_previewWidth == 320 && m_previewHeight == 240) {
         frameRate = 120;  // Low res high speed
-    } else if (m_previewWidth == 320 && m_previewHeight == 480) {
-        frameRate = 400;  // Portrait high-speed (narrow + tall) for spin capture
     } else {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
@@ -233,27 +236,47 @@ void CameraManager::startPreview() {
     QStringList args;
     args << "--camera" << QString::number(m_activeCameraIndex);  // Select camera index
     args << "--timeout" << "0";  // No timeout
-    args << "--width" << QString::number(m_previewWidth);
-    args << "--height" << QString::number(m_previewHeight);
-    args << "--framerate" << QString::number(frameRate);
-    args << "--shutter" << QString::number(shutterSpeed);
-    args << "--gain" << QString::number(gain);
 
-    // Camera-specific optimizations
+    // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
-        // TOP CAMERA (Camera 0) - High-speed spin capture optimized
-        // Portrait: 320×480 (narrow width, full height for vertical ball tracking)
-        // YUV420 with Y-channel extraction = grayscale
-        args << "--codec" << "yuv420";  // YUV420, we extract Y channel for grayscale
-        qDebug() << "Camera 0: Spin mode - YUV420 (Y-only), 320×480 portrait, target 400 FPS";
+        // TOP CAMERA (Camera 0) - High-speed spin capture with hardware ROI crop
+        // Request full sensor mode, then crop to 640×240 for 350-420 FPS
+        args << "--width" << "1280";   // Full sensor width
+        args << "--height" << "800";   // Full sensor height
+
+        // Hardware ROI crop: 640×240 centered region
+        // ROI format: x,y,width,height (normalized 0.0-1.0)
+        // x = (1280-640)/2 / 1280 = 0.25
+        // y = (800-240)/2 / 800 = 0.35
+        // w = 640/1280 = 0.5
+        // h = 240/800 = 0.3
+        args << "--roi" << "0.25,0.35,0.5,0.3";
+
+        args << "--framerate" << QString::number(frameRate);
+        args << "--shutter" << QString::number(shutterSpeed);
+        args << "--gain" << QString::number(gain);
+        args << "--codec" << "yuv420";  // YUV420, extract Y channel for grayscale
+
+        qDebug() << "Camera 0: ROI spin mode - 1280×800 → 640×240 crop, target" << frameRate << "FPS";
     } else if (m_activeCameraIndex == 1) {
         // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
+        args << "--width" << QString::number(m_previewWidth);
+        args << "--height" << QString::number(m_previewHeight);
+        args << "--framerate" << QString::number(frameRate);
+        args << "--shutter" << QString::number(shutterSpeed);
+        args << "--gain" << QString::number(gain);
+
         // Standard ROI crop for 1.66x zoom on ball launch area
         args << "--roi" << "0.2,0.2,0.6,0.6";  // x, y, width, height (0-1 normalized)
         args << "--codec" << "yuv420";  // YUV420 for color preview
         qDebug() << "Camera 1: Detection mode - YUV420, 60% center crop";
     } else {
         // Default for any other camera
+        args << "--width" << QString::number(m_previewWidth);
+        args << "--height" << QString::number(m_previewHeight);
+        args << "--framerate" << QString::number(frameRate);
+        args << "--shutter" << QString::number(shutterSpeed);
+        args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";
     }
 
