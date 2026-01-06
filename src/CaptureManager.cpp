@@ -167,12 +167,12 @@ void CaptureManager::captureLoop() {
 
     // HIGH-SPEED SPIN CAPTURE MODE
     // Portrait 320×480: Narrow width (reduce bandwidth), full height (vertical ball tracking)
-    // MONO8 codec for maximum FPS, NO ROI crop (full vertical coverage critical)
-    args << "--codec" << "mono";  // MONO8: 1 byte/pixel for max FPS
+    // YUV420 codec, extract Y channel for grayscale, NO ROI crop (full vertical coverage critical)
+    args << "--codec" << "yuv420";  // YUV420, we extract Y channel
     args << "--output" << pipePath;
     args << "--nopreview";
 
-    qDebug() << "High-speed capture: MONO8, 320×480 portrait, target 400 FPS";
+    qDebug() << "High-speed capture: YUV420 (Y-only), 320×480 portrait, target 400 FPS";
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {
@@ -196,8 +196,8 @@ void CaptureManager::captureLoop() {
 
     qDebug() << "Capture pipe opened, starting ball detection loop...";
 
-    // Frame buffer for MONO8 (1 byte per pixel)
-    const int frameSize = m_width * m_height;  // MONO8: no color channels
+    // Frame buffer for YUV420 (1.5 bytes per pixel)
+    const int frameSize = m_width * m_height * 3 / 2;
     std::vector<uint8_t> frameBuffer(frameSize);
 
     // Ball tracking state
@@ -228,8 +228,8 @@ void CaptureManager::captureLoop() {
 
         if (totalRead != frameSize) continue;
 
-        // Create OpenCV Mat directly from MONO8 data (already grayscale)
-        cv::Mat frame(m_height, m_width, CV_8UC1, frameBuffer.data());
+        // Extract Y channel from YUV420 (grayscale)
+        cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_width, m_height);
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());

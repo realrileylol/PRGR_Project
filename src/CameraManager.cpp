@@ -247,9 +247,9 @@ void CameraManager::startPreview() {
     if (m_activeCameraIndex == 0) {
         // TOP CAMERA (Camera 0) - High-speed spin capture optimized
         // Portrait: 320×480 (narrow width, full height for vertical ball tracking)
-        // NO ROI - full vertical coverage is critical for spin capture
-        args << "--codec" << "mono";  // MONO8: 1 byte/pixel for max FPS
-        qDebug() << "Camera 0: Spin mode - MONO8, 320×480 portrait, target 400 FPS";
+        // YUV420 with Y-channel extraction = grayscale
+        args << "--codec" << "yuv420";  // YUV420, we extract Y channel for grayscale
+        qDebug() << "Camera 0: Spin mode - YUV420 (Y-only), 320×480 portrait, target 400 FPS";
     } else if (m_activeCameraIndex == 1) {
         // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
         // Standard ROI crop for 1.66x zoom on ball launch area
@@ -352,12 +352,10 @@ void CameraManager::previewLoop() {
 
     // qDebug() << "Pipe opened, starting frame capture loop...";  // Suppress spam
 
-    // Calculate frame size based on camera codec
-    // Camera 0: MONO8 (1 byte/pixel)
-    // Camera 1: YUV420 (1.5 bytes/pixel)
-    const bool isMono = (m_activeCameraIndex == 0);
-    const int frameSize = isMono ? (m_previewWidth * m_previewHeight)
-                                  : (m_previewWidth * m_previewHeight * 3 / 2);
+    // Calculate frame size for YUV420
+    // YUV420: Y (width*height) + U (width/2*height/2) + V (width/2*height/2)
+    // Total = width*height*1.5
+    const int frameSize = m_previewWidth * m_previewHeight * 3 / 2;
 
     std::vector<uint8_t> frameBuffer(frameSize);
     int frameCount = 0;
@@ -398,15 +396,8 @@ void CameraManager::previewLoop() {
             continue;
         }
 
-        // Extract frame based on codec
-        cv::Mat frame;
-        if (isMono) {
-            // MONO8: Direct grayscale data
-            frame = cv::Mat(m_previewHeight, m_previewWidth, CV_8UC1, frameBuffer.data()).clone();
-        } else {
-            // YUV420: Extract Y channel
-            frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
-        }
+        // Extract Y channel from YUV420 (grayscale)
+        cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
 
         // Debug first few frames (suppressed - too spammy during restarts)
         // if (frameCount < 3) {
