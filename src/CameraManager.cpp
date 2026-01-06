@@ -240,11 +240,7 @@ void CameraManager::startPreview() {
     // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
         // TOP CAMERA (Camera 0) - High-speed spin capture with hardware ROI crop
-        // Request full sensor mode, then crop to 640×240 for 350-420 FPS
-        args << "--width" << "1280";   // Full sensor width
-        args << "--height" << "800";   // Full sensor height
-
-        // Hardware ROI crop: 640×240 centered region
+        // Hardware ROI crop: 640×240 centered region from 1280×800 sensor
         // ROI format: x,y,width,height (normalized 0.0-1.0)
         // x = (1280-640)/2 / 1280 = 0.25
         // y = (800-240)/2 / 800 = 0.35
@@ -252,12 +248,16 @@ void CameraManager::startPreview() {
         // h = 240/800 = 0.3
         args << "--roi" << "0.25,0.35,0.5,0.3";
 
+        // Output resolution must match ROI output (640×240)
+        args << "--width" << QString::number(m_previewWidth);    // 640
+        args << "--height" << QString::number(m_previewHeight);  // 240
         args << "--framerate" << QString::number(frameRate);
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y channel for grayscale
 
-        qDebug() << "Camera 0: ROI spin mode - 1280×800 → 640×240 crop, target" << frameRate << "FPS";
+        qDebug() << "Camera 0: ROI spin mode - sensor ROI crop to"
+                 << m_previewWidth << "x" << m_previewHeight << "@ target" << frameRate << "FPS";
     } else if (m_activeCameraIndex == 1) {
         // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
         args << "--width" << QString::number(m_previewWidth);

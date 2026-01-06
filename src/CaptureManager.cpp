@@ -164,11 +164,7 @@ void CaptureManager::captureLoop() {
     QStringList args;
     args << "--timeout" << "0";
 
-    // Request full native sensor mode, then crop via ROI
-    args << "--width" << "1280";   // Full sensor width
-    args << "--height" << "800";   // Full sensor height
-
-    // Hardware ROI crop: 640×240 centered region
+    // Hardware ROI crop: 640×240 centered region from 1280×800 sensor
     // ROI format: x,y,width,height (normalized 0.0-1.0)
     // x = (1280-640)/2 / 1280 = 0.25
     // y = (800-240)/2 / 800 = 0.35
@@ -176,6 +172,9 @@ void CaptureManager::captureLoop() {
     // h = 240/800 = 0.3
     args << "--roi" << "0.25,0.35,0.5,0.3";
 
+    // Output resolution must match ROI output (640×240)
+    args << "--width" << QString::number(m_width);    // 640
+    args << "--height" << QString::number(m_height);  // 240
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
@@ -186,7 +185,7 @@ void CaptureManager::captureLoop() {
     args << "--output" << pipePath;
     args << "--nopreview";  // Preview disabled for maximum FPS
 
-    qDebug() << "High-speed spin capture: 1280×800 sensor mode, ROI crop to"
+    qDebug() << "High-speed spin capture: sensor ROI crop to"
              << m_width << "x" << m_height << "@ target" << frameRate << "FPS"
              << "| Shutter:" << shutterSpeed << "µs, Gain:" << gain;
 
