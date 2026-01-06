@@ -160,9 +160,16 @@ void CaptureManager::captureLoop() {
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
-    args << "--codec" << "yuv420";
+
+    // HIGH-SPEED SPIN CAPTURE MODE
+    // Use MONO8 for maximum FPS (400-500 target)
+    // Vertical ROI for portrait-mounted camera capturing ball rise
+    args << "--roi" << "0.3,0.1,0.2,0.8";  // 200×800 vertical stripe
+    args << "--codec" << "mono";  // MONO8: 1 byte/pixel
     args << "--output" << pipePath;
     args << "--nopreview";
+
+    qDebug() << "High-speed capture: MONO8, 200×800 ROI, target 400-500 FPS";
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {

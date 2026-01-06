@@ -229,13 +229,25 @@ void CameraManager::startPreview() {
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
 
-    // ROI crop for Camera 1 (bottom camera) - zoom in closer to ball
-    // Center 60% of image = 1.66x zoom, no quality loss
-    if (m_activeCameraIndex == 1) {
+    // Camera-specific optimizations
+    if (m_activeCameraIndex == 0) {
+        // TOP CAMERA (Camera 0) - High-speed spin capture optimized
+        // Portrait orientation: 800×1280 native after 90° physical rotation
+        // Vertical ROI: 200×800 pixels for ball rising through frame
+        args << "--roi" << "0.3,0.1,0.2,0.8";  // Narrow vertical stripe
+        args << "--codec" << "mono";  // MONO8: 1 byte/pixel for max FPS
+        qDebug() << "Camera 0: Spin capture mode - MONO8, 200×800 vertical ROI, target 400-500 FPS";
+    } else if (m_activeCameraIndex == 1) {
+        // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
+        // Standard ROI crop for 1.66x zoom on ball launch area
         args << "--roi" << "0.2,0.2,0.6,0.6";  // x, y, width, height (0-1 normalized)
+        args << "--codec" << "yuv420";  // YUV420 for color preview
+        qDebug() << "Camera 1: Detection mode - YUV420, 60% center crop";
+    } else {
+        // Default for any other camera
+        args << "--codec" << "yuv420";
     }
 
-    args << "--codec" << "yuv420";  // Raw YUV420 output
     args << "--output" << m_pipePath;  // Output to named pipe
     args << "--nopreview";  // No X11 preview window
 
