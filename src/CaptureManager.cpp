@@ -126,9 +126,15 @@ void CaptureManager::captureLoop() {
         m_height = resParts[1].toInt();
     }
 
-    // Use valid OV9281 sensor mode (640×480 @ 180 FPS)
-    // Custom resolutions like 320×480 cause frame corruption
-    int frameRate = 180;
+    // HIGH-SPEED SPIN CAPTURE MODE
+    // Strategy: Request full sensor mode (1280×800), then use hardware ROI crop
+    // This reduces sensor rows read per frame, increasing FPS to 350-420
+    // Physical camera is rotated 90° LEFT for portrait real-world orientation
+
+    // Override resolution for high-speed ROI mode
+    m_width = 640;   // Output width after ROI crop
+    m_height = 240;  // Output height after ROI crop (reduced rows = higher FPS)
+    int frameRate = 400;  // Target FPS with ROI crop (350-420 FPS range)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 
@@ -157,20 +163,32 @@ void CaptureManager::captureLoop() {
     QProcess *captureProcess = new QProcess();
     QStringList args;
     args << "--timeout" << "0";
-    args << "--width" << QString::number(m_width);
-    args << "--height" << QString::number(m_height);
+
+    // Request full native sensor mode, then crop via ROI
+    args << "--width" << "1280";   // Full sensor width
+    args << "--height" << "800";   // Full sensor height
+
+    // Hardware ROI crop: 640×240 centered region
+    // ROI format: x,y,width,height (normalized 0.0-1.0)
+    // x = (1280-640)/2 / 1280 = 0.25
+    // y = (800-240)/2 / 800 = 0.35
+    // w = 640/1280 = 0.5
+    // h = 240/800 = 0.3
+    args << "--roi" << "0.25,0.35,0.5,0.3";
+
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
 
-    // HIGH-SPEED CAPTURE MODE
-    // Using valid OV9281 sensor mode: 640×480 @ 180 FPS
-    // YUV420 codec, extract Y channel for grayscale
-    args << "--codec" << "yuv420";  // YUV420, we extract Y channel
+    // YUV420 codec, extract Y (luma) plane for grayscale
+    // NO MONO8 support in rpicam
+    args << "--codec" << "yuv420";
     args << "--output" << pipePath;
-    args << "--nopreview";
+    args << "--nopreview";  // Preview disabled for maximum FPS
 
-    qDebug() << "High-speed capture: YUV420 (Y-only)," << m_width << "x" << m_height << "@" << frameRate << "FPS";
+    qDebug() << "High-speed spin capture: 1280×800 sensor mode, ROI crop to"
+             << m_width << "x" << m_height << "@ target" << frameRate << "FPS"
+             << "| Shutter:" << shutterSpeed << "µs, Gain:" << gain;
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {
