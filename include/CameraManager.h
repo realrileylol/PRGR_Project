@@ -31,6 +31,7 @@ class CameraManager : public QObject {
     Q_PROPERTY(bool autoExposureEnabled READ autoExposureEnabled WRITE setAutoExposureEnabled NOTIFY autoExposureEnabledChanged)
     Q_PROPERTY(int currentShutter READ currentShutter NOTIFY exposureChanged)
     Q_PROPERTY(double currentGain READ currentGain NOTIFY exposureChanged)
+    Q_PROPERTY(double currentFPS READ currentFPS NOTIFY fpsChanged)
 
 public:
     explicit CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent = nullptr);
@@ -44,6 +45,7 @@ public:
     void setAutoExposureEnabled(bool enabled);
     int currentShutter() const { return m_currentShutter; }
     double currentGain() const { return m_currentGain; }
+    double currentFPS() const { return m_currentFPS; }
 
 public slots:
     void startPreview();
@@ -59,6 +61,7 @@ signals:
     void activeCameraIndexChanged();
     void autoExposureEnabledChanged();
     void exposureChanged();
+    void fpsChanged();
     void frameReady();
     void snapshotCaptured(const QString &filePath);
     void recordingSaved(const QString &filePath);
@@ -103,6 +106,12 @@ private:
     double m_currentGain;
     int m_framesSinceLastAdjustment;
     static constexpr int ADJUST_INTERVAL_FRAMES = 30;  // Check every 30 frames (~0.16s at 180fps)
+
+    // FPS tracking
+    double m_currentFPS;
+    std::chrono::steady_clock::time_point m_fpsLastUpdate;
+    int m_fpsFrameCount;
+    static constexpr int FPS_UPDATE_INTERVAL_MS = 1000;  // Update FPS every 1 second
 };
 
 /**

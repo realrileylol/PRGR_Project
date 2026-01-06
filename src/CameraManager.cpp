@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <chrono>
 
 CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent)
     : QObject(parent)
@@ -27,6 +28,9 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
     , m_currentShutter(8000)  // Increased for better indoor lighting (was 4000 - too dark)
     , m_currentGain(16.0)      // Increased for better indoor lighting (was 12.0 - too dark)
     , m_framesSinceLastAdjustment(0)
+    , m_currentFPS(0.0)
+    , m_fpsLastUpdate(std::chrono::steady_clock::now())
+    , m_fpsFrameCount(0)
 {
     // Create videos folder
     QString videosPath = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/PRGR_Videos";
@@ -449,13 +453,22 @@ void CameraManager::previewLoop() {
             }
         }
 
-        // FPS tracking (log every 5 seconds to avoid terminal spam)
-        fpsCounter++;
+        // FPS tracking (update every 1 second for GUI display)
+        m_fpsFrameCount++;
         auto fpsNow = std::chrono::steady_clock::now();
-        auto fpsElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(fpsNow - fpsStart).count();
-        if (fpsElapsed >= 5000) {
-            int avgFps = fpsCounter / 5;  // Average FPS over 5 seconds
-            qDebug() << "Preview FPS:" << avgFps;
+        auto fpsElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(fpsNow - m_fpsLastUpdate).count();
+        if (fpsElapsed >= FPS_UPDATE_INTERVAL_MS) {
+            m_currentFPS = (m_fpsFrameCount * 1000.0) / fpsElapsed;  // Calculate actual FPS
+            emit fpsChanged();
+            m_fpsFrameCount = 0;
+            m_fpsLastUpdate = fpsNow;
+        }
+
+        // Debug log every 5 seconds (reduced spam)
+        fpsCounter++;
+        auto logElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(fpsNow - fpsStart).count();
+        if (logElapsed >= 5000) {
+            qDebug() << "Camera" << m_activeCameraIndex << "FPS:" << m_currentFPS;
             fpsCounter = 0;
             fpsStart = fpsNow;
         }

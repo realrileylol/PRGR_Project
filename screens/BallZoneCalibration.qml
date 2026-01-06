@@ -582,6 +582,24 @@ Rectangle {
                         styleColor: "#000000"
                     }
 
+                    // FPS Counter
+                    Label {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        text: cameraManager.currentFPS.toFixed(1) + " FPS"
+                        color: "#00FF00"
+                        font.pixelSize: 16
+                        font.bold: true
+                        font.family: "monospace"
+                        background: Rectangle {
+                            color: "#000000"
+                            opacity: 0.7
+                            radius: 4
+                        }
+                        padding: 8
+                    }
+
                     // Professional Ready State Indicator (like Bushnell/GCQuad)
                     Rectangle {
                         anchors.top: parent.top

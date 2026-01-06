@@ -163,6 +163,25 @@ Item {
                     padding: 10
                 }
 
+                // FPS Counter
+                Label {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.margins: 15
+                    text: cameraManager.currentFPS.toFixed(1) + " FPS"
+                    color: "#00FF00"
+                    font.pixelSize: 18
+                    font.bold: true
+                    font.family: "monospace"
+                    visible: cameraActive
+                    background: Rectangle {
+                        color: "#000000"
+                        opacity: 0.7
+                        radius: 6
+                    }
+                    padding: 10
+                }
+
                 // Recording indicator
                 Label {
                     anchors.top: parent.top
