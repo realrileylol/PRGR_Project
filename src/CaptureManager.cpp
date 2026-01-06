@@ -126,7 +126,11 @@ void CaptureManager::captureLoop() {
         m_height = resParts[1].toInt();
     }
 
-    int frameRate = 200;  // High-speed ball tracking
+    // OVERRIDE for high-speed spin capture: 320×480 portrait
+    // Narrow width (reduce bandwidth), full height (preserve vertical ball tracking)
+    m_width = 320;
+    m_height = 480;
+    int frameRate = 400;  // High-speed spin capture (doubled from narrow resolution)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 
@@ -162,14 +166,13 @@ void CaptureManager::captureLoop() {
     args << "--gain" << QString::number(gain);
 
     // HIGH-SPEED SPIN CAPTURE MODE
-    // Use MONO8 for maximum FPS (400-500 target)
-    // Vertical ROI for portrait-mounted camera capturing ball rise
-    args << "--roi" << "0.3,0.1,0.2,0.8";  // 200×800 vertical stripe
-    args << "--codec" << "mono";  // MONO8: 1 byte/pixel
+    // Portrait 320×480: Narrow width (reduce bandwidth), full height (vertical ball tracking)
+    // MONO8 codec for maximum FPS, NO ROI crop (full vertical coverage critical)
+    args << "--codec" << "mono";  // MONO8: 1 byte/pixel for max FPS
     args << "--output" << pipePath;
     args << "--nopreview";
 
-    qDebug() << "High-speed capture: MONO8, 200×800 ROI, target 400-500 FPS";
+    qDebug() << "High-speed capture: MONO8, 320×480 portrait, target 400 FPS";
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {
@@ -193,8 +196,8 @@ void CaptureManager::captureLoop() {
 
     qDebug() << "Capture pipe opened, starting ball detection loop...";
 
-    // Frame buffer
-    const int frameSize = m_width * m_height * 3 / 2;
+    // Frame buffer for MONO8 (1 byte per pixel)
+    const int frameSize = m_width * m_height;  // MONO8: no color channels
     std::vector<uint8_t> frameBuffer(frameSize);
 
     // Ball tracking state
@@ -225,8 +228,8 @@ void CaptureManager::captureLoop() {
 
         if (totalRead != frameSize) continue;
 
-        // Extract Y channel and convert to OpenCV Mat
-        cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_width, m_height);
+        // Create OpenCV Mat directly from MONO8 data (already grayscale)
+        cv::Mat frame(m_height, m_width, CV_8UC1, frameBuffer.data());
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());

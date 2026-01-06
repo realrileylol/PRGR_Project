@@ -191,6 +191,14 @@ void CameraManager::startPreview() {
         m_previewHeight = resParts[1].toInt();
     }
 
+    // CAMERA 0 OVERRIDE: High-speed spin capture mode
+    // Portrait orientation: Reduce WIDTH to increase FPS, preserve HEIGHT for ball tracking
+    if (m_activeCameraIndex == 0) {
+        m_previewWidth = 320;   // Narrow horizontal (reduce bandwidth)
+        m_previewHeight = 480;  // Full vertical (preserve ball flight coverage)
+        qDebug() << "Camera 0: Overriding to 320×480 portrait for high-speed spin capture";
+    }
+
     // Determine frame rate based on OV9281 resolution capabilities
     int frameRate = 120;  // Safe default
     if (m_previewWidth == 640 && m_previewHeight == 480) {
@@ -201,6 +209,8 @@ void CameraManager::startPreview() {
         frameRate = 115;  // Full resolution @ 115 FPS (max for OV9281)
     } else if (m_previewWidth == 320 && m_previewHeight == 240) {
         frameRate = 120;  // Low res high speed
+    } else if (m_previewWidth == 320 && m_previewHeight == 480) {
+        frameRate = 400;  // Portrait high-speed (narrow + tall) for spin capture
     } else {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
@@ -236,11 +246,10 @@ void CameraManager::startPreview() {
     // Camera-specific optimizations
     if (m_activeCameraIndex == 0) {
         // TOP CAMERA (Camera 0) - High-speed spin capture optimized
-        // Portrait orientation: 800×1280 native after 90° physical rotation
-        // Vertical ROI: 200×800 pixels for ball rising through frame
-        args << "--roi" << "0.3,0.1,0.2,0.8";  // Narrow vertical stripe
+        // Portrait: 320×480 (narrow width, full height for vertical ball tracking)
+        // NO ROI - full vertical coverage is critical for spin capture
         args << "--codec" << "mono";  // MONO8: 1 byte/pixel for max FPS
-        qDebug() << "Camera 0: Spin capture mode - MONO8, 200×800 vertical ROI, target 400-500 FPS";
+        qDebug() << "Camera 0: Spin mode - MONO8, 320×480 portrait, target 400 FPS";
     } else if (m_activeCameraIndex == 1) {
         // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
         // Standard ROI crop for 1.66x zoom on ball launch area
@@ -343,10 +352,12 @@ void CameraManager::previewLoop() {
 
     // qDebug() << "Pipe opened, starting frame capture loop...";  // Suppress spam
 
-    // Calculate frame size for YUV420
-    // YUV420: Y (width*height) + U (width/2*height/2) + V (width/2*height/2)
-    // Total = width*height*1.5
-    const int frameSize = m_previewWidth * m_previewHeight * 3 / 2;
+    // Calculate frame size based on camera codec
+    // Camera 0: MONO8 (1 byte/pixel)
+    // Camera 1: YUV420 (1.5 bytes/pixel)
+    const bool isMono = (m_activeCameraIndex == 0);
+    const int frameSize = isMono ? (m_previewWidth * m_previewHeight)
+                                  : (m_previewWidth * m_previewHeight * 3 / 2);
 
     std::vector<uint8_t> frameBuffer(frameSize);
     int frameCount = 0;
@@ -387,8 +398,15 @@ void CameraManager::previewLoop() {
             continue;
         }
 
-        // Extract Y channel from YUV420
-        cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
+        // Extract frame based on codec
+        cv::Mat frame;
+        if (isMono) {
+            // MONO8: Direct grayscale data
+            frame = cv::Mat(m_previewHeight, m_previewWidth, CV_8UC1, frameBuffer.data()).clone();
+        } else {
+            // YUV420: Extract Y channel
+            frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
+        }
 
         // Debug first few frames (suppressed - too spammy during restarts)
         // if (frameCount < 3) {
