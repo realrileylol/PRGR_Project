@@ -191,13 +191,9 @@ void CameraManager::startPreview() {
         m_previewHeight = resParts[1].toInt();
     }
 
-    // CAMERA 0 OVERRIDE: High-speed spin capture mode
-    // Portrait orientation: Reduce WIDTH to increase FPS, preserve HEIGHT for ball tracking
-    if (m_activeCameraIndex == 0) {
-        m_previewWidth = 320;   // Narrow horizontal (reduce bandwidth)
-        m_previewHeight = 480;  // Full vertical (preserve ball flight coverage)
-        qDebug() << "Camera 0: Overriding to 320×480 portrait for high-speed spin capture";
-    }
+    // NOTE: Custom resolutions like 320×480 are NOT supported by OV9281
+    // Must use valid sensor modes: 640×480, 640×400, 1280×800, or 320×240
+    // Using 640×480 @ 180 FPS for reliable performance
 
     // Determine frame rate based on OV9281 resolution capabilities
     int frameRate = 120;  // Safe default

@@ -126,11 +126,9 @@ void CaptureManager::captureLoop() {
         m_height = resParts[1].toInt();
     }
 
-    // OVERRIDE for high-speed spin capture: 320×480 portrait
-    // Narrow width (reduce bandwidth), full height (preserve vertical ball tracking)
-    m_width = 320;
-    m_height = 480;
-    int frameRate = 400;  // High-speed spin capture (doubled from narrow resolution)
+    // Use valid OV9281 sensor mode (640×480 @ 180 FPS)
+    // Custom resolutions like 320×480 cause frame corruption
+    int frameRate = 180;
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 
@@ -165,14 +163,14 @@ void CaptureManager::captureLoop() {
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
 
-    // HIGH-SPEED SPIN CAPTURE MODE
-    // Portrait 320×480: Narrow width (reduce bandwidth), full height (vertical ball tracking)
-    // YUV420 codec, extract Y channel for grayscale, NO ROI crop (full vertical coverage critical)
+    // HIGH-SPEED CAPTURE MODE
+    // Using valid OV9281 sensor mode: 640×480 @ 180 FPS
+    // YUV420 codec, extract Y channel for grayscale
     args << "--codec" << "yuv420";  // YUV420, we extract Y channel
     args << "--output" << pipePath;
     args << "--nopreview";
 
-    qDebug() << "High-speed capture: YUV420 (Y-only), 320×480 portrait, target 400 FPS";
+    qDebug() << "High-speed capture: YUV420 (Y-only)," << m_width << "x" << m_height << "@" << frameRate << "FPS";
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {
