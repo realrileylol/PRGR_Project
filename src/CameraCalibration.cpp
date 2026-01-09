@@ -1005,12 +1005,13 @@ QVariantMap CameraCalibration::detectBallLive() {
     // ADAPTIVE parameters for varying lighting conditions
     std::vector<cv::Vec3f> circles;
 
-    // Log frame dimensions for debugging
-    static bool loggedOnce = false;
-    if (!loggedOnce) {
-        qDebug() << "detectBallLive analyzing frame size:" << processed.cols << "x" << processed.rows;
-        loggedOnce = true;
+    // Log frame dimensions for debugging (every time for now to verify)
+    static int logCounter = 0;
+    if (logCounter % 30 == 0) {  // Log every 30 frames (~1 second)
+        qDebug() << "detectBallLive analyzing frame size:" << processed.cols << "x" << processed.rows
+                 << "| brightness:" << brightness;
     }
+    logCounter++;
 
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
                      processed.rows / 12,      // Min distance between circles
@@ -1024,19 +1025,21 @@ QVariantMap CameraCalibration::detectBallLive() {
     static qint64 lastZeroLogTime = 0;
 
     if (circles.size() == 0) {
-        // Throttle "0 candidates" logging to once every 5 seconds (avoid spam when dark)
+        // Throttle "0 candidates" logging to once every 2 seconds
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        if (currentTime - lastZeroLogTime > 5000 || lastZeroLogTime == 0) {
-            qDebug() << "HoughCircles detected: 0 candidates (brightness:" << brightness
-                     << "params: Canny=" << cannyThreshold << "Acc=" << accumulatorThreshold << ")";
+        if (currentTime - lastZeroLogTime > 2000 || lastZeroLogTime == 0) {
+            qDebug() << "⚠ HoughCircles: 0 candidates | brightness:" << brightness
+                     << "| Canny=" << cannyThreshold << "Acc=" << accumulatorThreshold;
             lastZeroLogTime = currentTime;
         }
         lastCircleCount = 0;
-    } else if (std::abs(static_cast<int>(circles.size()) - lastCircleCount) > 5) {
-        qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
-        // Log first few circle sizes for debugging
-        for (size_t i = 0; i < std::min(circles.size(), size_t(3)); i++) {
-            qDebug() << "  Circle" << i << "- radius:" << circles[i][2] << "px";
+    } else {
+        // Always log when circles ARE detected (critical for debugging)
+        qDebug() << "✓ HoughCircles detected:" << circles.size() << "candidates";
+        // Log ALL circle sizes for debugging
+        for (size_t i = 0; i < std::min(circles.size(), size_t(5)); i++) {
+            qDebug() << "  Circle" << i << "- pos:(" << circles[i][0] << "," << circles[i][1]
+                     << ") radius:" << circles[i][2] << "px";
         }
         lastCircleCount = circles.size();
     }
