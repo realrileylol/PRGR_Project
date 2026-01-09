@@ -41,7 +41,8 @@ void FrameProvider::updateFrame(const cv::Mat &frame) {
     }
 
     QMutexLocker locker(&m_mutex);
-    m_currentMat = processedFrame.clone();  // Store processed cv::Mat for processing
+    m_currentMatUnrotated = frame.clone();     // Store UNROTATED frame for ball detection
+    m_currentMat = processedFrame.clone();     // Store ROTATED frame for display
     m_currentFrame = cvMatToQImage(processedFrame);
     // Note: QML will poll for updates via requestImage()
 }
@@ -54,6 +55,11 @@ void FrameProvider::setActiveCameraIndex(int index) {
 cv::Mat FrameProvider::getLatestFrame() {
     QMutexLocker locker(&m_mutex);
     return m_currentMat.clone();  // Return copy for thread safety
+}
+
+cv::Mat FrameProvider::getLatestFrameUnrotated() {
+    QMutexLocker locker(&m_mutex);
+    return m_currentMatUnrotated.clone();  // Return unrotated frame for ball detection
 }
 
 QImage FrameProvider::cvMatToQImage(const cv::Mat &mat) {

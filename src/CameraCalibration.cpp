@@ -931,8 +931,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
-    // Get latest frame
-    cv::Mat frame = m_frameProvider->getLatestFrame();
+    // Get latest frame UNROTATED (crop coords are in unrotated space)
+    // The frame provider rotates for display, but we need unrotated for detection
+    cv::Mat frame = m_frameProvider->getLatestFrameUnrotated();
     if (frame.empty()) {
         return result;
     }
@@ -1052,9 +1053,14 @@ QVariantMap CameraCalibration::detectBallLive() {
             m_smoothedBallX = prediction.at<float>(0);
             m_smoothedBallY = prediction.at<float>(1);
 
+            // Transform to rotated coordinates for display
+            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+            double displayX = m_smoothedBallY;
+            double displayY = frameWidth - m_smoothedBallX;
+
             result["detected"] = true;
-            result["x"] = m_smoothedBallX;
-            result["y"] = m_smoothedBallY;
+            result["x"] = displayX;
+            result["y"] = displayY;
             result["radius"] = m_lastBallRadius;
 
             // Check zone with predicted position (with edge tolerance)
@@ -1467,9 +1473,12 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Require 2 consecutive stable detections before locking
         if (!stablePosition) {
             qDebug() << "Ball detected at (" << ballX << "," << ballY << ") - waiting for stability";
+            // Transform to rotated coordinates for display
+            double displayX = ballY;
+            double displayY = frameWidth - ballX;
             result["detected"] = true;
-            result["x"] = ballX;
-            result["y"] = ballY;
+            result["x"] = displayX;
+            result["y"] = displayY;
             result["radius"] = ballRadius;
             result["inZone"] = true;
             return result;  // Show green circle but don't lock yet
@@ -1505,10 +1514,16 @@ QVariantMap CameraCalibration::detectBallLive() {
         inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
-    // Fill result with smoothed values
+    // Transform coordinates from unrotated space (400×250) to rotated space (250×400)
+    // for camera 0 which is rotated 90° clockwise for display
+    // Rotation transform: (x, y) → (y, width-x)
+    double displayX = m_smoothedBallY;                    // Rotated X = original Y
+    double displayY = frameWidth - m_smoothedBallX;        // Rotated Y = width - original X
+
+    // Fill result with ROTATED coordinates for QML display
     result["detected"] = true;
-    result["x"] = m_smoothedBallX;
-    result["y"] = m_smoothedBallY;
+    result["x"] = displayX;
+    result["y"] = displayY;
     result["radius"] = ballRadius;
     result["inZone"] = inZone;
 

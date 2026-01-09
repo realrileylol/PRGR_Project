@@ -28,6 +28,9 @@ public:
     // Get latest frame for processing
     cv::Mat getLatestFrame();
 
+    // Get latest frame BEFORE rotation (for ball detection with crop coords)
+    cv::Mat getLatestFrameUnrotated();
+
     // Set active camera index for rotation handling
     void setActiveCameraIndex(int index);
 
@@ -36,6 +39,7 @@ private:
 
     QMutex m_mutex;
     QImage m_currentFrame;
-    cv::Mat m_currentMat;  // Store cv::Mat for processing
-    int m_activeCameraIndex;  // 0 = camera 0 (portrait), 1 = camera 1 (landscape)
+    cv::Mat m_currentMat;         // Rotated cv::Mat for display
+    cv::Mat m_currentMatUnrotated;  // Unrotated cv::Mat for ball detection
+    int m_activeCameraIndex;      // 0 = camera 0 (portrait), 1 = camera 1 (landscape)
 };
