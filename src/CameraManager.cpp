@@ -192,16 +192,17 @@ void CameraManager::startPreview() {
     }
 
     // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
-    // Override for Camera 0: Hardware ROI crop for max FPS at 7ft distance
+    // Override for Camera 0: Use valid high-FPS sensor mode at 7ft distance
     if (m_activeCameraIndex == 0) {
+        // Use 640×400 @ 240 FPS (valid OV9281 mode - no ROI needed)
         m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
-        m_previewHeight = 240;  // Sensor height (→ horizontal after 90° rotation)
+        m_previewHeight = 400;  // Sensor height (→ horizontal after 90° rotation)
     }
 
-    // Determine frame rate based on resolution and sensor rows read
+    // Determine frame rate based on resolution
     int frameRate = 120;  // Safe default
-    if (m_previewWidth == 640 && m_previewHeight == 240) {
-        frameRate = 400;  // Impact camera: 640×240 ROI = 240 rows = max FPS (~400)
+    if (m_previewWidth == 640 && m_previewHeight == 400) {
+        frameRate = 240;  // Impact camera: 640×400 valid mode = 240 FPS
     } else if (m_previewWidth == 640 && m_previewHeight == 480) {
         frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
     } else if (m_previewWidth == 640 && m_previewHeight == 400) {
@@ -244,27 +245,19 @@ void CameraManager::startPreview() {
         // ═══════════════════════════════════════════════════════════════════
         //
         // Physical: 90° LEFT rotation, 7ft from ball, 12-16mm telephoto lens
-        // Sensor: 640×240 ROI crop → Real world: 240×640 portrait
-        // Target: 400 FPS, ball fills 8-16% of frame (20-40 px diameter)
-        //
-        // Hardware ROI crop from 1280×800 sensor:
-        //   x=0.25 (25% from left)   → Centers 640px width
-        //   y=0.35 (35% from top)    → Centers 240px height
-        //   w=0.5  (50% of width)    → 640px crop (→ vertical after rotation)
-        //   h=0.3  (30% of height)   → 240px crop (→ horizontal after rotation)
-        //
-        // Adjust y-offset if ball appears high/low in preview at 7ft distance
-        args << "--roi" << "0.25,0.35,0.5,0.3";
+        // Sensor: 640×400 (valid OV9281 mode) → Real world: 400×640 portrait
+        // FPS: 240 (native sensor mode, no ROI needed)
+        // Ball target: 20-40 px diameter at 7ft (with 12-16mm lens)
 
-        args << "--width" << QString::number(m_previewWidth);    // 640 (sensor coords)
-        args << "--height" << QString::number(m_previewHeight);  // 240 (sensor coords)
+        args << "--width" << QString::number(m_previewWidth);    // 640
+        args << "--height" << QString::number(m_previewHeight);  // 400
         args << "--framerate" << QString::number(frameRate);
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
-        qDebug() << "IMPACT CAMERA (Cam 0): ROI" << m_previewWidth << "x" << m_previewHeight
-                 << "→ 240×640 portrait @" << frameRate << "FPS | Distance: 7ft";
+        qDebug() << "IMPACT CAMERA (Cam 0):" << m_previewWidth << "x" << m_previewHeight
+                 << "→ 400×640 portrait @" << frameRate << "FPS | Distance: 7ft";
     } else if (m_activeCameraIndex == 1) {
         // ═══════════════════════════════════════════════════════════════════
         // TRACKING CAMERA (Camera 1) - Ball flight trajectory
