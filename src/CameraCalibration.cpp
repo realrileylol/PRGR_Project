@@ -1001,15 +1001,22 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
     // Golf ball @ 7ft with 12mm lens + 1.6× crop: ~40-50 px diameter (20-25 px radius)
-    // STRICT size filtering - only detect objects matching golf ball dimensions
-    // Balanced STRICT PARAMETERS - reliable ball detection while eliminating carpet texture
+    // ADAPTIVE parameters for varying lighting conditions
     std::vector<cv::Vec3f> circles;
+
+    // Log frame dimensions for debugging
+    static bool loggedOnce = false;
+    if (!loggedOnce) {
+        qDebug() << "detectBallLive analyzing frame size:" << processed.cols << "x" << processed.rows;
+        loggedOnce = true;
+    }
+
     cv::HoughCircles(processed, circles, cv::HOUGH_GRADIENT, 1,
-                     processed.rows / 12,  // Min distance: 40px (eliminates duplicate detections of same ball)
-                     90,                   // Canny threshold: Balanced (strong ball edges, filters most carpet)
-                     18,                   // Accumulator: Balanced (complete circles, tolerates slight imperfections)
-                     18,                   // Golf ball min radius (18 px) - matches Rapsodo size
-                     28);                  // Golf ball max radius (28 px) - tighter range for 40-56 px diameter
+                     processed.rows / 12,      // Min distance between circles
+                     cannyThreshold,            // Canny threshold (ADAPTIVE - was hardcoded 90)
+                     accumulatorThreshold,      // Accumulator threshold (ADAPTIVE - was hardcoded 18)
+                     12,                        // Min radius: wider range to catch ball
+                     35);                       // Max radius: wider range to catch ball
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;
@@ -1019,12 +1026,17 @@ QVariantMap CameraCalibration::detectBallLive() {
         // Throttle "0 candidates" logging to once every 5 seconds (avoid spam when dark)
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
         if (currentTime - lastZeroLogTime > 5000 || lastZeroLogTime == 0) {
-            qDebug() << "HoughCircles detected: 0 candidates (dark frame or no ball visible)";
+            qDebug() << "HoughCircles detected: 0 candidates (brightness:" << brightness
+                     << "params: Canny=" << cannyThreshold << "Acc=" << accumulatorThreshold << ")";
             lastZeroLogTime = currentTime;
         }
         lastCircleCount = 0;
     } else if (std::abs(static_cast<int>(circles.size()) - lastCircleCount) > 5) {
         qDebug() << "HoughCircles detected:" << circles.size() << "candidates";
+        // Log first few circle sizes for debugging
+        for (size_t i = 0; i < std::min(circles.size(), size_t(3)); i++) {
+            qDebug() << "  Circle" << i << "- radius:" << circles[i][2] << "px";
+        }
         lastCircleCount = circles.size();
     }
 
