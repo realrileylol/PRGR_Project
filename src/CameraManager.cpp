@@ -244,10 +244,11 @@ void CameraManager::startPreview() {
         // IMPACT CAMERA (Camera 0) - High-speed spin capture
         // ═══════════════════════════════════════════════════════════════════
         //
-        // Physical: 90° LEFT rotation, 7ft from ball, 12-16mm telephoto lens
-        // Sensor: 640×400 (valid OV9281 mode) → Real world: 400×640 portrait
-        // FPS: 240 (native sensor mode, no ROI needed)
-        // Ball target: 20-40 px diameter at 7ft (with 12-16mm lens)
+        // Physical: 90° LEFT rotation, 7ft from ball, 12mm telephoto lens
+        // Sensor output: 640×400 @ 240 FPS (valid OV9281 mode)
+        // Digital crop: 400×250 centered (1.6× zoom)
+        // Final view: 250×400 portrait (after rotation)
+        // Ball size: 40-50 px diameter (matches MLM2 Pro)
 
         args << "--width" << QString::number(m_previewWidth);    // 640
         args << "--height" << QString::number(m_previewHeight);  // 400
@@ -256,8 +257,8 @@ void CameraManager::startPreview() {
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
-        qDebug() << "IMPACT CAMERA (Cam 0):" << m_previewWidth << "x" << m_previewHeight
-                 << "→ 400×640 portrait @" << frameRate << "FPS | Distance: 7ft";
+        qDebug() << "IMPACT CAMERA (Cam 0): Sensor" << m_previewWidth << "x" << m_previewHeight
+                 << "→ Crop 400×250 → Final 250×400 portrait @" << frameRate << "FPS | Distance: 7ft";
     } else if (m_activeCameraIndex == 1) {
         // ═══════════════════════════════════════════════════════════════════
         // TRACKING CAMERA (Camera 1) - Ball flight trajectory
@@ -422,6 +423,22 @@ void CameraManager::previewLoop() {
 
         // Extract Y channel from YUV420 (grayscale)
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
+
+        // IMPACT CAMERA (Camera 0): Apply digital zoom crop
+        // With 12mm lens at 7ft, crop center region for 1.6× zoom to match MLM2 ball size
+        if (m_activeCameraIndex == 0) {
+            // Crop center region: 400×250 from 640×400 (sensor coordinates)
+            // After 90° rotation, this becomes 250×400 real-world (narrower, zoomed on ball)
+            int cropWidth = 400;   // 62.5% of 640 (1.6× zoom)
+            int cropHeight = 250;  // 62.5% of 400 (1.6× zoom)
+            int cropX = (m_previewWidth - cropWidth) / 2;   // Center horizontally: (640-400)/2 = 120
+            int cropY = (m_previewHeight - cropHeight) / 2; // Center vertically: (400-250)/2 = 75
+
+            cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
+            frame = frame(cropROI).clone();  // Crop and clone to avoid reference issues
+
+            // Ball should now appear 40-50 px diameter (1.6× larger than 25-30 px)
+        }
 
         // Debug first few frames (suppressed - too spammy during restarts)
         // if (frameCount < 3) {

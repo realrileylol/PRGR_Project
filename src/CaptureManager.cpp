@@ -131,23 +131,23 @@ void CaptureManager::captureLoop() {
     // ═══════════════════════════════════════════════════════════════════════
     //
     // Physical Setup:
-    //   - Distance: 6.5-8.5 ft from ball (optimal: 7 ft)
+    //   - Distance: 7 ft from ball
     //   - Camera orientation: 90° LEFT rotation (ribbon connector → RIGHT)
-    //   - Lens: 12-16mm telephoto (ball fills 8-16% of frame at 7ft)
+    //   - Lens: 12mm telephoto
     //
-    // Sensor Configuration (OV9281):
-    //   - Mode: 640×400 @ 240 FPS (valid sensor mode, no ROI)
-    //   - Real-world view: 400×640 portrait (after 90° rotation)
-    //     → 400 px horizontal (focused on ball)
-    //     → 640 px vertical (tall, tracks ball rising)
+    // Sensor & Processing:
+    //   - Sensor output: 640×400 @ 240 FPS (valid OV9281 mode)
+    //   - Digital crop: 400×250 centered (1.6× zoom in software)
+    //   - Final resolution: 250×400 portrait (after 90° rotation)
     //
-    // Target Performance:
-    //   - Frame rate: 240 FPS (native sensor mode)
+    // Performance & Quality:
+    //   - Frame rate: 240 FPS (stable)
     //   - Capture window: ~15-20ms (4-5 frames of ball)
-    //   - Ball size: 20-40 px diameter at 7ft (with 12-16mm lens)
+    //   - Ball size: 40-50 px diameter (matches MLM2 Pro target)
+    //   - Ball fill: ~10-16% of frame width ✓
 
-    m_width = 640;   // Sensor width (→ vertical in real world after rotation)
-    m_height = 400;  // Sensor height (→ horizontal in real world after rotation)
+    m_width = 640;   // Sensor width (cropped to 400 in processing)
+    m_height = 400;  // Sensor height (cropped to 250 in processing)
     int frameRate = 240;  // 640×400 @ 240 FPS (valid OV9281 mode)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
@@ -251,6 +251,17 @@ void CaptureManager::captureLoop() {
 
         // Extract Y channel from YUV420 (grayscale)
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_width, m_height);
+
+        // IMPACT CAMERA: Apply digital zoom crop (matches CameraManager preview)
+        // With 12mm lens at 7ft, crop center region for 1.6× zoom to match MLM2 ball size
+        // Crop 400×250 from 640×400 (sensor coords) → 250×400 real-world after 90° rotation
+        int cropWidth = 400;   // 62.5% of 640 (1.6× zoom)
+        int cropHeight = 250;  // 62.5% of 400 (1.6× zoom)
+        int cropX = (m_width - cropWidth) / 2;   // Center: (640-400)/2 = 120
+        int cropY = (m_height - cropHeight) / 2; // Center: (400-250)/2 = 75
+
+        cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
+        frame = frame(cropROI).clone();  // Ball now 40-50 px diameter (matches MLM2)
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());
