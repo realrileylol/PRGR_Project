@@ -35,6 +35,16 @@ void CameraCalibration::setSettings(SettingsManager *settings) {
     loadCalibration();
 }
 
+void CameraCalibration::setCropParameters(int offsetX, int offsetY, int croppedWidth, int croppedHeight) {
+    m_cropOffsetX = offsetX;
+    m_cropOffsetY = offsetY;
+    m_croppedWidth = croppedWidth;
+    m_croppedHeight = croppedHeight;
+
+    qDebug() << "CameraCalibration: Crop parameters set - Offset:" << offsetX << "," << offsetY
+             << "Cropped size:" << croppedWidth << "x" << croppedHeight;
+}
+
 // ============================================================================
 // INTRINSIC CALIBRATION (Checkerboard Method)
 // ============================================================================
@@ -1040,7 +1050,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
                 for (const auto &corner : m_zoneCorners) {
-                    zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+                    // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
                     cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
@@ -1090,7 +1103,10 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto& corner : m_zoneCorners) {
-                zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+                // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
             }
             // pointPolygonTest returns signed distance:
             // > 0: inside, 0: on edge, < 0: outside
@@ -1228,7 +1244,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
                 for (const auto &corner : m_zoneCorners) {
-                    zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+                    // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
                     cv::Point2f(predictedX, predictedY), true);
@@ -1258,15 +1277,21 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+            // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
         }
         double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), true);
         detectedBallInZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
     // Check if last smoothed position was in bounds (not way off-screen from velocity prediction)
-    bool lastPositionInBounds = (m_smoothedBallX >= 0 && m_smoothedBallX < 640 &&
-                                  m_smoothedBallY >= 0 && m_smoothedBallY < 480);
+    // Use cropped dimensions if set, otherwise use default 640×400
+    int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+    int frameHeight = m_croppedHeight > 0 ? m_croppedHeight : 400;
+    bool lastPositionInBounds = (m_smoothedBallX >= 0 && m_smoothedBallX < frameWidth &&
+                                  m_smoothedBallY >= 0 && m_smoothedBallY < frameHeight);
 
     // ========== ZONE RE-ENTRY DETECTION ==========
     // If ball is detected IN ZONE but last position was out of bounds or way off,
@@ -1455,7 +1480,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+            // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
         }
 
         // With distance calculation enabled (true) to get signed distance
@@ -1487,15 +1515,20 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point> pts;
             for (const auto &corner : m_zoneCorners) {
-                pts.push_back(cv::Point(corner.x(), corner.y()));
+                // Transform zone corners from original coords to cropped coords
+                int transformedX = corner.x() - m_cropOffsetX;
+                int transformedY = corner.y() - m_cropOffsetY;
+                pts.push_back(cv::Point(transformedX, transformedY));
             }
             cv::polylines(colorFrame, pts, true, cv::Scalar(212, 188, 0), 2);  // Cyan BGR
 
             // Draw corner labels
             QStringList labels = {"FL", "FR", "BR", "BL"};
             for (int i = 0; i < 4 && i < m_zoneCorners.size(); i++) {
+                int transformedX = m_zoneCorners[i].x() - m_cropOffsetX;
+                int transformedY = m_zoneCorners[i].y() - m_cropOffsetY;
                 cv::putText(colorFrame, labels[i].toStdString(),
-                           cv::Point(m_zoneCorners[i].x() + 5, m_zoneCorners[i].y() - 5),
+                           cv::Point(transformedX + 5, transformedY - 5),
                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
             }
         }
@@ -1904,7 +1937,10 @@ QString CameraCalibration::captureScreenshot() {
     if (ballDetected && m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            zonePoints.push_back(cv::Point2f(corner.x(), corner.y()));
+            // Transform zone corners from original coords to cropped coords
+                    float transformedX = corner.x() - m_cropOffsetX;
+                    float transformedY = corner.y() - m_cropOffsetY;
+                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
         }
         double distance = cv::pointPolygonTest(zonePoints,
             cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
@@ -1916,15 +1952,20 @@ QString CameraCalibration::captureScreenshot() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point> pts;
         for (const auto &corner : m_zoneCorners) {
-            pts.push_back(cv::Point(corner.x(), corner.y()));
+            // Transform zone corners from original coords to cropped coords
+            int transformedX = corner.x() - m_cropOffsetX;
+            int transformedY = corner.y() - m_cropOffsetY;
+            pts.push_back(cv::Point(transformedX, transformedY));
         }
         cv::polylines(colorFrame, pts, true, cv::Scalar(212, 188, 0), 2);  // Cyan BGR
 
         // Draw corner labels
         QStringList labels = {"FL", "FR", "BR", "BL"};
         for (int i = 0; i < 4 && i < m_zoneCorners.size(); i++) {
+            int transformedX = m_zoneCorners[i].x() - m_cropOffsetX;
+            int transformedY = m_zoneCorners[i].y() - m_cropOffsetY;
             cv::putText(colorFrame, labels[i].toStdString(),
-                       cv::Point(m_zoneCorners[i].x() + 5, m_zoneCorners[i].y() - 5),
+                       cv::Point(transformedX + 5, transformedY - 5),
                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
         }
     }

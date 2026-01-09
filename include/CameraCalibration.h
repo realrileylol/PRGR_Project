@@ -59,6 +59,9 @@ public:
     void setFrameProvider(FrameProvider *provider);
     void setSettings(SettingsManager *settings);
 
+    // Digital crop configuration (for Impact Camera zoom)
+    void setCropParameters(int offsetX, int offsetY, int croppedWidth, int croppedHeight);
+
     // Getters
     bool isIntrinsicCalibrated() const { return m_isIntrinsicCalibrated; }
     bool isExtrinsicCalibrated() const { return m_isExtrinsicCalibrated; }
@@ -200,8 +203,14 @@ private:
 
     // Zone boundaries (4 corners of 12"×12" zone)
     bool m_isZoneDefined = false;
-    QList<QPointF> m_zoneCorners;  // 4 corner points in pixels
+    QList<QPointF> m_zoneCorners;  // 4 corner points in pixels (ORIGINAL resolution)
     QList<QPointF> m_markerCorners;  // Extrinsic calibration marker corners (4 points in pixels)
+
+    // Digital crop offset (for Impact Camera zoom) - added for 640×400→400×250 crop
+    int m_cropOffsetX = 0;   // Crop X offset (pixels removed from left)
+    int m_cropOffsetY = 0;   // Crop Y offset (pixels removed from top)
+    int m_croppedWidth = 0;  // Final cropped width (0 = no crop)
+    int m_croppedHeight = 0; // Final cropped height (0 = no crop)
 
     // Intrinsic calibration state
     int m_boardWidth = 0;
