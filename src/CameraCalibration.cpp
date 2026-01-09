@@ -1467,8 +1467,12 @@ QVariantMap CameraCalibration::detectBallLive() {
                    cv::FONT_HERSHEY_SIMPLEX, 0.5,
                    m_hasBaseline ? cv::Scalar(0, 255, 0) : cv::Scalar(255, 255, 255), 1);
 
-        // Store for screenshot capability
-        m_lastDebugFrame = debugFrame.clone();
+        // Rotate debug frame 90° clockwise to match display orientation (portrait)
+        cv::Mat rotatedDebugFrame;
+        cv::rotate(debugFrame, rotatedDebugFrame, cv::ROTATE_90_CLOCKWISE);
+
+        // Store rotated frame for screenshot capability
+        m_lastDebugFrame = rotatedDebugFrame.clone();
     }
 
     // ========== INSTANT TRACKING MODE + VELOCITY PREDICTION ==========
