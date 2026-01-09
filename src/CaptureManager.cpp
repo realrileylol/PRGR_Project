@@ -146,8 +146,8 @@ void CaptureManager::captureLoop() {
     //   - Ball size: ~32-39 px diameter (quality + speed balance)
 
     m_width = 640;   // Sensor width (cropped to 490 in processing)
-    m_height = 400;  // Sensor height (cropped to 310 in processing)
-    int frameRate = 240;  // 640×400 @ 240 FPS (valid OV9281 mode)
+    m_height = 350;  // Sensor height (cropped to 270 in processing)
+    int frameRate = 270;  // 640×350 @ 270 FPS (reduced height for speed)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 
@@ -251,16 +251,16 @@ void CaptureManager::captureLoop() {
         // Extract Y channel from YUV420 (grayscale)
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_width, m_height);
 
-        // IMPACT CAMERA: Apply digital zoom crop (240 FPS mode)
-        // Base: 640×400 sensor @ 240 FPS (valid mode)
-        // Crop: 490×310 centered for 1.3× zoom on ball
+        // IMPACT CAMERA: Apply digital zoom crop (270 FPS mode)
+        // Base: 640×350 sensor @ 270 FPS (reduced height for speed)
+        // Crop: 490×270 centered for 1.3× zoom on ball
         int cropWidth = 490;   // 76.6% of 640 (1.3× zoom)
-        int cropHeight = 310;  // 77.5% of 400 (1.3× zoom)
+        int cropHeight = 270;  // 77.1% of 350 (1.3× zoom)
         int cropX = (m_width - cropWidth) / 2;   // Center: (640-490)/2 = 75
-        int cropY = (m_height - cropHeight) / 2; // Center: (400-310)/2 = 45
+        int cropY = (m_height - cropHeight) / 2; // Center: (350-270)/2 = 40
 
         cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-        frame = frame(cropROI).clone();  // Ball ~32-39 px @ 240 FPS
+        frame = frame(cropROI).clone();  // Ball ~32-39 px @ 270 FPS
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());

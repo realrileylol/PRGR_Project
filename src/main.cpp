@@ -53,8 +53,8 @@ int main(int argc, char *argv[]) {
     cameraCalibration.setSettings(&settingsManager);
 
     // Set crop parameters for Impact Camera (Camera 0) digital zoom
-    // Crop 490×310 from 640×400 centered (240 FPS mode with 1.3× zoom)
-    cameraCalibration.setCropParameters(75, 45, 490, 310);
+    // Crop 490×270 from 640×350 centered (270 FPS mode with 1.3× zoom)
+    cameraCalibration.setCropParameters(75, 40, 490, 270);
 
     // Connect ball detector to calibration
     ballDetector.setCalibration(&cameraCalibration);
