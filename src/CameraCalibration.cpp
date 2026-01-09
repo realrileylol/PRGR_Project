@@ -640,6 +640,15 @@ void CameraCalibration::loadCalibration() {
         m_zoneCorners.append(QPointF(cornerObj["x"].toDouble(), cornerObj["y"].toDouble()));
     }
 
+    // DEBUG: Log loaded zone corners to verify they match current resolution
+    if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+        qDebug() << "📍 LOADED ZONE CORNERS FROM FILE:";
+        for (int i = 0; i < 4; i++) {
+            qDebug() << "   Corner" << i << ":" << m_zoneCorners[i];
+        }
+        qDebug() << "   ⚠️ If Y values > 400, zone was calibrated on old resolution - DELETE calibration.json and recalibrate!";
+    }
+
     // Load marker corners (from extrinsic calibration)
     m_markerCorners.clear();
     QJsonArray markerCorners = json["marker_corners"].toArray();
