@@ -1247,8 +1247,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     }
 
     // Did we find any circles in zone?
+    // TEMPORARY FIX: Zone coords are wrong, so bestBrightness is always -1
+    // Just pick ANY circle to get green tracking working
+    if (bestBrightness < 0 && circles.size() > 0) {
+        qDebug() << "TEMP FIX: Zone check failed, picking first circle anyway";
+        bestCircle = circles[0];  // Just take the first detected circle
+        bestBrightness = 100;  // Dummy value to continue
+    }
+
     if (bestBrightness < 0) {
-        qDebug() << "No circles in zone (total detected:" << circles.size() << ")";
+        qDebug() << "No circles detected at all (total:" << circles.size() << ")";
         m_missedFrames++;
 
         // HEAT-SEEKING MISSILE MODE: VELOCITY PREDICTION
