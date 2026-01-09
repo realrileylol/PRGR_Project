@@ -126,15 +126,35 @@ void CaptureManager::captureLoop() {
         m_height = resParts[1].toInt();
     }
 
-    // HIGH-SPEED SPIN CAPTURE MODE
-    // Strategy: Request full sensor mode (1280×800), then use hardware ROI crop
-    // This reduces sensor rows read per frame, increasing FPS to 350-420
-    // Physical camera is rotated 90° LEFT for portrait real-world orientation
+    // ═══════════════════════════════════════════════════════════════════════
+    // IMPACT CAMERA - HIGH-SPEED SPIN CAPTURE CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Physical Setup:
+    //   - Distance: 6.5-8.5 ft from ball (optimal: 7 ft)
+    //   - Camera orientation: 90° LEFT rotation (ribbon connector → RIGHT)
+    //   - Lens: 12-16mm telephoto (ball fills 8-16% of frame at 7ft)
+    //
+    // Sensor Configuration (OV9281):
+    //   - Sensor crop: 640×240 (sensor coordinates)
+    //   - Real-world view: 240×640 portrait (after 90° rotation)
+    //     → 240 px horizontal (narrow, focused on ball)
+    //     → 640 px vertical (tall, tracks ball rising)
+    //   - Sensor rows read: 240 → Maximum FPS (~400)
+    //
+    // Target Performance:
+    //   - Frame rate: 350-420 FPS
+    //   - Capture window: ~15-20ms (5-8 frames of ball)
+    //   - Ball size: 20-40 px diameter at 7ft (with 12mm+ lens)
+    //
+    // Matches MLM2 Pro impact camera design:
+    //   - Portrait orientation for vertical ball flight
+    //   - High FPS for spin dot tracking
+    //   - Telephoto FOV (minimal background noise)
 
-    // Override resolution for high-speed ROI mode
-    m_width = 640;   // Output width after ROI crop
-    m_height = 240;  // Output height after ROI crop (reduced rows = higher FPS)
-    int frameRate = 400;  // Target FPS with ROI crop (350-420 FPS range)
+    m_width = 640;   // Sensor width (→ vertical in real world after rotation)
+    m_height = 240;  // Sensor height (→ horizontal in real world after rotation)
+    int frameRate = 400;  // Target 400 FPS (240 sensor rows = max speed)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 
@@ -164,30 +184,34 @@ void CaptureManager::captureLoop() {
     QStringList args;
     args << "--timeout" << "0";
 
-    // Hardware ROI crop: 640×240 centered region from 1280×800 sensor
-    // ROI format: x,y,width,height (normalized 0.0-1.0)
-    // x = (1280-640)/2 / 1280 = 0.25
-    // y = (800-240)/2 / 800 = 0.35
-    // w = 640/1280 = 0.5
-    // h = 240/800 = 0.3
+    // IMPACT CAMERA - Hardware ROI Configuration
+    // Crop 640×240 centered region from 1280×800 sensor for max FPS
+    //
+    // ROI calculation (normalized 0.0-1.0):
+    //   x = (1280-640)/2 / 1280 = 0.25  (centered horizontally)
+    //   y = (800-240)/2 / 800 = 0.35    (centered vertically)
+    //   w = 640/1280 = 0.5              (50% of sensor width)
+    //   h = 240/800 = 0.3               (30% of sensor height)
+    //
+    // Adjust y-offset if ball consistently appears high/low in frame at 7ft
     args << "--roi" << "0.25,0.35,0.5,0.3";
 
-    // Output resolution must match ROI output (640×240)
-    args << "--width" << QString::number(m_width);    // 640
-    args << "--height" << QString::number(m_height);  // 240
+    // Output resolution must match ROI crop dimensions
+    args << "--width" << QString::number(m_width);    // 640 (sensor coords)
+    args << "--height" << QString::number(m_height);  // 240 (sensor coords)
     args << "--framerate" << QString::number(frameRate);
     args << "--shutter" << QString::number(shutterSpeed);
     args << "--gain" << QString::number(gain);
 
-    // YUV420 codec, extract Y (luma) plane for grayscale
-    // NO MONO8 support in rpicam
+    // YUV420 codec - extract Y (luma) plane for monochrome spin detection
+    // rpicam-vid does NOT support MONO8 codec
     args << "--codec" << "yuv420";
     args << "--output" << pipePath;
     args << "--nopreview";  // Preview disabled for maximum FPS
 
-    qDebug() << "High-speed spin capture: sensor ROI crop to"
-             << m_width << "x" << m_height << "@ target" << frameRate << "FPS"
-             << "| Shutter:" << shutterSpeed << "µs, Gain:" << gain;
+    qDebug() << "IMPACT CAMERA: ROI crop" << m_width << "x" << m_height
+             << "→ real-world 240×640 portrait @ target" << frameRate << "FPS"
+             << "| Shutter:" << shutterSpeed << "µs, Gain:" << gain << "| Distance: 7ft";
 
     captureProcess->start("rpicam-vid", args);
     if (!captureProcess->waitForStarted(5000)) {

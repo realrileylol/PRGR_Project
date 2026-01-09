@@ -191,17 +191,17 @@ void CameraManager::startPreview() {
         m_previewHeight = resParts[1].toInt();
     }
 
-    // HIGH-SPEED SPIN CAPTURE MODE (Camera 0)
-    // Override for Camera 0: Use hardware ROI crop for 350-420 FPS
+    // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
+    // Override for Camera 0: Hardware ROI crop for max FPS at 7ft distance
     if (m_activeCameraIndex == 0) {
-        m_previewWidth = 640;   // Output width after ROI crop
-        m_previewHeight = 240;  // Output height after ROI crop (reduced rows = higher FPS)
+        m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
+        m_previewHeight = 240;  // Sensor height (→ horizontal after 90° rotation)
     }
 
-    // Determine frame rate based on resolution and ROI usage
+    // Determine frame rate based on resolution and sensor rows read
     int frameRate = 120;  // Safe default
     if (m_previewWidth == 640 && m_previewHeight == 240) {
-        frameRate = 400;  // ROI crop to 640×240 from 1280×800 - high-speed spin capture
+        frameRate = 400;  // Impact camera: 640×240 ROI = 240 rows = max FPS (~400)
     } else if (m_previewWidth == 640 && m_previewHeight == 480) {
         frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
     } else if (m_previewWidth == 640 && m_previewHeight == 400) {
@@ -239,37 +239,49 @@ void CameraManager::startPreview() {
 
     // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
-        // TOP CAMERA (Camera 0) - High-speed spin capture with hardware ROI crop
-        // Hardware ROI crop: 640×240 centered region from 1280×800 sensor
-        // ROI format: x,y,width,height (normalized 0.0-1.0)
-        // x = (1280-640)/2 / 1280 = 0.25
-        // y = (800-240)/2 / 800 = 0.35
-        // w = 640/1280 = 0.5
-        // h = 240/800 = 0.3
+        // ═══════════════════════════════════════════════════════════════════
+        // IMPACT CAMERA (Camera 0) - High-speed spin capture
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // Physical: 90° LEFT rotation, 7ft from ball, 12-16mm telephoto lens
+        // Sensor: 640×240 ROI crop → Real world: 240×640 portrait
+        // Target: 400 FPS, ball fills 8-16% of frame (20-40 px diameter)
+        //
+        // Hardware ROI crop from 1280×800 sensor:
+        //   x=0.25 (25% from left)   → Centers 640px width
+        //   y=0.35 (35% from top)    → Centers 240px height
+        //   w=0.5  (50% of width)    → 640px crop (→ vertical after rotation)
+        //   h=0.3  (30% of height)   → 240px crop (→ horizontal after rotation)
+        //
+        // Adjust y-offset if ball appears high/low in preview at 7ft distance
         args << "--roi" << "0.25,0.35,0.5,0.3";
 
-        // Output resolution must match ROI output (640×240)
-        args << "--width" << QString::number(m_previewWidth);    // 640
-        args << "--height" << QString::number(m_previewHeight);  // 240
+        args << "--width" << QString::number(m_previewWidth);    // 640 (sensor coords)
+        args << "--height" << QString::number(m_previewHeight);  // 240 (sensor coords)
         args << "--framerate" << QString::number(frameRate);
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
-        args << "--codec" << "yuv420";  // YUV420, extract Y channel for grayscale
+        args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
-        qDebug() << "Camera 0: ROI spin mode - sensor ROI crop to"
-                 << m_previewWidth << "x" << m_previewHeight << "@ target" << frameRate << "FPS";
+        qDebug() << "IMPACT CAMERA (Cam 0): ROI" << m_previewWidth << "x" << m_previewHeight
+                 << "→ 240×640 portrait @" << frameRate << "FPS | Distance: 7ft";
     } else if (m_activeCameraIndex == 1) {
-        // BOTTOM CAMERA (Camera 1) - Ball detection and tracking
+        // ═══════════════════════════════════════════════════════════════════
+        // TRACKING CAMERA (Camera 1) - Ball flight trajectory
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // Purpose: Track ball launch, flight path, landing
+        // Resolution: 640×480 or 1280×800 (lower FPS ok, need full trajectory)
+        // ROI: 60% center crop (1.66× zoom on launch area)
         args << "--width" << QString::number(m_previewWidth);
         args << "--height" << QString::number(m_previewHeight);
         args << "--framerate" << QString::number(frameRate);
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
 
-        // Standard ROI crop for 1.66x zoom on ball launch area
-        args << "--roi" << "0.2,0.2,0.6,0.6";  // x, y, width, height (0-1 normalized)
-        args << "--codec" << "yuv420";  // YUV420 for color preview
-        qDebug() << "Camera 1: Detection mode - YUV420, 60% center crop";
+        args << "--roi" << "0.2,0.2,0.6,0.6";  // 60% center crop
+        args << "--codec" << "yuv420";  // YUV420 (color or convert to grayscale)
+        qDebug() << "TRACKING CAMERA (Cam 1): YUV420, 60% center crop @" << frameRate << "FPS";
     } else {
         // Default for any other camera
         args << "--width" << QString::number(m_previewWidth);
