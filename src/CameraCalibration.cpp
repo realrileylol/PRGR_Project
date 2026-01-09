@@ -1026,8 +1026,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                      processed.rows / 12,      // Min distance between circles
                      cannyThreshold,            // Canny threshold (ADAPTIVE - was hardcoded 90)
                      accumulatorThreshold,      // Accumulator threshold (ADAPTIVE - was hardcoded 18)
-                     12,                        // Min radius: wider range to catch ball
-                     35);                       // Max radius: wider range to catch ball
+                     20,                        // Min radius: golf ball only (1.6× zoom: 40-50px diameter)
+                     27);                       // Max radius: golf ball only (tight range to filter carpet)
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;
