@@ -497,6 +497,13 @@ Rectangle {
                                 ctx.moveTo(liveX, liveY - 6)
                                 ctx.lineTo(liveX, liveY + 6)
                                 ctx.stroke()
+
+                                // Display ball size in pixels (diameter)
+                                var ballDiameter = Math.round(liveBallRadius * 2)
+                                ctx.fillStyle = trackingColor
+                                ctx.font = "bold 14px sans-serif"
+                                ctx.textAlign = "center"
+                                ctx.fillText(ballDiameter + " px", liveX, liveY + liveR + 20)
                             }
 
                             // Draw calibrated zone boundary (PERMANENT - always visible)
