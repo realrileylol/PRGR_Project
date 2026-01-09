@@ -1123,14 +1123,33 @@ QVariantMap CameraCalibration::detectBallLive() {
         bool inZone = false;
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
+
+            // Debug: log zone transform once
+            static bool loggedZone = false;
+            if (!loggedZone) {
+                qDebug() << "===== ZONE TRANSFORM DEBUG =====";
+                qDebug() << "Frame dimensions:" << processed.cols << "x" << processed.rows;
+                for (int i = 0; i < m_zoneCorners.size(); i++) {
+                    qDebug() << "  Corner" << i << "rotated:" << m_zoneCorners[i].x() << "," << m_zoneCorners[i].y();
+                }
+            }
+
             for (const auto& corner : m_zoneCorners) {
-                // Zone corners stored in ROTATED display space (250×400)
-                // Detection happens in UNROTATED crop space (400×250)
                 // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
                 float unrotatedX = 400.0f - corner.y();
                 float unrotatedY = corner.x();
                 zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
+
+                if (!loggedZone) {
+                    qDebug() << "    → unrotated:" << unrotatedX << "," << unrotatedY;
+                }
             }
+
+            if (!loggedZone) {
+                qDebug() << "First circle pos:" << cx << "," << cy << "radius:" << r;
+                loggedZone = true;
+            }
+
             // pointPolygonTest returns signed distance:
             // > 0: inside, 0: on edge, < 0: outside
             // With tolerance: allow ball even when slightly outside edge
