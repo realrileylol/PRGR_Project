@@ -192,17 +192,15 @@ void CameraManager::startPreview() {
     }
 
     // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
-    // Override for Camera 0: Try 640×350 @ ~270 FPS (12.5% faster than 400 height)
+    // Override for Camera 0: 640×400 @ 240 FPS (VALID OV9281 mode)
     if (m_activeCameraIndex == 0) {
         m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
-        m_previewHeight = 350;  // Reduced height (→ horizontal after 90° rotation)
+        m_previewHeight = 400;  // VALID sensor height (→ horizontal after 90° rotation)
     }
 
     // Determine frame rate based on resolution
     int frameRate = 120;  // Safe default
-    if (m_previewWidth == 640 && m_previewHeight == 350) {
-        frameRate = 270;  // Impact camera: 640×350 reduced height = ~270 FPS target
-    } else if (m_previewWidth == 640 && m_previewHeight == 400) {
+    if (m_previewWidth == 640 && m_previewHeight == 400) {
         frameRate = 240;  // Impact camera: 640×400 valid mode = 240 FPS
     } else if (m_previewWidth == 640 && m_previewHeight == 480) {
         frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
@@ -426,18 +424,18 @@ void CameraManager::previewLoop() {
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
 
         // IMPACT CAMERA (Camera 0): Apply digital zoom crop for ball size
-        // Base: 640×350 sensor output @ 270 FPS (reduced height for speed)
-        // Crop: 490×270 centered for 1.3× zoom on ball
+        // Base: 640×400 sensor output @ 240 FPS (VALID OV9281 mode)
+        // Crop: 490×310 centered for 1.3× zoom on ball
         if (m_activeCameraIndex == 0) {
-            // Crop center region from 640×350 base
-            // After 90° rotation: 270×490 real-world portrait
+            // Crop center region from 640×400 base
+            // After 90° rotation: 310×490 real-world portrait
             int cropWidth = 490;   // 76.6% of 640 (1.3× zoom)
-            int cropHeight = 270;  // 77.1% of 350 (1.3× zoom)
+            int cropHeight = 310;  // 77.5% of 400 (1.3× zoom)
             int cropX = (m_previewWidth - cropWidth) / 2;   // Center: (640-490)/2 = 75
-            int cropY = (m_previewHeight - cropHeight) / 2; // Center: (350-270)/2 = 40
+            int cropY = (m_previewHeight - cropHeight) / 2; // Center: (400-310)/2 = 45
 
             cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-            frame = frame(cropROI).clone();  // Ball ~32-39 px diameter @ 270 FPS
+            frame = frame(cropROI).clone();  // Ball ~32-39 px diameter @ 240 FPS
         }
 
         // Debug first few frames (suppressed - too spammy during restarts)
