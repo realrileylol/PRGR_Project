@@ -1158,11 +1158,13 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== ZONE FILTERING (Initial Lock vs Tracking) ==========
+        // TEMPORARY: Disable zone filtering to make green circle appear
         // INITIAL LOCK (not tracking yet): Only accept circles IN ZONE to prevent false locks on background
         // DURING TRACKING: Accept circles ANYWHERE to follow ball flight after impact
-        if (!m_liveTrackingInitialized && m_isZoneDefined && !inZone) {
-            continue;  // Not tracking yet - skip circles outside zone
-        }
+        // if (!m_liveTrackingInitialized && m_isZoneDefined && !inZone) {
+        //     continue;  // Not tracking yet - skip circles outside zone
+        // }
+        // TEMPORARY FIX: Accept all circles regardless of zone to debug tracking
 
         // Track whether this circle is in zone for scoring purposes
         if (inZone) {
