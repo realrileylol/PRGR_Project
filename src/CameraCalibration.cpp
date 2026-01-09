@@ -1000,7 +1000,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     }
 
     // Detect circles using HoughCircles - GOLF BALL SIZE ONLY
-    // Golf ball @ 7ft with 12mm lens + 1.3× crop: ~32-40 px diameter (16-20 px radius)
+    // Golf ball @ 7ft with 12mm lens + 1.6× crop: ~40-50 px diameter (20-25 px radius)
     // STRICT size filtering - only detect objects matching golf ball dimensions
     // Balanced STRICT PARAMETERS - reliable ball detection while eliminating carpet texture
     std::vector<cv::Vec3f> circles;
@@ -1008,8 +1008,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                      processed.rows / 12,  // Min distance: 40px (eliminates duplicate detections of same ball)
                      90,                   // Canny threshold: Balanced (strong ball edges, filters most carpet)
                      18,                   // Accumulator: Balanced (complete circles, tolerates slight imperfections)
-                     15,                   // Golf ball min radius (15 px) - allows smaller balls
-                     25);                  // Golf ball max radius (25 px) - tighter range
+                     18,                   // Golf ball min radius (18 px) - matches Rapsodo size
+                     28);                  // Golf ball max radius (28 px) - tighter range for 40-56 px diameter
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;

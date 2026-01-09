@@ -143,10 +143,10 @@ void CaptureManager::captureLoop() {
     // Performance & Quality:
     //   - Frame rate: 240 FPS (stable, validated mode)
     //   - Capture window: ~15-20ms (4-5 frames of ball at 150 mph)
-    //   - Ball size: ~32-39 px diameter (quality + speed balance)
+    //   - Ball size: ~40-50 px diameter (matches Rapsodo MLM2 Pro)
 
-    m_width = 640;   // Sensor width (cropped to 490 in processing)
-    m_height = 400;  // Sensor height (cropped to 310 in processing)
+    m_width = 640;   // Sensor width (cropped to 400 in processing)
+    m_height = 400;  // Sensor height (cropped to 250 in processing)
     int frameRate = 240;  // 640×400 @ 240 FPS (VALID OV9281 mode)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
@@ -253,14 +253,14 @@ void CaptureManager::captureLoop() {
 
         // IMPACT CAMERA: Apply digital zoom crop (240 FPS mode)
         // Base: 640×400 sensor @ 240 FPS (VALID OV9281 mode)
-        // Crop: 490×310 centered for 1.3× zoom on ball
-        int cropWidth = 490;   // 76.6% of 640 (1.3× zoom)
-        int cropHeight = 310;  // 77.5% of 400 (1.3× zoom)
-        int cropX = (m_width - cropWidth) / 2;   // Center: (640-490)/2 = 75
-        int cropY = (m_height - cropHeight) / 2; // Center: (400-310)/2 = 45
+        // Crop: 400×250 centered for 1.6× zoom to match Rapsodo ball size
+        int cropWidth = 400;   // 62.5% of 640 (1.6× zoom)
+        int cropHeight = 250;  // 62.5% of 400 (1.6× zoom)
+        int cropX = (m_width - cropWidth) / 2;   // Center: (640-400)/2 = 120
+        int cropY = (m_height - cropHeight) / 2; // Center: (400-250)/2 = 75
 
         cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-        frame = frame(cropROI).clone();  // Ball ~32-39 px @ 240 FPS
+        frame = frame(cropROI).clone();  // Ball ~40-50 px @ 240 FPS (matches Rapsodo)
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());
