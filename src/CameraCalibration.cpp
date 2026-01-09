@@ -1071,9 +1071,11 @@ QVariantMap CameraCalibration::detectBallLive() {
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
                 for (const auto &corner : m_zoneCorners) {
-                    // Transform zone corners from original coords to cropped coords
-                    float transformedX = corner.x() - m_cropOffsetX;
-                    float transformedY = corner.y() - m_cropOffsetY;
+                    // Transform from rotated display (250×400) to unrotated crop (400×250)
+                    float unrotatedX = corner.y();
+                    float unrotatedY = 250 - corner.x();
+                    float transformedX = unrotatedX - m_cropOffsetX;
+                    float transformedY = unrotatedY - m_cropOffsetY;
                     zonePoints.push_back(cv::Point2f(transformedX, transformedY));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
@@ -1124,10 +1126,17 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto& corner : m_zoneCorners) {
-                // Transform zone corners from original coords to cropped coords
-                    float transformedX = corner.x() - m_cropOffsetX;
-                    float transformedY = corner.y() - m_cropOffsetY;
-                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+                // Zone corners are stored in ROTATED display space (250×400)
+                // But detection happens in UNROTATED crop space (400×250)
+                // Transform: rotated (x,y) → unrotated (y, 250-x)
+                // Then apply crop offset subtraction
+                float unrotatedX = corner.y();
+                float unrotatedY = 250 - corner.x();
+
+                // Now apply crop offset (zone was calibrated on cropped frame)
+                float transformedX = unrotatedX - m_cropOffsetX;
+                float transformedY = unrotatedY - m_cropOffsetY;
+                zonePoints.push_back(cv::Point2f(transformedX, transformedY));
             }
             // pointPolygonTest returns signed distance:
             // > 0: inside, 0: on edge, < 0: outside
@@ -1298,10 +1307,12 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Transform zone corners from original coords to cropped coords
-                    float transformedX = corner.x() - m_cropOffsetX;
-                    float transformedY = corner.y() - m_cropOffsetY;
-                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+            // Transform from rotated display (250×400) to unrotated crop (400×250)
+            float unrotatedX = corner.y();
+            float unrotatedY = 250 - corner.x();
+            float transformedX = unrotatedX - m_cropOffsetX;
+            float transformedY = unrotatedY - m_cropOffsetY;
+            zonePoints.push_back(cv::Point2f(transformedX, transformedY));
         }
         double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), true);
         detectedBallInZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
@@ -1504,10 +1515,12 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Transform zone corners from original coords to cropped coords
-                    float transformedX = corner.x() - m_cropOffsetX;
-                    float transformedY = corner.y() - m_cropOffsetY;
-                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+            // Transform from rotated display (250×400) to unrotated crop (400×250)
+            float unrotatedX = corner.y();
+            float unrotatedY = 250 - corner.x();
+            float transformedX = unrotatedX - m_cropOffsetX;
+            float transformedY = unrotatedY - m_cropOffsetY;
+            zonePoints.push_back(cv::Point2f(transformedX, transformedY));
         }
 
         // With distance calculation enabled (true) to get signed distance
