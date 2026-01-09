@@ -1071,12 +1071,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
                 for (const auto &corner : m_zoneCorners) {
-                    // Transform from rotated display (250×400) to unrotated crop (400×250)
-                    float unrotatedX = corner.y();
-                    float unrotatedY = 250 - corner.x();
-                    float transformedX = unrotatedX - m_cropOffsetX;
-                    float transformedY = unrotatedY - m_cropOffsetY;
-                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+                    // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
+                    float unrotatedX = 400.0f - corner.y();
+                    float unrotatedY = corner.x();
+                    zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
                 }
                 double distance = cv::pointPolygonTest(zonePoints,
                     cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
@@ -1126,17 +1124,12 @@ QVariantMap CameraCalibration::detectBallLive() {
         if (m_isZoneDefined && m_zoneCorners.size() == 4) {
             std::vector<cv::Point2f> zonePoints;
             for (const auto& corner : m_zoneCorners) {
-                // Zone corners are stored in ROTATED display space (250×400)
-                // But detection happens in UNROTATED crop space (400×250)
-                // Transform: rotated (x,y) → unrotated (y, 250-x)
-                // Then apply crop offset subtraction
-                float unrotatedX = corner.y();
-                float unrotatedY = 250 - corner.x();
-
-                // Now apply crop offset (zone was calibrated on cropped frame)
-                float transformedX = unrotatedX - m_cropOffsetX;
-                float transformedY = unrotatedY - m_cropOffsetY;
-                zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+                // Zone corners stored in ROTATED display space (250×400)
+                // Detection happens in UNROTATED crop space (400×250)
+                // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
+                float unrotatedX = 400.0f - corner.y();
+                float unrotatedY = corner.x();
+                zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
             }
             // pointPolygonTest returns signed distance:
             // > 0: inside, 0: on edge, < 0: outside
@@ -1307,12 +1300,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Transform from rotated display (250×400) to unrotated crop (400×250)
-            float unrotatedX = corner.y();
-            float unrotatedY = 250 - corner.x();
-            float transformedX = unrotatedX - m_cropOffsetX;
-            float transformedY = unrotatedY - m_cropOffsetY;
-            zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+            // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
+            float unrotatedX = 400.0f - corner.y();
+            float unrotatedY = corner.x();
+            zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
         double distance = cv::pointPolygonTest(zonePoints, cv::Point2f(ballX, ballY), true);
         detectedBallInZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
@@ -1515,12 +1506,10 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Transform from rotated display (250×400) to unrotated crop (400×250)
-            float unrotatedX = corner.y();
-            float unrotatedY = 250 - corner.x();
-            float transformedX = unrotatedX - m_cropOffsetX;
-            float transformedY = unrotatedY - m_cropOffsetY;
-            zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+            // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
+            float unrotatedX = 400.0f - corner.y();
+            float unrotatedY = corner.x();
+            zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
 
         // With distance calculation enabled (true) to get signed distance
