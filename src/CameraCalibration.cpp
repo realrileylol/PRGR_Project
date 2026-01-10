@@ -1354,6 +1354,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     bool lastPositionInBounds = (m_smoothedBallX >= 0 && m_smoothedBallX < frameWidth &&
                                   m_smoothedBallY >= 0 && m_smoothedBallY < frameHeight);
 
+    // CRITICAL FIX: If last position is WAY outside frame, reset tracking immediately
+    if (m_liveTrackingInitialized && !lastPositionInBounds) {
+        qDebug() << "🔄 RESET: Last position (" << m_smoothedBallX << "," << m_smoothedBallY
+                 << ") outside frame bounds - resetting tracking";
+        m_liveTrackingInitialized = false;
+        m_kalmanInitialized = false;
+        m_trackingConfidence = 0;
+        m_missedFrames = 0;
+    }
+
     // ========== ZONE RE-ENTRY DETECTION ==========
     // If ball is detected IN ZONE but last position was out of bounds or way off,
     // this is a re-entry from outside → force accept and reset tracking
