@@ -643,10 +643,26 @@ void CameraCalibration::loadCalibration() {
     // DEBUG: Log loaded zone corners to verify they match current resolution
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         qDebug() << "📍 LOADED ZONE CORNERS FROM FILE:";
+
+        // Validate corners are within reasonable bounds for 250×400 rotated display
+        bool cornersValid = true;
         for (int i = 0; i < 4; i++) {
             qDebug() << "   Corner" << i << ":" << m_zoneCorners[i];
+            // Check if any corner is way outside current display bounds
+            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 300 ||
+                m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 450) {
+                cornersValid = false;
+            }
         }
-        qDebug() << "   ⚠️ If Y values > 400, zone was calibrated on old resolution - DELETE calibration.json and recalibrate!";
+
+        if (!cornersValid) {
+            qDebug() << "   ❌ INVALID ZONE - corners from old resolution! Auto-clearing zone.";
+            qDebug() << "   Please recalibrate zone on Ball Zone Calibration screen.";
+            m_zoneCorners.clear();
+            m_isZoneDefined = false;
+        } else {
+            qDebug() << "   ✅ Zone corners valid for current resolution";
+        }
     }
 
     // Load marker corners (from extrinsic calibration)
@@ -1167,13 +1183,15 @@ QVariantMap CameraCalibration::detectBallLive() {
         }
 
         // ========== ZONE FILTERING (Initial Lock vs Tracking) ==========
-        // TEMPORARY: Disable zone filtering to make green circle appear
-        // INITIAL LOCK (not tracking yet): Only accept circles IN ZONE to prevent false locks on background
-        // DURING TRACKING: Accept circles ANYWHERE to follow ball flight after impact
-        // if (!m_liveTrackingInitialized && m_isZoneDefined && !inZone) {
-        //     continue;  // Not tracking yet - skip circles outside zone
-        // }
-        // TEMPORARY FIX: Accept all circles regardless of zone to debug tracking
+        // If no zone defined, accept all golf ball sized circles
+        // If zone defined but invalid, also accept all circles
+        if (m_isZoneDefined && m_zoneCorners.size() == 4) {
+            // Zone is defined - only accept circles in zone for initial lock
+            if (!m_liveTrackingInitialized && !inZone) {
+                continue;  // Not tracking yet - skip circles outside zone
+            }
+        }
+        // No zone defined or zone invalid - accept all circles
 
         // Track whether this circle is in zone for scoring purposes
         if (inZone) {
@@ -1255,17 +1273,9 @@ QVariantMap CameraCalibration::detectBallLive() {
         return result;
     }
 
-    // Did we find any circles in zone?
-    // TEMPORARY FIX: Zone coords are wrong, so bestBrightness is always -1
-    // Just pick ANY circle to get green tracking working
-    if (bestBrightness < 0 && circles.size() > 0) {
-        qDebug() << "TEMP FIX: Zone check failed, picking first circle anyway";
-        bestCircle = circles[0];  // Just take the first detected circle
-        bestBrightness = 100;  // Dummy value to continue
-    }
-
+    // Did we find any circles?
     if (bestBrightness < 0) {
-        qDebug() << "No circles detected at all (total:" << circles.size() << ")";
+        qDebug() << "No valid golf balls detected (total circles:" << circles.size() << ")";
         m_missedFrames++;
 
         // HEAT-SEEKING MISSILE MODE: VELOCITY PREDICTION
