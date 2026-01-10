@@ -2031,45 +2031,52 @@ QString CameraCalibration::captureScreenshot() {
     if (ballDetected && m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Transform zone corners from original coords to cropped coords
-                    float transformedX = corner.x() - m_cropOffsetX;
-                    float transformedY = corner.y() - m_cropOffsetY;
-                    zonePoints.push_back(cv::Point2f(transformedX, transformedY));
+            // Frame is ROTATED, ball position is in UNROTATED space
+            // Zone corners are in ROTATED space
+            // Need to inverse transform zone back to unrotated for comparison
+            float unrotatedX = 400.0f - corner.y();
+            float unrotatedY = corner.x();
+            zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
         double distance = cv::pointPolygonTest(zonePoints,
             cv::Point2f(m_smoothedBallX, m_smoothedBallY), true);
         inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
-    // Draw all overlays (same as video recording)
-    // 1. Draw zone boundary (cyan box)
+    // Draw all overlays
+    // 1. Draw zone boundary (orange box)
+    // NOTE: Frame from getLatestFrame() is ROTATED (250×400)
+    // Zone corners are stored in ROTATED space (from QML clicks)
+    // So use zone corners directly - NO transformation needed
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point> pts;
         for (const auto &corner : m_zoneCorners) {
-            // Transform zone corners from original coords to cropped coords
-            int transformedX = corner.x() - m_cropOffsetX;
-            int transformedY = corner.y() - m_cropOffsetY;
-            pts.push_back(cv::Point(transformedX, transformedY));
+            // Zone corners are already in rotated 250×400 space - use directly
+            pts.push_back(cv::Point(corner.x(), corner.y()));
         }
-        cv::polylines(colorFrame, pts, true, cv::Scalar(212, 188, 0), 2);  // Cyan BGR
+        cv::polylines(colorFrame, pts, true, cv::Scalar(0, 165, 255), 2);  // Orange BGR
 
         // Draw corner labels
         QStringList labels = {"FL", "FR", "BR", "BL"};
         for (int i = 0; i < 4 && i < m_zoneCorners.size(); i++) {
-            int transformedX = m_zoneCorners[i].x() - m_cropOffsetX;
-            int transformedY = m_zoneCorners[i].y() - m_cropOffsetY;
             cv::putText(colorFrame, labels[i].toStdString(),
-                       cv::Point(transformedX + 5, transformedY - 5),
+                       cv::Point(m_zoneCorners[i].x() + 5, m_zoneCorners[i].y() - 5),
                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
         }
     }
 
     // 2. Draw ball tracking circle (green or red)
+    // Ball position is in UNROTATED space, need to transform to ROTATED space for drawing
     if (ballDetected) {
+        // Transform ball position from unrotated (400×250) to rotated (250×400) space
+        // Rotation: (x, y) → (y, 400-x)
+        int ballRotatedX = static_cast<int>(m_smoothedBallY);
+        int ballRotatedY = static_cast<int>(400.0 - m_smoothedBallX);
+
         cv::Scalar circleColor = inZone ? cv::Scalar(80, 175, 76) : cv::Scalar(0, 0, 255);  // Green or Red BGR
-        cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+        cv::circle(colorFrame, cv::Point(ballRotatedX, ballRotatedY),
                   m_lastBallRadius + 3, circleColor, 3);
-        cv::circle(colorFrame, cv::Point(m_smoothedBallX, m_smoothedBallY),
+        cv::circle(colorFrame, cv::Point(ballRotatedX, ballRotatedY),
                   2, circleColor, -1);  // Center dot
     }
 
