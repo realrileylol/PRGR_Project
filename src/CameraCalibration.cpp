@@ -960,7 +960,16 @@ QVariantMap CameraCalibration::detectBallLive() {
     // The frame provider rotates for display, but we need unrotated for detection
     cv::Mat frame = m_frameProvider->getLatestFrameUnrotated();
     if (frame.empty()) {
+        qDebug() << "❌ detectBallLive: No frame available from provider";
         return result;
+    }
+
+    // Log frame dimensions once at startup to verify crop is working
+    static bool dimensionsLogged = false;
+    if (!dimensionsLogged) {
+        qDebug() << "📐 detectBallLive frame size:" << frame.cols << "×" << frame.rows
+                 << "| Expected: 400×250 (after 1.6× crop, before rotation)";
+        dimensionsLogged = true;
     }
 
     // Convert to grayscale if needed
