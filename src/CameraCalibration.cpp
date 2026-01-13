@@ -1354,6 +1354,10 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     qDebug() << "BALL DETECTED - Position:(" << ballX << "," << ballY << ") Radius:" << ballRadius << "pixels";
 
+    // Get frame dimensions for coordinate transforms
+    int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+    int frameHeight = m_croppedHeight > 0 ? m_croppedHeight : 480;
+
     // Check if detected ball is inside zone (before anti-jump filter)
     bool detectedBallInZone = false;
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
@@ -1369,9 +1373,6 @@ QVariantMap CameraCalibration::detectBallLive() {
     }
 
     // Check if last smoothed position was in bounds (not way off-screen from velocity prediction)
-    // Use cropped dimensions if set, otherwise use default 640×400
-    int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
-    int frameHeight = m_croppedHeight > 0 ? m_croppedHeight : 400;
     bool lastPositionInBounds = (m_smoothedBallX >= 0 && m_smoothedBallX < frameWidth &&
                                   m_smoothedBallY >= 0 && m_smoothedBallY < frameHeight);
 
