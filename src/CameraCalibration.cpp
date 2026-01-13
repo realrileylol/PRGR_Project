@@ -968,7 +968,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     static bool dimensionsLogged = false;
     if (!dimensionsLogged) {
         qDebug() << "📐 detectBallLive frame size:" << frame.cols << "×" << frame.rows
-                 << "| Expected: 400×250 (after 1.6× crop, before rotation)";
+                 << "| Expected: 533×400 (after 1.2× crop, before rotation)";
         dimensionsLogged = true;
     }
 

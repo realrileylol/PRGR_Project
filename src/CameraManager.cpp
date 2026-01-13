@@ -425,17 +425,18 @@ void CameraManager::previewLoop() {
 
         // IMPACT CAMERA (Camera 0): Apply digital zoom crop for ball size
         // Base: 640×400 sensor output @ 240 FPS (VALID OV9281 mode)
-        // Crop: 400×250 centered for 1.6× zoom to match Rapsodo ball size
+        // Crop: 533×400 centered for 1.2× zoom to maintain 3:4 aspect ratio
         if (m_activeCameraIndex == 0) {
             // Crop center region from 640×400 base
-            // After 90° rotation: 250×400 real-world portrait
-            int cropWidth = 400;   // 62.5% of 640 (1.6× zoom)
-            int cropHeight = 250;  // 62.5% of 400 (1.6× zoom)
-            int cropX = (m_previewWidth - cropWidth) / 2;   // Center: (640-400)/2 = 120
-            int cropY = (m_previewHeight - cropHeight) / 2; // Center: (400-250)/2 = 75
+            // Maintains 3:4 aspect ratio for proper QML display
+            // After 90° rotation: 400×533 portrait (0.75 aspect, matches QML 480×640)
+            int cropWidth = 533;   // 83.3% of 640 (1.2× zoom)
+            int cropHeight = 400;  // 100% of 400 (full height)
+            int cropX = (m_previewWidth - cropWidth) / 2;   // Center: (640-533)/2 = 53
+            int cropY = (m_previewHeight - cropHeight) / 2; // Center: (400-400)/2 = 0
 
             cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-            frame = frame(cropROI).clone();  // Ball ~40-50 px diameter @ 240 FPS (matches Rapsodo)
+            frame = frame(cropROI).clone();  // Ball ~35-40 px diameter @ 240 FPS
         }
 
         // Debug first few frames (suppressed - too spammy during restarts)

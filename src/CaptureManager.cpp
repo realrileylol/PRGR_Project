@@ -253,14 +253,14 @@ void CaptureManager::captureLoop() {
 
         // IMPACT CAMERA: Apply digital zoom crop (240 FPS mode)
         // Base: 640×400 sensor @ 240 FPS (VALID OV9281 mode)
-        // Crop: 400×250 centered for 1.6× zoom to match Rapsodo ball size
-        int cropWidth = 400;   // 62.5% of 640 (1.6× zoom)
-        int cropHeight = 250;  // 62.5% of 400 (1.6× zoom)
-        int cropX = (m_width - cropWidth) / 2;   // Center: (640-400)/2 = 120
-        int cropY = (m_height - cropHeight) / 2; // Center: (400-250)/2 = 75
+        // Crop: 533×400 centered for 1.2× zoom to maintain 3:4 aspect ratio
+        int cropWidth = 533;   // 83.3% of 640 (1.2× zoom)
+        int cropHeight = 400;  // 100% of 400 (full height)
+        int cropX = (m_width - cropWidth) / 2;   // Center: (640-533)/2 = 53
+        int cropY = (m_height - cropHeight) / 2; // Center: (400-400)/2 = 0
 
         cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-        frame = frame(cropROI).clone();  // Ball ~40-50 px @ 240 FPS (matches Rapsodo)
+        frame = frame(cropROI).clone();  // Ball ~35-40 px @ 240 FPS
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());
