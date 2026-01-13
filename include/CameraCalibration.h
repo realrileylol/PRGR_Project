@@ -203,7 +203,7 @@ private:
 
     // Zone boundaries (4 corners of 12"×12" zone)
     bool m_isZoneDefined = false;
-    QList<QPointF> m_zoneCorners;  // 4 corner points in pixels (ORIGINAL resolution)
+    QList<QPointF> m_zoneCorners;  // 4 corner points in ROTATED display space (250×400)
     QList<QPointF> m_markerCorners;  // Extrinsic calibration marker corners (4 points in pixels)
 
     // Digital crop offset (for Impact Camera zoom) - added for 640×400→400×250 crop
