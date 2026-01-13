@@ -1104,9 +1104,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             bool inZone = false;
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
+                int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
                 for (const auto &corner : m_zoneCorners) {
-                    // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
-                    float unrotatedX = 400.0f - corner.y();
+                    // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
+                    float unrotatedX = static_cast<float>(frameWidth) - corner.y();
                     float unrotatedY = corner.x();
                     zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
                 }
@@ -1168,9 +1169,10 @@ QVariantMap CameraCalibration::detectBallLive() {
                 }
             }
 
+            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
             for (const auto& corner : m_zoneCorners) {
-                // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
-                float unrotatedX = 400.0f - corner.y();
+                // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
+                float unrotatedX = static_cast<float>(frameWidth) - corner.y();
                 float unrotatedY = corner.x();
                 zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
 
@@ -1357,8 +1359,8 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
-            float unrotatedX = 400.0f - corner.y();
+            // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
+            float unrotatedX = static_cast<float>(frameWidth) - corner.y();
             float unrotatedY = corner.x();
             zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
@@ -1580,8 +1582,8 @@ QVariantMap CameraCalibration::detectBallLive() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
         for (const auto &corner : m_zoneCorners) {
-            // Inverse 90° CW rotation: (x_rot, y_rot) → (400 - y_rot, x_rot)
-            float unrotatedX = 400.0f - corner.y();
+            // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
+            float unrotatedX = static_cast<float>(frameWidth) - corner.y();
             float unrotatedY = corner.x();
             zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
@@ -1593,7 +1595,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
-    // Transform coordinates from unrotated space (400×250) to rotated space (250×400)
+    // Transform coordinates from unrotated space (640×480) to rotated space (480×640)
     // for camera 0 which is rotated 90° clockwise for display
     // Rotation transform: (x, y) → (y, width-x)
     double displayX = m_smoothedBallY;                    // Rotated X = original Y
@@ -2042,11 +2044,12 @@ QString CameraCalibration::captureScreenshot() {
 
     if (ballDetected && m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
+        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
         for (const auto &corner : m_zoneCorners) {
             // Frame is ROTATED, ball position is in UNROTATED space
             // Zone corners are in ROTATED space
             // Need to inverse transform zone back to unrotated for comparison
-            float unrotatedX = 400.0f - corner.y();
+            float unrotatedX = static_cast<float>(frameWidth) - corner.y();
             float unrotatedY = corner.x();
             zonePoints.push_back(cv::Point2f(unrotatedX, unrotatedY));
         }
@@ -2080,10 +2083,11 @@ QString CameraCalibration::captureScreenshot() {
     // 2. Draw ball tracking circle (green or red)
     // Ball position is in UNROTATED space, need to transform to ROTATED space for drawing
     if (ballDetected) {
-        // Transform ball position from unrotated (400×250) to rotated (250×400) space
-        // Rotation: (x, y) → (y, 400-x)
+        // Transform ball position from unrotated (640×480) to rotated (480×640) space
+        // Rotation: (x, y) → (y, frameWidth-x)
+        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
         int ballRotatedX = static_cast<int>(m_smoothedBallY);
-        int ballRotatedY = static_cast<int>(400.0 - m_smoothedBallX);
+        int ballRotatedY = static_cast<int>(frameWidth - m_smoothedBallX);
 
         cv::Scalar circleColor = inZone ? cv::Scalar(80, 175, 76) : cv::Scalar(0, 0, 255);  // Green or Red BGR
         cv::circle(colorFrame, cv::Point(ballRotatedX, ballRotatedY),
