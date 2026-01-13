@@ -423,21 +423,10 @@ void CameraManager::previewLoop() {
         // Extract Y channel from YUV420 (grayscale)
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_previewWidth, m_previewHeight);
 
-        // IMPACT CAMERA (Camera 0): Apply digital zoom crop for ball size
-        // Base: 640×400 sensor output @ 240 FPS (VALID OV9281 mode)
-        // Crop: 533×400 centered for 1.2× zoom to maintain 3:4 aspect ratio
-        if (m_activeCameraIndex == 0) {
-            // Crop center region from 640×400 base
-            // Maintains 3:4 aspect ratio for proper QML display
-            // After 90° rotation: 400×533 portrait (0.75 aspect, matches QML 480×640)
-            int cropWidth = 533;   // 83.3% of 640 (1.2× zoom)
-            int cropHeight = 400;  // 100% of 400 (full height)
-            int cropX = (m_previewWidth - cropWidth) / 2;   // Center: (640-533)/2 = 53
-            int cropY = (m_previewHeight - cropHeight) / 2; // Center: (400-400)/2 = 0
-
-            cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-            frame = frame(cropROI).clone();  // Ball ~35-40 px diameter @ 240 FPS
-        }
+        // NO DIGITAL ZOOM - Use full 640×400 sensor (Rapsodo-style)
+        // Full sensor: Maximum field of view for trajectory tracking
+        // After 90° rotation: 400×640 portrait
+        // Ball: ~30-33 px diameter @ 240 FPS (optimal for HoughCircles detection)
 
         // Debug first few frames (suppressed - too spammy during restarts)
         // if (frameCount < 3) {

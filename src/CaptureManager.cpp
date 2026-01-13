@@ -251,16 +251,9 @@ void CaptureManager::captureLoop() {
         // Extract Y channel from YUV420 (grayscale)
         cv::Mat frame = extractYChannelFromYUV420(frameBuffer.data(), m_width, m_height);
 
-        // IMPACT CAMERA: Apply digital zoom crop (240 FPS mode)
-        // Base: 640×400 sensor @ 240 FPS (VALID OV9281 mode)
-        // Crop: 533×400 centered for 1.2× zoom to maintain 3:4 aspect ratio
-        int cropWidth = 533;   // 83.3% of 640 (1.2× zoom)
-        int cropHeight = 400;  // 100% of 400 (full height)
-        int cropX = (m_width - cropWidth) / 2;   // Center: (640-533)/2 = 53
-        int cropY = (m_height - cropHeight) / 2; // Center: (400-400)/2 = 0
-
-        cv::Rect cropROI(cropX, cropY, cropWidth, cropHeight);
-        frame = frame(cropROI).clone();  // Ball ~35-40 px @ 240 FPS
+        // NO DIGITAL ZOOM - Use full 640×400 sensor (Rapsodo-style)
+        // Full sensor: Maximum field of view for trajectory tracking
+        // Ball: ~30-33 px diameter @ 240 FPS
 
         // Add to circular buffer
         m_frameBuffer.push_back(frame.clone());
