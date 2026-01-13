@@ -104,10 +104,10 @@ Rectangle {
     }
 
     // Helper function to transform display coordinates to camera coordinates
-    // Camera captures 640×400, crops to 400×250, then rotates 90° CW → 250×400 (portrait)
+    // Camera captures 640×480, then rotates 90° clockwise → 480×640 (portrait)
     function transformToCamera(displayX, displayY, imageWidth, imageHeight) {
-        var cameraWidth = 250   // After 1.6× crop + 90° rotation: 400×250 → 250×400
-        var cameraHeight = 400
+        var cameraWidth = 480   // After 90° rotation: was 640×480, now 480×640
+        var cameraHeight = 640
         var cameraAspect = cameraWidth / cameraHeight
         var displayAspect = imageWidth / imageHeight
 
@@ -320,9 +320,9 @@ Rectangle {
                             ctx.clearRect(0, 0, width, height)
 
                             // Calculate scaling to match Image PreserveAspectFit
-                            // Camera captures 640×400, crops to 400×250, then rotates 90° CW → 250×400 (portrait)
-                            var cameraWidth = 250
-                            var cameraHeight = 400
+                            // Camera captures 640×480, then rotates 90° clockwise → 480×640 (portrait)
+                            var cameraWidth = 480
+                            var cameraHeight = 640
                             var cameraAspect = cameraWidth / cameraHeight
                             var displayWidth = width
                             var displayHeight = height
