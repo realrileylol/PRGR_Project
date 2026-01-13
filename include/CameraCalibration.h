@@ -226,6 +226,7 @@ private:
     double m_lastBallRadius = 0.0;
     double m_smoothedBallX = 0.0;
     double m_smoothedBallY = 0.0;
+    double m_smoothedBallRadius = 0.0;  // Smoothed radius to prevent jitter
     int m_trackingConfidence = 0;  // Consecutive successful detections
     int m_missedFrames = 0;        // Consecutive failed detections
 

@@ -1523,11 +1523,14 @@ QVariantMap CameraCalibration::detectBallLive() {
         // This eliminates jitter while maintaining responsiveness
         m_smoothedBallX = 0.4 * ballX + 0.6 * m_smoothedBallX;
         m_smoothedBallY = 0.4 * ballY + 0.6 * m_smoothedBallY;
-        qDebug() << "Smoothed position:" << m_smoothedBallX << "," << m_smoothedBallY;
+        m_smoothedBallRadius = 0.4 * ballRadius + 0.6 * m_smoothedBallRadius;  // Smooth radius too
+        qDebug() << "Smoothed position:" << m_smoothedBallX << "," << m_smoothedBallY
+                 << "radius:" << m_smoothedBallRadius;
     } else {
         // First detection - use raw values
         m_smoothedBallX = ballX;
         m_smoothedBallY = ballY;
+        m_smoothedBallRadius = ballRadius;
     }
 
     m_lastBallRadius = ballRadius;
@@ -1600,7 +1603,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     result["detected"] = true;
     result["x"] = displayX;
     result["y"] = displayY;
-    result["radius"] = ballRadius;
+    result["radius"] = m_smoothedBallRadius;  // Use smoothed radius to prevent jitter
     result["inZone"] = inZone;
 
     // ========== VIDEO RECORDING ==========
