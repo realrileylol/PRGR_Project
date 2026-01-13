@@ -145,9 +145,9 @@ void CaptureManager::captureLoop() {
     //   - Capture window: ~15-20ms (4-5 frames of ball at 150 mph)
     //   - Ball size: ~40-50 px diameter (matches Rapsodo MLM2 Pro)
 
-    m_width = 640;   // Sensor width (cropped to 400 in processing)
-    m_height = 400;  // Sensor height (cropped to 250 in processing)
-    int frameRate = 240;  // 640×400 @ 240 FPS (VALID OV9281 mode)
+    m_width = 640;   // Sensor width (full frame, no crop)
+    m_height = 480;  // Standard VGA height (full frame)
+    int frameRate = 180;  // 640×480 @ 180 FPS (OPTIMAL for golf ball tracking)
     int shutterSpeed = m_settings->cameraShutterSpeed();
     double gain = m_settings->cameraGain();
 

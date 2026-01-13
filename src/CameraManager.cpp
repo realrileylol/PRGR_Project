@@ -192,10 +192,10 @@ void CameraManager::startPreview() {
     }
 
     // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
-    // Override for Camera 0: 640×400 @ 240 FPS (VALID OV9281 mode)
+    // Override for Camera 0: 640×480 @ 180 FPS (OPTIMAL for golf ball tracking)
     if (m_activeCameraIndex == 0) {
         m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
-        m_previewHeight = 400;  // VALID sensor height (→ horizontal after 90° rotation)
+        m_previewHeight = 480;  // Standard VGA height (→ horizontal after 90° rotation)
     }
 
     // Determine frame rate based on resolution
