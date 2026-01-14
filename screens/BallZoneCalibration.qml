@@ -451,64 +451,10 @@ Rectangle {
                                 ctx.stroke()
                             }
 
-                            // Draw LIVE ball tracking (green when in zone, red when out)
-                            // Circle matches EXACT ball dimensions (no offset)
-                            // Live ball tracking - ONLY FOR CAMERA 0 (top camera)
-                            if (selectedCamera === 0 && liveBallDetected && clickMode !== "ball_edge") {
-                                var liveX = liveBallX * scaleX + offsetX
-                                var liveY = liveBallY * scaleY + offsetY
-                                var liveR = liveBallRadius * Math.min(scaleX, scaleY)
-
-                                // INSTANT green→red transition based on zone boundary
-                                var trackingColor = liveBallInZone ? "#4caf50" : "#ff0000"
-
-                                // Outer glow effect for better visibility
-                                ctx.shadowBlur = 10
-                                ctx.shadowColor = trackingColor
-
-                                // Main tracking circle - EXACT ball dimensions
-                                ctx.strokeStyle = trackingColor
-                                ctx.lineWidth = 3
-                                ctx.beginPath()
-                                ctx.arc(liveX, liveY, liveR, 0, 2 * Math.PI)  // Exact radius, no +3
-                                ctx.stroke()
-
-                                // Inner circle to show ball outline clearly
-                                ctx.lineWidth = 1
-                                ctx.beginPath()
-                                ctx.arc(liveX, liveY, liveR - 2, 0, 2 * Math.PI)
-                                ctx.stroke()
-
-                                // Reset shadow
-                                ctx.shadowBlur = 0
-
-                                // Draw center dot
-                                ctx.fillStyle = trackingColor
-                                ctx.beginPath()
-                                ctx.arc(liveX, liveY, 2, 0, 2 * Math.PI)
-                                ctx.fill()
-
-                                // Add crosshair for precision
-                                ctx.strokeStyle = trackingColor
-                                ctx.lineWidth = 1
-                                ctx.beginPath()
-                                ctx.moveTo(liveX - 6, liveY)
-                                ctx.lineTo(liveX + 6, liveY)
-                                ctx.moveTo(liveX, liveY - 6)
-                                ctx.lineTo(liveX, liveY + 6)
-                                ctx.stroke()
-
-                                // Display ball size in pixels (diameter)
-                                var ballDiameter = Math.round(liveBallRadius * 2)
-                                ctx.fillStyle = trackingColor
-                                ctx.font = "bold 14px sans-serif"
-                                ctx.textAlign = "center"
-                                ctx.fillText(ballDiameter + " px", liveX, liveY + liveR + 20)
-                            }
-
                             // Draw calibrated zone boundary (PERMANENT - always visible)
                             // This is the 12×12 inch hit zone that must be visible in finished product
                             // ONLY SHOW FOR CAMERA 0 (top camera - ball tracking)
+                            // Rendered BEFORE ball tracking so ball appears on top (floats above ground plane)
                             if (selectedCamera === 0 && cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
                                 if (corners.length === 4) {
@@ -563,6 +509,62 @@ Rectangle {
                                         ctx.fillStyle = "#ff9800"
                                     }
                                 }
+                            }
+
+                            // Draw LIVE ball tracking (green when in zone, red when out)
+                            // Circle matches EXACT ball dimensions (no offset)
+                            // Live ball tracking - ONLY FOR CAMERA 0 (top camera)
+                            // Rendered LAST so ball appears on top of zone boundary
+                            if (selectedCamera === 0 && liveBallDetected && clickMode !== "ball_edge") {
+                                var liveX = liveBallX * scaleX + offsetX
+                                var liveY = liveBallY * scaleY + offsetY
+                                var liveR = liveBallRadius * Math.min(scaleX, scaleY)
+
+                                // INSTANT green→red transition based on zone boundary
+                                var trackingColor = liveBallInZone ? "#4caf50" : "#ff0000"
+
+                                // Outer glow effect for better visibility
+                                ctx.shadowBlur = 10
+                                ctx.shadowColor = trackingColor
+
+                                // Main tracking circle - EXACT ball dimensions
+                                ctx.strokeStyle = trackingColor
+                                ctx.lineWidth = 3
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, liveR, 0, 2 * Math.PI)  // Exact radius, no +3
+                                ctx.stroke()
+
+                                // Inner circle to show ball outline clearly
+                                ctx.lineWidth = 1
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, liveR - 2, 0, 2 * Math.PI)
+                                ctx.stroke()
+
+                                // Reset shadow
+                                ctx.shadowBlur = 0
+
+                                // Draw center dot
+                                ctx.fillStyle = trackingColor
+                                ctx.beginPath()
+                                ctx.arc(liveX, liveY, 2, 0, 2 * Math.PI)
+                                ctx.fill()
+
+                                // Add crosshair for precision
+                                ctx.strokeStyle = trackingColor
+                                ctx.lineWidth = 1
+                                ctx.beginPath()
+                                ctx.moveTo(liveX - 6, liveY)
+                                ctx.lineTo(liveX + 6, liveY)
+                                ctx.moveTo(liveX, liveY - 6)
+                                ctx.lineTo(liveX, liveY + 6)
+                                ctx.stroke()
+
+                                // Display ball size in pixels (diameter)
+                                var ballDiameter = Math.round(liveBallRadius * 2)
+                                ctx.fillStyle = trackingColor
+                                ctx.font = "bold 14px sans-serif"
+                                ctx.textAlign = "center"
+                                ctx.fillText(ballDiameter + " px", liveX, liveY + liveR + 20)
                             }
                         }
 
