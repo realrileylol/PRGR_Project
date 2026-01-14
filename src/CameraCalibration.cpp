@@ -1418,16 +1418,18 @@ QVariantMap CameraCalibration::detectBallLive() {
         m_trackingConfidence = 10;
         // Don't run anti-jump filter below
     }
+
     // ========== ANTI-JUMP FILTER ==========
     // Reject detections that jump too far from last smoothed position
     // This prevents false positives from HoughCircles that are far away
     // BUT: Disable during re-acquisition (when frames were recently missed) or zone re-entry
-    else if (m_liveTrackingInitialized && m_missedFrames < 3) {
+    bool detectionRejectedByFilter = false;
+    if (m_liveTrackingInitialized && m_missedFrames < 3) {
         // Only apply strict filter when tracking is stable (< 3 missed frames)
         // If we missed 3+ frames, ball may have exited/re-entered - allow re-acquisition
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
                                    std::pow(ballY - m_smoothedBallY, 2));
-        const double MAX_JUMP_PX = 8.0;  // Maximum allowed jump per frame at 180 FPS (very strict for stationary ball)
+        const double MAX_JUMP_PX = 8.0;  // Maximum allowed jump per frame at 240 FPS (very strict for stationary ball)
 
         if (jumpDist > MAX_JUMP_PX) {
             qDebug() << "⚠ ANTI-JUMP FILTER: Rejecting detection - jump of" << jumpDist
@@ -1442,8 +1444,10 @@ QVariantMap CameraCalibration::detectBallLive() {
             ballY = predictedY;
 
             m_missedFrames++;  // Count as partial miss
+            detectionRejectedByFilter = true;  // Mark that we rejected this detection
 
             qDebug() << "  Using velocity prediction: (" << predictedX << "," << predictedY << ")";
+            qDebug() << "  Missed frames count:" << m_missedFrames << "/ 3 needed for re-acquisition";
         }
     } else if (m_missedFrames >= 3) {
         qDebug() << "⚡ RE-ACQUISITION MODE: Missed" << m_missedFrames
@@ -1590,7 +1594,12 @@ QVariantMap CameraCalibration::detectBallLive() {
     } else {
         m_trackingConfidence = 10;  // Always high confidence in instant mode
     }
-    m_missedFrames = 0;
+
+    // Only reset missed frames if we accepted a real detection
+    // If anti-jump filter rejected it, keep accumulating missed frames for re-acquisition
+    if (!detectionRejectedByFilter) {
+        m_missedFrames = 0;
+    }
 
     // Check if ball is inside zone boundaries (using smoothed position with edge tolerance)
     bool inZone = false;
