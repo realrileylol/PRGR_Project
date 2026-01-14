@@ -1051,8 +1051,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                      processed.rows / 12,      // Min distance between circles
                      cannyThreshold,            // Canny threshold (ADAPTIVE - was hardcoded 90)
                      accumulatorThreshold,      // Accumulator threshold (ADAPTIVE - was hardcoded 18)
-                     15,                        // Min radius: golf ball only (640×400 @ 240 FPS: 30-35px diameter)
-                     18);                       // Max radius: golf ball only (tight range to filter carpet)
+                     17,                        // Min radius: golf ball only (640×400 @ 240 FPS: 34-44px diameter)
+                     22);                       // Max radius: golf ball only (tight range to filter carpet)
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;
@@ -1209,8 +1209,8 @@ QVariantMap CameraCalibration::detectBallLive() {
             circlesInZone++;
         }
 
-        // STRICT SIZE FILTER: Only accept circles matching golf ball size (15-18 pixels radius)
-        if (r < 15.0 || r > 18.0) {
+        // STRICT SIZE FILTER: Only accept circles matching golf ball size (17-22 pixels radius)
+        if (r < 17.0 || r > 22.0) {
             continue;  // Not golf ball size - reject immediately
         }
 
