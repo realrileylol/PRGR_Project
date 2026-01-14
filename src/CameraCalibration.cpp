@@ -1003,31 +1003,44 @@ QVariantMap CameraCalibration::detectBallLive() {
 
     // ========== BACKGROUND SUBTRACTION (Eliminate Texture Circles) ==========
     if (m_hasBaseline && !m_baselineFrame.empty()) {
-        // Subtract baseline from current frame
-        cv::Mat diff;
-        cv::absdiff(processed, m_baselineFrame, diff);
+        // Check if frame sizes match (prevents crash when switching cameras)
+        if (processed.size() != m_baselineFrame.size()) {
+            qWarning() << "⚠️ Frame size mismatch! Current:" << processed.cols << "×" << processed.rows
+                       << "Baseline:" << m_baselineFrame.cols << "×" << m_baselineFrame.rows
+                       << "- Clearing baseline (camera switched?)";
+            m_hasBaseline = false;
+            m_baselineFrame.release();
+            // Fall through to CLAHE processing without background subtraction
+        } else {
+            // Subtract baseline from current frame
+            cv::Mat diff;
+            cv::absdiff(processed, m_baselineFrame, diff);
 
-        // Threshold to create binary mask (ball shows up, texture doesn't)
-        cv::Mat mask;
-        cv::threshold(diff, mask, 25, 255, cv::THRESH_BINARY);
+            // Threshold to create binary mask (ball shows up, texture doesn't)
+            cv::Mat mask;
+            cv::threshold(diff, mask, 25, 255, cv::THRESH_BINARY);
 
-        // Apply morphological opening to remove small noise
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-        cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
+            // Apply morphological opening to remove small noise
+            cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+            cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
 
-        // Store difference frame for screenshot
-        m_lastDifferenceFrame = mask.clone();
+            // Store difference frame for screenshot
+            m_lastDifferenceFrame = mask.clone();
 
-        // Apply CLAHE to current frame for edge detection
-        double clipLimit = (brightness < 100) ? 3.0 : 2.0;
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
-        clahe->apply(processed, processed);
+            // Apply CLAHE to current frame for edge detection
+            double clipLimit = (brightness < 100) ? 3.0 : 2.0;
+            cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
+            clahe->apply(processed, processed);
 
-        // Apply mask - keep CLAHE edges only where ball is (not texture)
-        processed.setTo(0, mask == 0);  // Black out areas with no difference
+            // Apply mask - keep CLAHE edges only where ball is (not texture)
+            processed.setTo(0, mask == 0);  // Black out areas with no difference
 
-        qDebug() << "Background subtraction ACTIVE - texture eliminated";
-    } else {
+            qDebug() << "Background subtraction ACTIVE - texture eliminated";
+        }
+    }
+
+    // Use CLAHE if no baseline or baseline was cleared
+    if (!m_hasBaseline || m_baselineFrame.empty()) {
         // Use CLAHE for contrast enhancement (adaptive to lighting) - only when no baseline
         double clipLimit = (brightness < 100) ? 3.0 : 2.0;  // More aggressive in dark scenes
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(clipLimit, cv::Size(8, 8));
