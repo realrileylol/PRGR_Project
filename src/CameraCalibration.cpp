@@ -644,13 +644,13 @@ void CameraCalibration::loadCalibration() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         qDebug() << "📍 LOADED ZONE CORNERS FROM FILE:";
 
-        // Validate corners are within reasonable bounds for 400×640 rotated display (640×400 sensor)
+        // Validate corners are within reasonable bounds for 480×640 rotated display (640×480 sensor)
         bool cornersValid = true;
         for (int i = 0; i < 4; i++) {
             qDebug() << "   Corner" << i << ":" << m_zoneCorners[i];
             // Check if any corner is way outside current display bounds
-            // 640×400 @ 240 FPS rotated 90° = 400×640 display
-            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 450 ||
+            // 640×480 @ 180 FPS rotated 90° = 480×640 display
+            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 530 ||
                 m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 700) {
                 cornersValid = false;
             }
@@ -969,7 +969,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     static bool dimensionsLogged = false;
     if (!dimensionsLogged) {
         qDebug() << "📐 detectBallLive frame size:" << frame.cols << "×" << frame.rows
-                 << "| Expected: 640×400 @ 240 FPS (maximum speed, before rotation)";
+                 << "| Expected: 640×480 @ 180 FPS (OV9281 VGA mode, before rotation)";
         dimensionsLogged = true;
     }
 
@@ -1065,7 +1065,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                      processed.rows / 12,      // Min distance between circles
                      cannyThreshold,            // Canny threshold (ADAPTIVE - was hardcoded 90)
                      accumulatorThreshold,      // Accumulator threshold (ADAPTIVE - was hardcoded 18)
-                     17,                        // Min radius: golf ball only (640×400 @ 240 FPS: 34-44px diameter)
+                     17,                        // Min radius: golf ball only (640×480 @ 180 FPS: 34-44px diameter)
                      22);                       // Max radius: golf ball only (tight range to filter carpet)
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
@@ -1429,7 +1429,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         // If we missed 3+ frames, ball may have exited/re-entered - allow re-acquisition
         double jumpDist = std::sqrt(std::pow(ballX - m_smoothedBallX, 2) +
                                    std::pow(ballY - m_smoothedBallY, 2));
-        const double MAX_JUMP_PX = 8.0;  // Maximum allowed jump per frame at 240 FPS (very strict for stationary ball)
+        const double MAX_JUMP_PX = 8.0;  // Maximum allowed jump per frame at 180 FPS (very strict for stationary ball)
 
         if (jumpDist > MAX_JUMP_PX) {
             qDebug() << "⚠ ANTI-JUMP FILTER: Rejecting detection - jump of" << jumpDist
@@ -1619,7 +1619,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
-    // Transform coordinates from unrotated space (640×400) to rotated space (400×640)
+    // Transform coordinates from unrotated space (640×480) to rotated space (480×640)
     // for camera 0 which is rotated 90° clockwise for display
     // Rotation transform: (x, y) → (y, width-x)
     double displayX = m_smoothedBallY;                    // Rotated X = original Y
@@ -2107,7 +2107,7 @@ QString CameraCalibration::captureScreenshot() {
     // 2. Draw ball tracking circle (green or red)
     // Ball position is in UNROTATED space, need to transform to ROTATED space for drawing
     if (ballDetected) {
-        // Transform ball position from unrotated (640×400) to rotated (400×640) space
+        // Transform ball position from unrotated (640×480) to rotated (480×640) space
         // Rotation: (x, y) → (y, frameWidth-x)
         int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
         int ballRotatedX = static_cast<int>(m_smoothedBallY);

@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
     cameraCalibration.setFrameProvider(&frameProvider);
     cameraCalibration.setSettings(&settingsManager);
 
-    // NO DIGITAL ZOOM - Use full 640×400 sensor @ 240 FPS (maximum speed)
-    // Maximum frame rate, ball ~30-35 px diameter
-    cameraCalibration.setCropParameters(0, 0, 640, 400);
+    // NO DIGITAL ZOOM - Use full 640×480 sensor @ 180 FPS (OV9281 native VGA mode)
+    // Optimal frame rate for ball tracking, ball ~34-40 px diameter
+    cameraCalibration.setCropParameters(0, 0, 640, 480);
 
     // Connect ball detector to calibration
     ballDetector.setCalibration(&cameraCalibration);

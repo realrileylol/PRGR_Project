@@ -192,24 +192,21 @@ void CameraManager::startPreview() {
     }
 
     // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
-    // Override for Camera 0: 640×400 @ 240 FPS (maximum speed)
+    // Override for Camera 0: 640×480 @ 180 FPS (OPTIMAL - valid OV9281 mode)
+    // NOTE: 640×400 @ 240 FPS is NOT supported by OV9281 sensor!
     if (m_activeCameraIndex == 0) {
         m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
-        m_previewHeight = 400;  // Reduced height for 240 FPS (→ horizontal after 90° rotation)
+        m_previewHeight = 480;  // VGA height for 180 FPS (→ horizontal after 90° rotation)
     }
 
-    // Determine frame rate based on resolution
+    // Determine frame rate based on resolution (OV9281 valid modes only)
     int frameRate = 120;  // Safe default
-    if (m_previewWidth == 640 && m_previewHeight == 400) {
-        frameRate = 240;  // Impact camera: 640×400 valid mode = 240 FPS
-    } else if (m_previewWidth == 640 && m_previewHeight == 480) {
-        frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking
-    } else if (m_previewWidth == 640 && m_previewHeight == 400) {
-        frameRate = 240;  // Wide VGA @ 240 FPS - maximum performance
+    if (m_previewWidth == 640 && m_previewHeight == 480) {
+        frameRate = 180;  // VGA @ 180 FPS - OPTIMAL for golf ball tracking (OV9281 native mode)
     } else if (m_previewWidth == 1280 && m_previewHeight == 800) {
         frameRate = 115;  // Full resolution @ 115 FPS (max for OV9281)
     } else if (m_previewWidth == 320 && m_previewHeight == 240) {
-        frameRate = 120;  // Low res high speed
+        frameRate = 240;  // QVGA @ 240 FPS - maximum speed (valid OV9281 mode)
     } else {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
@@ -250,24 +247,24 @@ void CameraManager::startPreview() {
     // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
         // ═══════════════════════════════════════════════════════════════════
-        // IMPACT CAMERA (Camera 0) - High-speed ball tracking @ 240 FPS
+        // IMPACT CAMERA (Camera 0) - High-speed ball tracking @ 180 FPS
         // ═══════════════════════════════════════════════════════════════════
         //
         // Physical: 90° LEFT rotation, 7ft from ball, 12mm telephoto lens
-        // Sensor output: 640×400 @ 240 FPS (Wide VGA mode, maximum speed)
+        // Sensor output: 640×480 @ 180 FPS (VGA mode - OV9281 native, OPTIMAL)
         // NO digital crop - full sensor utilization
-        // Real-world view: 400×640 portrait (after 90° rotation)
+        // Real-world view: 480×640 portrait (after 90° rotation)
         // Ball size: ~34-40 px diameter (17-20 px radius)
 
         args << "--width" << QString::number(m_previewWidth);    // 640
-        args << "--height" << QString::number(m_previewHeight);  // 400
-        args << "--framerate" << QString::number(frameRate);     // 240 FPS
+        args << "--height" << QString::number(m_previewHeight);  // 480
+        args << "--framerate" << QString::number(frameRate);     // 180 FPS
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
         qDebug() << "IMPACT CAMERA (Cam 0): Sensor" << m_previewWidth << "x" << m_previewHeight
-                 << "@ " << frameRate << "FPS (NO CROP - full sensor)";
+                 << "@ " << frameRate << "FPS (VGA native mode)";
     } else if (m_activeCameraIndex == 1) {
         // ═══════════════════════════════════════════════════════════════════
         // TRACKING CAMERA (Camera 1) - Ball flight trajectory
