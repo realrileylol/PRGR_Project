@@ -644,13 +644,14 @@ void CameraCalibration::loadCalibration() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         qDebug() << "📍 LOADED ZONE CORNERS FROM FILE:";
 
-        // Validate corners are within reasonable bounds for 250×400 rotated display
+        // Validate corners are within reasonable bounds for 400×640 rotated display (640×400 sensor)
         bool cornersValid = true;
         for (int i = 0; i < 4; i++) {
             qDebug() << "   Corner" << i << ":" << m_zoneCorners[i];
             // Check if any corner is way outside current display bounds
-            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 300 ||
-                m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 450) {
+            // 640×400 @ 240 FPS rotated 90° = 400×640 display
+            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 450 ||
+                m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 700) {
                 cornersValid = false;
             }
         }
