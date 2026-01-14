@@ -214,6 +214,16 @@ void CameraManager::startPreview() {
         frameRate = 60;   // Conservative fallback for unknown resolutions
     }
 
+    // CRITICAL: Shutter speed must be less than frame interval
+    // Frame interval = 1000000µs / FPS
+    int maxShutter = (1000000 / frameRate) - 100;  // Leave 100µs margin
+    if (shutterSpeed > maxShutter) {
+        qWarning() << "⚠️ Shutter speed" << shutterSpeed << "µs exceeds frame interval at" << frameRate
+                   << "FPS. Capping to" << maxShutter << "µs";
+        shutterSpeed = maxShutter;
+        m_currentShutter = shutterSpeed;  // Update stored value
+    }
+
     // Only log camera start during initial startup or manual changes (reduce auto-exposure restart spam)
     static bool firstStart = true;
     if (firstStart) {
@@ -240,24 +250,24 @@ void CameraManager::startPreview() {
     // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
         // ═══════════════════════════════════════════════════════════════════
-        // IMPACT CAMERA (Camera 0) - High-speed spin capture @ ~270 FPS
+        // IMPACT CAMERA (Camera 0) - High-speed ball tracking @ 240 FPS
         // ═══════════════════════════════════════════════════════════════════
         //
         // Physical: 90° LEFT rotation, 7ft from ball, 12mm telephoto lens
-        // Sensor output: 640×350 @ ~270 FPS (reduced height for 12.5% FPS gain)
-        // Digital crop: 490×270 centered (1.3× zoom maintained)
-        // Real-world view: 270×490 portrait (after 90° rotation)
-        // Ball size: ~32-39 px diameter (good quality + speed balance)
+        // Sensor output: 640×400 @ 240 FPS (Wide VGA mode, maximum speed)
+        // NO digital crop - full sensor utilization
+        // Real-world view: 400×640 portrait (after 90° rotation)
+        // Ball size: ~34-40 px diameter (17-20 px radius)
 
         args << "--width" << QString::number(m_previewWidth);    // 640
-        args << "--height" << QString::number(m_previewHeight);  // 350 (reduced for FPS)
-        args << "--framerate" << QString::number(frameRate);     // 270 FPS target
+        args << "--height" << QString::number(m_previewHeight);  // 400
+        args << "--framerate" << QString::number(frameRate);     // 240 FPS
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
         qDebug() << "IMPACT CAMERA (Cam 0): Sensor" << m_previewWidth << "x" << m_previewHeight
-                 << "@ " << frameRate << "FPS → Crop 490×270 → Final 270×490 portrait";
+                 << "@ " << frameRate << "FPS (NO CROP - full sensor)";
     } else if (m_activeCameraIndex == 1) {
         // ═══════════════════════════════════════════════════════════════════
         // TRACKING CAMERA (Camera 1) - Ball flight trajectory
