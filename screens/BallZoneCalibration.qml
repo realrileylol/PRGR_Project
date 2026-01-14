@@ -586,7 +586,7 @@ Rectangle {
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.margins: 10
-                        text: "Live Camera Feed (640×480 @ 180fps, portrait mode)"
+                        text: "Live Camera Feed (640×400 @ 240fps, portrait mode)"
                         font.pixelSize: 12
                         color: "#ffffff"
                         style: Text.Outline
