@@ -220,6 +220,26 @@ void CameraManager::startPreview() {
         m_currentShutter = shutterSpeed;  // Update stored value
     }
 
+    // SAFETY: Also set minimum shutter to avoid camera issues
+    const int minShutter = 100;  // 100µs minimum
+    if (shutterSpeed < minShutter) {
+        qWarning() << "⚠️ Shutter speed" << shutterSpeed << "µs too low. Setting to" << minShutter << "µs";
+        shutterSpeed = minShutter;
+        m_currentShutter = shutterSpeed;
+    }
+
+    // SAFETY: Clamp gain to valid range (1.0 - 16.0 for most sensors)
+    if (gain < 1.0) {
+        qWarning() << "⚠️ Gain" << gain << "too low. Setting to 1.0";
+        gain = 1.0;
+        m_currentGain = gain;
+    }
+    if (gain > 16.0) {
+        qWarning() << "⚠️ Gain" << gain << "too high. Capping to 16.0";
+        gain = 16.0;
+        m_currentGain = gain;
+    }
+
     // Only log camera start during initial startup or manual changes (reduce auto-exposure restart spam)
     static bool firstStart = true;
     if (firstStart) {
@@ -294,7 +314,7 @@ void CameraManager::startPreview() {
     args << "--output" << m_pipePath;  // Output to named pipe
     args << "--nopreview";  // No X11 preview window
 
-    // qDebug() << "Starting rpicam-vid with args:" << args.join(" ");  // Suppress spam
+    qDebug() << "📹 rpicam-vid command: rpicam-vid" << args.join(" ");
 
     // Monitor process errors
     connect(m_previewProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
@@ -307,12 +327,19 @@ void CameraManager::startPreview() {
 
     connect(m_previewProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+        QString stderr_output = m_previewProcess->readAllStandardError();
         qWarning() << "Preview process finished unexpectedly - exit code:" << exitCode << "status:" << exitStatus;
+        if (!stderr_output.isEmpty()) {
+            qWarning() << "rpicam-vid stderr:" << stderr_output;
+        }
         if (m_previewActive.load()) {
             m_previewActive.store(false);
             emit errorOccurred("Camera preview stopped unexpectedly");
         }
     });
+
+    // Merge stderr to stdout so we can see error messages
+    m_previewProcess->setProcessChannelMode(QProcess::MergedChannels);
 
     m_previewProcess->start("rpicam-vid", args);
 
