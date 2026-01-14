@@ -192,11 +192,10 @@ void CameraManager::startPreview() {
     }
 
     // IMPACT CAMERA (Camera 0) - High-speed spin capture configuration
-    // Override for Camera 0: 640×480 @ 180 FPS (OPTIMAL - valid OV9281 mode)
-    // NOTE: 640×400 @ 240 FPS is NOT supported by OV9281 sensor!
+    // Override for Camera 0: 320×240 @ 240 FPS (maximum speed - valid OV9281 mode)
     if (m_activeCameraIndex == 0) {
-        m_previewWidth = 640;   // Sensor width (→ vertical after 90° rotation)
-        m_previewHeight = 480;  // VGA height for 180 FPS (→ horizontal after 90° rotation)
+        m_previewWidth = 320;   // QVGA width (→ vertical after 90° rotation)
+        m_previewHeight = 240;  // QVGA height for 240 FPS (→ horizontal after 90° rotation)
     }
 
     // Determine frame rate based on resolution (OV9281 valid modes only)
@@ -247,24 +246,24 @@ void CameraManager::startPreview() {
     // Camera-specific configurations
     if (m_activeCameraIndex == 0) {
         // ═══════════════════════════════════════════════════════════════════
-        // IMPACT CAMERA (Camera 0) - High-speed ball tracking @ 180 FPS
+        // IMPACT CAMERA (Camera 0) - High-speed ball tracking @ 240 FPS
         // ═══════════════════════════════════════════════════════════════════
         //
         // Physical: 90° LEFT rotation, 7ft from ball, 12mm telephoto lens
-        // Sensor output: 640×480 @ 180 FPS (VGA mode - OV9281 native, OPTIMAL)
+        // Sensor output: 320×240 @ 240 FPS (QVGA mode - maximum speed)
         // NO digital crop - full sensor utilization
-        // Real-world view: 480×640 portrait (after 90° rotation)
-        // Ball size: ~34-40 px diameter (17-20 px radius)
+        // Real-world view: 240×320 portrait (after 90° rotation)
+        // Ball size: ~17-20 px diameter (8-10 px radius)
 
-        args << "--width" << QString::number(m_previewWidth);    // 640
-        args << "--height" << QString::number(m_previewHeight);  // 480
-        args << "--framerate" << QString::number(frameRate);     // 180 FPS
+        args << "--width" << QString::number(m_previewWidth);    // 320
+        args << "--height" << QString::number(m_previewHeight);  // 240
+        args << "--framerate" << QString::number(frameRate);     // 240 FPS
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
         args << "--codec" << "yuv420";  // YUV420, extract Y (luma) for grayscale
 
         qDebug() << "IMPACT CAMERA (Cam 0): Sensor" << m_previewWidth << "x" << m_previewHeight
-                 << "@ " << frameRate << "FPS (VGA native mode)";
+                 << "@ " << frameRate << "FPS (QVGA maximum speed)";
     } else if (m_activeCameraIndex == 1) {
         // ═══════════════════════════════════════════════════════════════════
         // TRACKING CAMERA (Camera 1) - Ball flight trajectory

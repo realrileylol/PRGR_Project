@@ -644,14 +644,14 @@ void CameraCalibration::loadCalibration() {
     if (m_isZoneDefined && m_zoneCorners.size() == 4) {
         qDebug() << "📍 LOADED ZONE CORNERS FROM FILE:";
 
-        // Validate corners are within reasonable bounds for 480×640 rotated display (640×480 sensor)
+        // Validate corners are within reasonable bounds for 240×320 rotated display (320×240 sensor)
         bool cornersValid = true;
         for (int i = 0; i < 4; i++) {
             qDebug() << "   Corner" << i << ":" << m_zoneCorners[i];
             // Check if any corner is way outside current display bounds
-            // 640×480 @ 180 FPS rotated 90° = 480×640 display
-            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 530 ||
-                m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 700) {
+            // 320×240 @ 240 FPS rotated 90° = 240×320 display
+            if (m_zoneCorners[i].x() < -50 || m_zoneCorners[i].x() > 290 ||
+                m_zoneCorners[i].y() < -50 || m_zoneCorners[i].y() > 370) {
                 cornersValid = false;
             }
         }
@@ -969,7 +969,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     static bool dimensionsLogged = false;
     if (!dimensionsLogged) {
         qDebug() << "📐 detectBallLive frame size:" << frame.cols << "×" << frame.rows
-                 << "| Expected: 640×480 @ 180 FPS (OV9281 VGA mode, before rotation)";
+                 << "| Expected: 320×240 @ 240 FPS (OV9281 QVGA mode, before rotation)";
         dimensionsLogged = true;
     }
 
@@ -1065,8 +1065,8 @@ QVariantMap CameraCalibration::detectBallLive() {
                      processed.rows / 12,      // Min distance between circles
                      cannyThreshold,            // Canny threshold (ADAPTIVE - was hardcoded 90)
                      accumulatorThreshold,      // Accumulator threshold (ADAPTIVE - was hardcoded 18)
-                     17,                        // Min radius: golf ball only (640×480 @ 180 FPS: 34-44px diameter)
-                     22);                       // Max radius: golf ball only (tight range to filter carpet)
+                     8,                         // Min radius: golf ball only (320×240 @ 240 FPS: 16-22px diameter)
+                     11);                       // Max radius: golf ball only (tight range to filter carpet)
 
     // Only log if detection changes significantly (suppress "0 candidates" spam)
     static int lastCircleCount = 0;
@@ -1105,7 +1105,7 @@ QVariantMap CameraCalibration::detectBallLive() {
             m_smoothedBallY = prediction.at<float>(1);
 
             // Transform to rotated coordinates for display
-            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
             double displayX = m_smoothedBallY;
             double displayY = frameWidth - m_smoothedBallX;
 
@@ -1118,7 +1118,7 @@ QVariantMap CameraCalibration::detectBallLive() {
             bool inZone = false;
             if (m_isZoneDefined && m_zoneCorners.size() == 4) {
                 std::vector<cv::Point2f> zonePoints;
-                int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+                int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
                 for (const auto &corner : m_zoneCorners) {
                     // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
                     float unrotatedX = static_cast<float>(frameWidth) - corner.y();
@@ -1183,7 +1183,7 @@ QVariantMap CameraCalibration::detectBallLive() {
                 }
             }
 
-            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+            int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
             for (const auto& corner : m_zoneCorners) {
                 // Inverse 90° CW rotation: (x_rot, y_rot) → (frameWidth - y_rot, x_rot)
                 float unrotatedX = static_cast<float>(frameWidth) - corner.y();
@@ -1223,8 +1223,8 @@ QVariantMap CameraCalibration::detectBallLive() {
             circlesInZone++;
         }
 
-        // STRICT SIZE FILTER: Only accept circles matching golf ball size (17-22 pixels radius)
-        if (r < 17.0 || r > 22.0) {
+        // STRICT SIZE FILTER: Only accept circles matching golf ball size (8-11 pixels radius)
+        if (r < 8.0 || r > 11.0) {
             continue;  // Not golf ball size - reject immediately
         }
 
@@ -1369,7 +1369,7 @@ QVariantMap CameraCalibration::detectBallLive() {
     qDebug() << "BALL DETECTED - Position:(" << ballX << "," << ballY << ") Radius:" << ballRadius << "pixels";
 
     // Get frame dimensions for coordinate transforms
-    int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+    int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
     int frameHeight = m_croppedHeight > 0 ? m_croppedHeight : 480;
 
     // Check if detected ball is inside zone (before anti-jump filter)
@@ -1619,7 +1619,7 @@ QVariantMap CameraCalibration::detectBallLive() {
         inZone = (distance >= -m_zoneEdgeTolerance);  // Allow 15px outside zone edge
     }
 
-    // Transform coordinates from unrotated space (640×480) to rotated space (480×640)
+    // Transform coordinates from unrotated space (320×240) to rotated space (240×320)
     // for camera 0 which is rotated 90° clockwise for display
     // Rotation transform: (x, y) → (y, width-x)
     double displayX = m_smoothedBallY;                    // Rotated X = original Y
@@ -2068,7 +2068,7 @@ QString CameraCalibration::captureScreenshot() {
 
     if (ballDetected && m_isZoneDefined && m_zoneCorners.size() == 4) {
         std::vector<cv::Point2f> zonePoints;
-        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
         for (const auto &corner : m_zoneCorners) {
             // Frame is ROTATED, ball position is in UNROTATED space
             // Zone corners are in ROTATED space
@@ -2107,9 +2107,9 @@ QString CameraCalibration::captureScreenshot() {
     // 2. Draw ball tracking circle (green or red)
     // Ball position is in UNROTATED space, need to transform to ROTATED space for drawing
     if (ballDetected) {
-        // Transform ball position from unrotated (640×480) to rotated (480×640) space
+        // Transform ball position from unrotated (320×240) to rotated (240×320) space
         // Rotation: (x, y) → (y, frameWidth-x)
-        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 640;
+        int frameWidth = m_croppedWidth > 0 ? m_croppedWidth : 320;
         int ballRotatedX = static_cast<int>(m_smoothedBallY);
         int ballRotatedY = static_cast<int>(frameWidth - m_smoothedBallX);
 

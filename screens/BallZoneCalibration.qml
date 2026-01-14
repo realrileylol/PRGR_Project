@@ -104,10 +104,10 @@ Rectangle {
     }
 
     // Helper function to transform display coordinates to camera coordinates
-    // Camera captures 640×480 @ 180 FPS, then rotates 90° clockwise → 480×640 (portrait)
+    // Camera captures 320×240 @ 240 FPS, then rotates 90° clockwise → 240×320 (portrait)
     function transformToCamera(displayX, displayY, imageWidth, imageHeight) {
-        var cameraWidth = 480   // After 90° rotation: was 640×480, now 480×640
-        var cameraHeight = 640
+        var cameraWidth = 240   // After 90° rotation: was 320×240, now 240×320
+        var cameraHeight = 320
         var cameraAspect = cameraWidth / cameraHeight
         var displayAspect = imageWidth / imageHeight
 
@@ -320,9 +320,9 @@ Rectangle {
                             ctx.clearRect(0, 0, width, height)
 
                             // Calculate scaling to match Image PreserveAspectFit
-                            // Camera captures 640×480 @ 180 FPS, then rotates 90° clockwise → 480×640 (portrait)
-                            var cameraWidth = 480
-                            var cameraHeight = 640
+                            // Camera captures 320×240 @ 240 FPS, then rotates 90° clockwise → 240×320 (portrait)
+                            var cameraWidth = 240
+                            var cameraHeight = 320
                             var cameraAspect = cameraWidth / cameraHeight
                             var displayWidth = width
                             var displayHeight = height
@@ -586,7 +586,7 @@ Rectangle {
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.margins: 10
-                        text: "Live Camera Feed (640×480 @ 180fps, portrait mode)"
+                        text: "Live Camera Feed (320×240 @ 240fps, portrait mode)"
                         font.pixelSize: 12
                         color: "#ffffff"
                         style: Text.Outline
