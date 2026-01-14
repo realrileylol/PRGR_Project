@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
     cameraCalibration.setFrameProvider(&frameProvider);
     cameraCalibration.setSettings(&settingsManager);
 
-    // NO DIGITAL ZOOM - Use full 640×480 sensor @ 180 FPS (OPTIMAL)
-    // Better image quality than 240 FPS, still very fast, ball ~35-40 px diameter
-    cameraCalibration.setCropParameters(0, 0, 640, 480);
+    // NO DIGITAL ZOOM - Use full 640×400 sensor @ 240 FPS (maximum speed)
+    // Maximum frame rate, ball ~30-35 px diameter
+    cameraCalibration.setCropParameters(0, 0, 640, 400);
 
     // Connect ball detector to calibration
     ballDetector.setCalibration(&cameraCalibration);
