@@ -455,8 +455,10 @@ Rectangle {
                             // This is the 12×12 inch hit zone that must be visible in finished product
                             // ONLY SHOW FOR CAMERA 0 (top camera - ball tracking)
                             // Rendered BEFORE ball tracking so ball appears on top (floats above ground plane)
+                            console.log("🔍 Zone check - Camera:", selectedCamera, "isZoneDefined:", cameraCalibration.isZoneDefined)
                             if (selectedCamera === 0 && cameraCalibration.isZoneDefined) {
                                 var corners = cameraCalibration.zoneCorners
+                                console.log("🟧 Zone rendering - corners.length:", corners.length, "isZoneDefined:", cameraCalibration.isZoneDefined)
                                 if (corners.length === 4) {
                                     // MLM2 Pro zone box styling - orange dotted outline
                                     var zoneColor = clickMode === "zone_corners" ? "#ff9800" : "#ff9800"  // Orange like MLM2 Pro
