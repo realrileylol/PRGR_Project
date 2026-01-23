@@ -139,6 +139,28 @@ class CameraManager(QObject):
         self.preview_picam2 = None
         self._preview_stopping = False
 
+    # Property for QML camera switching
+    def getActiveCameraIndex(self):
+        return self._active_camera_index
+
+    def setActiveCameraIndex(self, index):
+        if self._active_camera_index == index:
+            return  # Already on this camera
+
+        print(f"Switching camera from {self._active_camera_index} to {index}")
+        self._active_camera_index = index
+
+        # Restart preview if active
+        if self.preview_active:
+            print("Restarting preview for new camera...")
+            self.stopPreview()
+            # Small delay to ensure camera is released
+            import time
+            time.sleep(0.5)
+            self.startPreview()
+
+    activeCameraIndex = property(getActiveCameraIndex, setActiveCameraIndex)
+
     @Slot()
     def startPreview(self):
         """Start high-FPS camera preview with direct Qt rendering (no rpicam-vid lag)"""
@@ -272,10 +294,10 @@ class CameraManager(QObject):
                 elif resolution == (640, 480):
                     frame_rate = 30   # ISP maxes out around 30 FPS
 
-            print(f"Preview settings: Resolution={resolution}, Format={camera_format}, Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
+            print(f"Preview settings: Camera {self._active_camera_index}, Resolution={resolution}, Format={camera_format}, Shutter={shutter_speed}µs, Gain={gain}x, FPS={frame_rate}")
 
-            # Initialize camera
-            self.preview_picam2 = Picamera2()
+            # Initialize camera with selected camera index
+            self.preview_picam2 = Picamera2(camera_num=self._active_camera_index)
 
             # Configure based on format
             # NOTE: OV9281 is MONOCHROME - outputs native Y (grayscale), NOT Bayer RGB!
@@ -535,7 +557,7 @@ class CameraManager(QObject):
                 time.sleep(1)  # Give camera time to fully release
 
             # Use Picamera2 to capture a single frame
-            picam2 = Picamera2()
+            picam2 = Picamera2(camera_num=self._active_camera_index)
             config = picam2.create_still_configuration(
                 main={"size": (640, 480)},
                 controls={
@@ -635,7 +657,7 @@ class CameraManager(QObject):
                 time.sleep(1)
 
             # Initialize camera
-            picam2 = Picamera2()
+            picam2 = Picamera2(camera_num=self._active_camera_index)
             config = picam2.create_still_configuration(
                 main={"size": (640, 480)},
                 controls={
@@ -843,7 +865,7 @@ class CameraManager(QObject):
                 print(f"🧪 Testing camera: {fps} FPS, {shutter}µs shutter, {gain}x gain")
 
                 from picamera2 import Picamera2
-                picam2 = Picamera2()
+                picam2 = Picamera2(camera_num=self._active_camera_index)
 
                 config = picam2.create_video_configuration(
                     main={"size": (640, 480)},
@@ -1803,7 +1825,7 @@ class CaptureManager(QObject):
                         print(f"   Retry attempt {attempt + 1}/3...")
                         time.sleep(3)  # Wait longer between retries (was 2, now 3)
 
-                    self.picam2 = Picamera2()
+                    self.picam2 = Picamera2(camera_num=self.camera_manager._active_camera_index)
 
                     # Get resolution and format from settings
                     resolution_str = "320x240"  # Default to high-FPS mode
