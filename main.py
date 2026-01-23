@@ -130,6 +130,9 @@ class CameraManager(QObject):
         self.current_recording_path = None
         self.frame_provider = frame_provider
 
+        # Camera selection (0 = top/tracking camera, 1 = bottom/launch angle camera)
+        self._active_camera_index = 0
+
         # Preview state (direct Qt rendering)
         self.preview_active = False
         self.preview_thread = None

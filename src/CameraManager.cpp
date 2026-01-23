@@ -291,16 +291,16 @@ void CameraManager::startPreview() {
         //
         // Purpose: Track ball launch, flight path, landing
         // Resolution: 640×480 or 1280×800 (lower FPS ok, need full trajectory)
-        // ROI: 60% center crop (1.66× zoom on launch area)
+        // NOTE: --roi removed - it causes black screen / software scaling issues
         args << "--width" << QString::number(m_previewWidth);
         args << "--height" << QString::number(m_previewHeight);
         args << "--framerate" << QString::number(frameRate);
         args << "--shutter" << QString::number(shutterSpeed);
         args << "--gain" << QString::number(gain);
 
-        args << "--roi" << "0.2,0.2,0.6,0.6";  // 60% center crop
+        // NO ROI - use full sensor (--roi causes rpicam-vid to crash/black screen)
         args << "--codec" << "yuv420";  // YUV420 (color or convert to grayscale)
-        qDebug() << "TRACKING CAMERA (Cam 1): YUV420, 60% center crop @" << frameRate << "FPS";
+        qDebug() << "TRACKING CAMERA (Cam 1): YUV420, Full sensor @" << frameRate << "FPS";
     } else {
         // Default for any other camera
         args << "--width" << QString::number(m_previewWidth);
