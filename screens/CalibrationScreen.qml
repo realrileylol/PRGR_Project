@@ -124,6 +124,33 @@ Item {
             }
 
             Button {
+                text: "🎯 Alignment"
+                implicitWidth: 140
+                implicitHeight: 44
+
+                background: Rectangle {
+                    color: parent.pressed ? "#2D9A4F" : success
+                    radius: 8
+                    border.color: success
+                    border.width: 2
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 16
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    stack.push("screens/CameraAlignmentScreen.qml", {"win": win})
+                }
+            }
+
+            Button {
                 text: "🎯 Ball Zone"
                 implicitWidth: 140
                 implicitHeight: 44
