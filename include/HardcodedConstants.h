@@ -90,15 +90,20 @@ constexpr double HITBOX_Z_MAX = HITBOX_FAR_MM;                        // 2438.4 
 // CAMERA POSITION CONSTRAINTS (Physical Limits)
 // ============================================================================
 
-// Spin Camera Position Constraints
-constexpr double SPIN_CAM_MIN_DISTANCE_MM = 500.0;     // 50cm - too close causes focus issues
-constexpr double SPIN_CAM_MAX_DISTANCE_MM = 1500.0;    // 150cm - too far reduces ball size
+// Both cameras are co-located behind the ball at the hitbox distance (7-8 ft).
+// The spin cam uses a 12mm telephoto lens to virtually zoom in on the ball; the
+// trajectory cam uses a 2.8mm wide-angle to cover the full hitbox volume. This
+// matches the MLM2 Pro architecture (Impact Vision + Shot Vision, same distance).
+
+// Spin Camera Position Constraints (co-located with trajectory cam)
+constexpr double SPIN_CAM_MIN_DISTANCE_MM = HITBOX_NEAR_MM;    // 2133.6 mm (7 ft)
+constexpr double SPIN_CAM_MAX_DISTANCE_MM = HITBOX_FAR_MM;     // 2438.4 mm (8 ft)
 constexpr double SPIN_CAM_MIN_HEIGHT_MM = 50.0;        // 5cm - minimum clearance
-constexpr double SPIN_CAM_MAX_HEIGHT_MM = 300.0;       // 30cm - above this angle too steep
+constexpr double SPIN_CAM_MAX_HEIGHT_MM = 500.0;       // 50cm - matches traj cam mount height
 
 // Trajectory Camera Position Constraints
-constexpr double TRAJ_CAM_MIN_DISTANCE_MM = 1500.0;    // 150cm - minimum to see hitbox
-constexpr double TRAJ_CAM_MAX_DISTANCE_MM = 3000.0;    // 300cm - maximum before ball too small
+constexpr double TRAJ_CAM_MIN_DISTANCE_MM = HITBOX_NEAR_MM;    // 2133.6 mm (7 ft)
+constexpr double TRAJ_CAM_MAX_DISTANCE_MM = HITBOX_FAR_MM;     // 2438.4 mm (8 ft)
 constexpr double TRAJ_CAM_MIN_HEIGHT_MM = 100.0;       // 10cm - minimum clearance
 constexpr double TRAJ_CAM_MAX_HEIGHT_MM = 500.0;       // 50cm - above this loses floor view
 
