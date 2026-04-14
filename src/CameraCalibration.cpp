@@ -919,6 +919,10 @@ void CameraCalibration::useMarkerCornersForZone() {
 }
 
 QString CameraCalibration::formatCalibrationSummary() const {
+    if (!m_isIntrinsicCalibrated || m_distCoeffs.empty()) {
+        return QString("Not calibrated yet");
+    }
+
     QString summary;
     summary += QString("Focal Length: fx=%1 fy=%2 pixels\n").arg(m_fx, 0, 'f', 1).arg(m_fy, 0, 'f', 1);
     summary += QString("Principal Point: (%1, %2)\n").arg(m_cx, 0, 'f', 1).arg(m_cy, 0, 'f', 1);

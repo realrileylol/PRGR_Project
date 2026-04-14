@@ -26,6 +26,7 @@ class CameraCalibration : public QObject {
     Q_PROPERTY(bool isExtrinsicCalibrated READ isExtrinsicCalibrated NOTIFY extrinsicCalibrationChanged)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(int progress READ progress NOTIFY progressChanged)
+    Q_PROPERTY(QString calibrationSummary READ calibrationSummary NOTIFY intrinsicCalibrationChanged)
 
     // Intrinsic parameters (camera-specific, calibrate once)
     Q_PROPERTY(double focalLengthX READ focalLengthX NOTIFY intrinsicCalibrationChanged)
@@ -67,6 +68,7 @@ public:
     bool isExtrinsicCalibrated() const { return m_isExtrinsicCalibrated; }
     QString status() const { return m_status; }
     int progress() const { return m_progress; }
+    QString calibrationSummary() const { return formatCalibrationSummary(); }
 
     double focalLengthX() const { return m_fx; }
     double focalLengthY() const { return m_fy; }
