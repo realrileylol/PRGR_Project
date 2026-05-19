@@ -18,18 +18,20 @@ This document provides full context for researching camera module options and go
 - **Native resolution**: 1280x800
 - **Pixel pitch**: 3.0 um
 - **Sensor dimensions**: 3.84mm x 2.40mm
-- **Current operating mode**: 640x480 @ 180 FPS
-- **Lens**: 12mm F1.2 M12 telephoto (ordered 8mm F1.4 replacement)
-- **Connection**: CSI (MIPI)
-- **Orientation**: Rotated 90 degrees clockwise (portrait mode, displays as 480x640)
-- **Purpose**: Capture ball spin/impact at close range via telephoto zoom
-- **Distance from ball**: 7-8 feet (same as trajectory cam)
+- **Current operating mode**: 640x480 @ 180 FPS (sensor outputs 640x480, rotated 90° CW → **480x640 portrait display**)
+- **Planned upgrade**: 1280x800 @ 120 FPS (rotated 90° CW → **800x1280 portrait display**)
+- **Lens**: 12mm F1.2 M12 telephoto (ordered 8mm F1.4 IR-corrected replacement)
+- **Connection**: CSI (MIPI) — both cameras are CSI-connected to the Raspberry Pi 5
+- **Orientation**: Physically rotated 90 degrees clockwise (portrait mode). The sensor captures in landscape, software rotates to portrait. All coordinates must account for this rotation.
+- **Purpose**: Capture ball spin/impact via telephoto optical zoom from 7-8 feet
+- **Distance from ball**: 7-8 feet (co-located with trajectory cam)
 
 ### Camera 1 - Trajectory Camera (current)
-- **Sensor**: OV9281 (same sensor)
-- **Current operating mode**: 640x400 @ 240 FPS (capture mode)
+- **Sensor**: OV9281 (identical sensor to Camera 0)
+- **Current operating mode**: 640x400 @ 240 FPS in capture mode, 640x480 @ 180 FPS in preview mode
+- **Display orientation**: Landscape (no rotation) — **640x400 as-is**
 - **Lens**: 2.8mm wide-angle
-- **Connection**: USB 2.0
+- **Connection**: CSI (MIPI) — both cameras are CSI-connected to the Raspberry Pi 5
 - **Purpose**: Track ball trajectory through the hitbox volume (1ft x 1ft x 1ft at 7-8ft distance)
 
 ### Ball Size at Camera Distance (Pinhole Camera Model)
@@ -38,15 +40,15 @@ Formula: `pixel_diameter = (ball_diameter_mm * focal_length_mm) / (distance_mm *
 - Golf ball diameter: 42.67mm
 - Pixel pitch: 3.0um = 0.003mm
 
-**With current 12mm lens @ 640x480:**
+**Impact cam with current 12mm lens @ 640x480 (rotated to 480x640 portrait):**
 - At 7ft (2133mm): ~80 pixels diameter
 - At 8ft (2438mm): ~70 pixels diameter
 
-**With incoming 8mm lens @ 1280x800 (planned upgrade):**
+**Impact cam with incoming 8mm lens @ 1280x800 (rotated to 800x1280 portrait, planned upgrade):**
 - At 7ft: ~53 pixels diameter  
 - At 8ft: ~46 pixels diameter
 
-**Trajectory cam (2.8mm lens):**
+**Trajectory cam (2.8mm lens) @ 640x400 landscape:**
 - At 7ft: ~19 pixels diameter
 - At 8ft: ~16 pixels diameter
 
