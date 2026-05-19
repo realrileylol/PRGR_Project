@@ -19,7 +19,7 @@ This document provides full context for researching camera module options and go
 - **Pixel pitch**: 3.0 um
 - **Sensor dimensions**: 3.84mm x 2.40mm
 - **Current operating mode**: 640x480 @ 180 FPS (sensor outputs 640x480, rotated 90° CW → **480x640 portrait display**)
-- **Planned upgrade**: 1280x800 @ 120 FPS (rotated 90° CW → **800x1280 portrait display**)
+- **Goal**: 240 FPS at the highest resolution possible while maintaining portrait orientation. Ideal target: 640x480 @ 240 FPS (rotated → **480x640 portrait**) or higher resolution if the sensor/interface can sustain 240 FPS.
 - **Lens**: 12mm F1.2 M12 telephoto (ordered 8mm F1.4 IR-corrected replacement)
 - **Connection**: CSI (MIPI) — both cameras are CSI-connected to the Raspberry Pi 5
 - **Orientation**: Physically rotated 90 degrees clockwise (portrait mode). The sensor captures in landscape, software rotates to portrait. All coordinates must account for this rotation.
@@ -44,7 +44,7 @@ Formula: `pixel_diameter = (ball_diameter_mm * focal_length_mm) / (distance_mm *
 - At 7ft (2133mm): ~80 pixels diameter
 - At 8ft (2438mm): ~70 pixels diameter
 
-**Impact cam with incoming 8mm lens @ 1280x800 (rotated to 800x1280 portrait, planned upgrade):**
+**Impact cam with incoming 8mm lens @ 640x480 (rotated to 480x640 portrait, goal: 240 FPS):**
 - At 7ft: ~53 pixels diameter  
 - At 8ft: ~46 pixels diameter
 
@@ -170,16 +170,16 @@ The system uses multi-method detection with confidence scoring:
 - Exposure time: 100-300 microseconds (need F1.2-F1.4 for indoor lighting)
 - The spin camera sees the ball BEFORE impact (at address) and for a few frames DURING/AFTER impact
 - Ball speed after impact: 100-170 mph for a typical iron shot
-- At 130 mph ball speed and 180 FPS, the ball moves approximately 1.2 inches per frame — very limited frames to capture post-impact spin
-- Higher FPS = more frames during the critical spin-visible window
+- At 130 mph ball speed and 240 FPS, the ball moves approximately 0.9 inches per frame — more frames in the spin-visible window than 180 FPS
+- Higher FPS = more frames during the critical spin-visible window (240 FPS is the target)
 
 ### Ideal Specs Wish List (for the spin/impact camera)
 - Global shutter (mandatory — no rolling shutter artifacts at high speed)
-- 1280x800 or higher resolution
-- 120+ FPS at full resolution (ideally 180+)
+- Highest resolution possible while sustaining 240 FPS (portrait orientation)
+- **240 FPS is the target frame rate** — this is non-negotiable for spin capture
 - 3.0um or larger pixel pitch (better low-light sensitivity)
 - Compatible with M12 lens mount (so we can use telephoto lenses)
-- USB or CSI interface to Raspberry Pi 5
+- CSI (MIPI) interface to Raspberry Pi 5 preferred (both current cameras are CSI)
 - F1.2-F1.4 lens aperture for microsecond exposures under indoor lighting
 
 ---
@@ -204,4 +204,4 @@ The MLM2 Pro REQUIRES RPT-dotted balls for spin data. Without them, it reports "
 1. **Camera decision**: Should I buy the QQSJ-1356, the QQSJ-8967, or something else entirely? Or stick with my current OV9281 + new 8mm lens?
 2. **Ball strategy**: Can I realistically measure spin on unmarked balls, or do I need special balls/stickers? What's the minimum viable approach?
 3. **Pixel budget**: Given my camera distance (7-8ft) and lens options (8mm or 12mm), how many pixels do I need on the ball for each spin detection method?
-4. **Frame rate vs resolution tradeoff**: Is it better to have 1920x1200 @ 120fps or 1280x800 @ 180fps for spin detection?
+4. **Frame rate vs resolution tradeoff**: 240 FPS is the target. What's the highest resolution achievable at 240 FPS for spin detection? Is 640x480 @ 240fps sufficient, or do we need a different sensor to get higher resolution at that frame rate?
