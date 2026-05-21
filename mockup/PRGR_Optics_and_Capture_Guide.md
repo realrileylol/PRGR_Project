@@ -52,6 +52,13 @@ ball_pixels = (ball_diameter_mm x focal_length_mm) / (distance_mm x pixel_pitch_
 ### The Tradeoff
 A longer lens gives you more pixels on the ball, but it also narrows the camera's field of view. At some point, the view is so narrow that any slight misalignment means the ball isn't even in the frame. This is why lens choice depends on distance — what works at 8ft may be too tight at 5ft.
 
+### Ideal Spec
+- **Target ball pixel diameter: 60-80 px**
+- Below 50 px, fiducial markers become too small for reliable centroid tracking
+- Above 100 px, you're trading field of view for pixels you don't need
+- 75 px is the sweet spot — each ~4mm fiducial dot resolves to ~7 pixels, enough for sub-pixel centroid algorithms
+- Achieved with: **8mm lens at 5ft** or **12mm lens at 7ft**
+
 ---
 
 ## 2. Frame Rate (FPS) — Catching the Ball in Flight
@@ -74,6 +81,13 @@ Spin detection algorithms need at least 2-3 consecutive frames where the ball is
 
 ### The 240 FPS Target
 The Rapsodo MLM2 Pro uses 240 FPS for its Impact Vision camera. This is the benchmark. Higher FPS gives more frames in the critical window, but the sensor has to sacrifice resolution to read data fast enough (see Section 5 on ROI cropping).
+
+### Ideal Spec
+- **Target frame rate: 240 FPS**
+- This is the MLM2 Pro benchmark and the non-negotiable target for spin detection
+- Provides 2-3 usable frames of the ball in the spin-visible window at typical ball speeds
+- Achievable on the OV9281 at 640x400 resolution via ROI cropping
+- Going higher (320+ FPS) requires further resolution sacrifice with diminishing returns
 
 ### FPS Does NOT Control Blur
 A common misconception: higher FPS does not automatically mean sharper images. FPS controls how often you take a picture. Shutter speed (exposure time) controls how long each picture's "window" stays open. You can shoot 240 FPS with a slow shutter and get 240 blurry frames per second. FPS and exposure must be configured independently.
@@ -111,6 +125,14 @@ At 100 microseconds, the sensor is only open for 1/10,000th of a second. Very li
 
 This is why the MLM2 Pro struggles in dark rooms — it relies entirely on ambient light, and at 100-200 microsecond exposures, a dim room simply doesn't provide enough photons.
 
+### Ideal Spec
+- **Target exposure: 100-200 microseconds**
+- 100 us = 7.1mm blur at 160 mph — standard prosumer target, best balance of clarity and brightness
+- 200 us = 14.3mm blur — acceptable starting point, easier to achieve in lower light
+- Below 50 us requires extreme illumination and provides diminishing returns
+- The MLM2 Pro operates in this range (inferred from its ambient-light-only design and dark-room failures)
+- **Always pair short exposure with maximum physical lighting and minimum electronic gain**
+
 ### Current PRGR Status
 The PRGR system defaults to **4,000-8,000 microsecond** exposure — 20-80x too slow for spin tracking. At 4,000 microseconds and 160 mph, the ball smears 286mm (11 inches). This must be reduced to 100-200 microseconds for spin-viable capture.
 
@@ -133,6 +155,13 @@ The relationship is exponential, not linear:
 | F4.0 | 9% |
 
 An F2.8 lens lets in only 18% of the light that an F1.2 lens does. When you're already fighting for photons at 100 microsecond exposures, that difference is the gap between a usable image and a black frame.
+
+### Ideal Spec
+- **Target aperture: F1.2**
+- This is the fastest commonly available aperture for M12 mount lenses
+- Non-negotiable for ambient-light spin detection at 100-200 us exposures
+- F1.4 is acceptable (73% of F1.2 light) but F2.0+ is not viable without supplemental illumination
+- The MLM2 Pro relies on ambient light only — its lens aperture is a critical enabler
 
 ### PRGR Lens Selection
 Both the 12mm and 8mm lenses for the impact camera are F1.2 — the fastest commonly available aperture for M12 lenses. This is not optional for spin detection with ambient light at short exposures. An F2.0 or slower lens would require either longer exposure (more blur) or higher gain (more noise), both of which degrade spin tracking.
@@ -169,6 +198,15 @@ The sensor reads the full chip but skips every other pixel (2x2 binning). The fi
 **How to tell which your sensor is doing:**
 Point the camera at a scene. Switch between 1280x800 and 640x400. If the view zooms in noticeably, it's center cropping. If the view stays the same but looks lower resolution, it's subsampling.
 
+### Ideal Spec
+- **Target resolution: 640 x 400 (ROI crop)**
+- This is the specific resolution that unlocks 240 FPS on the OV9281 via 2-lane MIPI CSI
+- Provides enough pixel density for fiducial tracking at 5-8ft with appropriate lenses
+- 640 x 360 is also viable (gains ~40 FPS) but loses 10% vertical coverage
+- 1280 x 800 gives maximum detail but is hard-capped at 120 FPS — insufficient for spin
+- 320 x 240 achieves 420+ FPS but resolution is too low for marker detection
+- After 90-degree CW rotation for portrait display: **400 x 640**
+
 ### Recommended Mode for Spin Detection
 **640 x 400 @ 240 FPS** — This is the mode that achieves parity with the MLM2 Pro's frame rate while maintaining enough resolution for fiducial marker tracking at appropriate distances.
 
@@ -199,6 +237,13 @@ The OV9281 sensor is naturally sensitive to NIR light (850-940nm range). The IR-
 - Indoors: the sensor benefits from any incidental NIR in room lighting
 - The sensor gets more usable photons per frame, supporting shorter exposure times
 
+### Ideal Spec
+- **Lens: IR-corrected (Day/Night) with no IR-cut filter on the sensor**
+- The OV9281 ships without an IR-cut filter — do NOT add one
+- Both lenses (8mm and 12mm F1.2) must be IR-corrected so NIR light focuses on the same plane as visible light
+- This gives the sensor access to the full visible + NIR spectrum — more total photons per frame
+- A non-IR-corrected lens will produce blurry images when NIR light is present (the IR focuses on a different plane)
+
 ### PRGR Lens Status
 Both the 12mm F1.2 and 8mm F1.2 impact camera lenses are IR-corrected day/night lenses. No additional filter hardware is needed.
 
@@ -221,6 +266,12 @@ A golf ball at 160 mph moves ~71mm per millisecond. If the sensor takes 1.5ms to
 
 ### Why Global Shutter Works
 With global shutter, the entire sensor captures at one instant. The ball's shape, the position of every marker, and the geometric relationships are all frozen perfectly. This is the only architecture that allows accurate spin measurement from sequential frames.
+
+### Ideal Spec
+- **Shutter type: Global shutter (mandatory, zero exceptions)**
+- Rolling shutter distorts the ball's geometry at high speeds — spin math becomes impossible
+- The OV9281's OmniPixel3-GS architecture satisfies this requirement
+- No rolling shutter camera (GoPro, smartphone, standard webcam) can substitute for the impact camera, regardless of resolution or frame rate
 
 ### PRGR Status
 The OV9281 is a true global shutter sensor (OmniPixel3-GS technology). This requirement is already met. Never substitute a rolling shutter camera for the impact camera, regardless of how good its other specs may be.
@@ -249,6 +300,14 @@ The goal is to use as little gain as possible while maintaining a bright enough 
 | 4.0x - 6.0x | Overcast / well-lit indoor | Moderate — acceptable |
 | 8.0x - 12.0x | Indoor with supplemental lighting | Noticeable — workable with good algorithms |
 | 16.0x+ | Dim indoor | Heavy — degrades marker detection significantly |
+
+### Ideal Spec
+- **Target gain: 1.0x - 4.0x (outdoor), 4.0x - 8.0x (indoor with floods)**
+- Lower gain = cleaner image = better marker detection
+- Above 12.0x, noise begins to overwhelm edge detection and blob finding algorithms
+- At 16.0x, salt-and-pepper noise generates false positives — software tracks noise instead of markers
+- **Target ball surface luminance: ~80% brightness without clipping highlights**
+- Clipped (overexposed) highlights wash out the contrast between white ball and dark dots
 
 ### Practical Strategy
 **Maximize physical light first, use gain as a last resort.** A $30 LED work light placed 3 feet from the impact zone does more for image quality than any amount of electronic gain. The camera settings priority should always be:
@@ -365,7 +424,107 @@ Notes:     Not viable for spin detection. Must add supplemental lighting.
 
 ---
 
-## 12. Glossary
+## 12. The Ideal Impact Camera — All Specs Combined
+
+This section brings every individual ideal spec together into one complete picture. This is the target configuration for a camera system that matches or exceeds the Rapsodo MLM2 Pro's spin detection capability.
+
+### The Complete Ideal Spec Sheet
+
+| Parameter | Ideal Value | Acceptable Range | Why This Value |
+|---|---|---|---|
+| **Sensor** | Monochrome, global shutter, 1MP+ | — | Mono = 3x light; global shutter = no distortion |
+| **Sensor Model** | OV9281 or equivalent | Any GS mono with ≥3.0um pixels | Proven, well-supported on Raspberry Pi |
+| **Pixel Pitch** | 3.0 um | 2.5 - 4.0 um | Larger pixels = more light per pixel at short exposures |
+| **Interface** | MIPI CSI (2-lane) | CSI preferred over USB | Lower latency, no frame drops, direct sensor control |
+| **Resolution** | 640 x 400 (ROI crop) | 640 x 360 to 640 x 480 | Unlocks 240 FPS while maintaining usable pixel density |
+| **Frame Rate** | 240 FPS | 210-260 FPS | MLM2 Pro benchmark; 2-3 frames in spin window |
+| **Exposure Time** | 100 us | 100 - 200 us | 7-14mm blur at 160 mph — viable for marker tracking |
+| **Gain** | 1.0x - 4.0x (outdoor) | Up to 8.0x (indoor with floods) | Minimize noise; maximize physical light instead |
+| **Lens Focal Length** | 8mm (at 5ft distance) | 6mm - 12mm depending on distance | 75px ball diameter with workable FOV |
+| **Lens Aperture** | F1.2 | F1.2 - F1.4 | Maximum light gathering for ambient-light operation |
+| **Lens Type** | IR-corrected, Day/Night | Must pass NIR without focus shift | Exploits sensor's full visible + NIR sensitivity |
+| **Lens Mount** | M12 | — | Standard for OV9281 boards, wide selection available |
+| **Shutter Type** | Global shutter | Global shutter only | Non-negotiable — rolling shutter = unusable distortion |
+| **Camera Distance** | 5 ft from ball | 4 - 8 ft (lens dependent) | Closer = more pixels on ball = better spin resolution |
+| **Ball Pixel Diameter** | 60 - 80 px | 50 - 120 px | Each fiducial dot ≥ 5px for reliable centroid tracking |
+| **Orientation** | 90° CW (portrait) | — | Maximizes vertical coverage for ball departure path |
+| **Ball Marking** | Fiducial dots (RPT/Pix/DIY) | Any high-contrast pattern | Plain white balls are algorithmically untrackable |
+| **Lighting** | Bright ambient (outdoor sun or indoor floods) | — | MLM2 Pro approach — no flash, no strobe, no IR LEDs |
+| **Target Luminance** | Ball surface at ~80% brightness | 70% - 85% | Avoids clipping (which kills dot contrast) |
+
+### How Each Spec Depends on the Others
+
+No single spec exists in isolation. They form an interconnected system:
+
+```
+Distance (5ft) ──determines──> Ball Pixel Size (75px with 8mm lens)
+                                    │
+Lens Focal Length (8mm) ──────────────┘
+                                    │
+Lens Aperture (F1.2) ──determines──> Available Light Budget
+                                    │
+Ambient Lighting ─────────────────────┘
+                                    │
+Exposure Time (100-200 us) <────────┘ (light budget determines how short you can go)
+                                    │
+Motion Blur (7-14mm) <──────────────┘ (exposure determines blur)
+                                    │
+Gain (1-4x outdoor) <──────────────── (exposure + light determine required gain)
+                                    │
+Image Noise Level <─────────────────── (gain determines noise)
+                                    │
+Marker Detectability <──────────────── (noise + ball size + blur determine if spin works)
+```
+
+**The chain in plain English:**
+You pick a distance and lens, which determines how big the ball appears. Your lens aperture and ambient lighting determine how much light reaches the sensor. That light budget determines how short your exposure can be. Exposure determines blur. If there isn't enough light, you increase gain, which increases noise. Noise and blur together determine whether the software can find and track the fiducial markers. If any link in this chain fails, spin detection fails.
+
+### The PRGR Target Configuration (5ft, Outdoor Primary)
+
+```
+Hardware:
+  Sensor:       OV9281 (monochrome, global shutter, 3.0um pixels)
+  Lens:         8mm F1.2, IR-corrected, M12 mount
+  Interface:    MIPI CSI to Raspberry Pi 5
+  Orientation:  90° CW rotation (portrait)
+  Distance:     5 feet from ball
+
+Software Settings:
+  Resolution:   640 x 400 (ROI crop → 400 x 640 portrait display)
+  Frame Rate:   240 FPS
+  Exposure:     100 us (outdoor bright) / 150-200 us (overcast/indoor floods)
+  Gain:         1.0-2.0x (outdoor) / 4.0-8.0x (indoor with flood lights)
+  Auto-Exp:     Bounded — never exceed 200 us, never below 50 us
+
+Expected Performance:
+  Ball size:    ~75 px diameter (at 5ft with 8mm)
+  FOV:          ~9" wide x ~14.4" tall (portrait, center crop)
+  Blur:         7.1mm at 100us / 14.3mm at 200us (at 160 mph)
+  Dot size:     ~7 px per fiducial dot (sufficient for centroid tracking)
+  Spin frames:  2-3 usable frames per shot in the spin-visible window
+
+Required:
+  Ball:         Fiducial-marked (RPT, TP5x Pix, or DIY dot pattern)
+  Lighting:     Bright ambient — outdoor sun, or indoor LED floods at 3-5ft from impact zone
+```
+
+### What the MLM2 Pro Does (For Comparison)
+
+| Parameter | MLM2 Pro | PRGR Target | Match? |
+|---|---|---|---|
+| Frame Rate | 240 FPS | 240 FPS | Yes |
+| Shutter Type | Global shutter | Global shutter (OV9281) | Yes |
+| Exposure | ~100-200 us (inferred) | 100-200 us | Yes |
+| Illumination | Ambient only (no flash/strobe) | Ambient only | Yes |
+| Ball Requirement | RPT fiducial balls | Fiducial-marked balls | Yes |
+| Sensor Type | Likely monochrome GS | OV9281 monochrome GS | Yes |
+| Lens Aperture | Unknown (likely fast) | F1.2 | Matched or better |
+| Distance | ~6.5-8.5 ft | 5 ft | Closer = more pixels |
+| Color/Mono | Monochrome (inferred) | Monochrome (confirmed) | Yes |
+
+---
+
+## 13. Glossary
 
 | Term | Definition |
 |---|---|
@@ -392,7 +551,7 @@ Notes:     Not viable for spin detection. Must add supplemental lighting.
 
 ---
 
-## Source Traceability
+## 14. Source Traceability
 
 - MLM2 Pro 240 FPS and global shutter: Rapsodo product specifications, FCC filing 2AH3O-MLM2PRO
 - MLM2 Pro ambient light reliance: FCC internal photos analysis (no flash/strobe hardware), confirmed by user reports of dark-room failures
