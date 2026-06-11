@@ -56,7 +56,7 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        if (kld2Manager.is_running) {
+                        if (kld2Manager.isRunning) {
                             kld2Manager.stop()
                         }
                         stack.goBack()
@@ -79,12 +79,12 @@ Item {
                     width: 120
                     height: 48
                     radius: 6
-                    color: kld2Manager.is_running ? success : edge
+                    color: kld2Manager.isRunning ? success : edge
 
                     Text {
                         anchors.centerIn: parent
-                        text: kld2Manager.is_running ? "● ACTIVE" : "○ STOPPED"
-                        color: kld2Manager.is_running ? "white" : hint
+                        text: kld2Manager.isRunning ? "● ACTIVE" : "○ STOPPED"
+                        color: kld2Manager.isRunning ? "white" : hint
                         font.pixelSize: 14
                         font.bold: true
                     }
@@ -245,14 +245,14 @@ Item {
                 spacing: 15
 
                 Button {
-                    text: kld2Manager.is_running ? "Stop Radar" : "Start Radar"
+                    text: kld2Manager.isRunning ? "Stop Radar" : "Start Radar"
                     Layout.fillWidth: true
                     implicitHeight: 60
                     scale: pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
                     background: Rectangle {
-                        color: kld2Manager.is_running
+                        color: kld2Manager.isRunning
                             ? (parent.pressed ? "#B02A27" : danger)
                             : (parent.pressed ? "#2D9A4F" : success)
                         radius: 8
@@ -270,7 +270,7 @@ Item {
 
                     onClicked: {
                         soundManager.playClick()
-                        if (kld2Manager.is_running) {
+                        if (kld2Manager.isRunning) {
                             kld2Manager.stop()
                             currentSpeedText.text = "---"
                         } else {
@@ -304,6 +304,36 @@ Item {
                     onClicked: {
                         soundManager.playClick()
                         peakSpeedText.text = "---"
+                    }
+                }
+
+                // Development Mode only: fire a realistic simulated swing
+                Button {
+                    text: "🏌 Simulate Swing"
+                    visible: kld2Manager.simulationMode
+                    Layout.preferredWidth: 180
+                    implicitHeight: 60
+                    scale: pressed ? 0.95 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#CC7A00" : "#FF9500"
+                        radius: 8
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        soundManager.playClick()
+                        kld2Manager.simulateSwing()
                     }
                 }
             }
@@ -374,7 +404,7 @@ Item {
 
     // Auto-start radar when screen loads
     Component.onCompleted: {
-        if (!kld2Manager.is_running) {
+        if (!kld2Manager.isRunning) {
             kld2Manager.start()
         }
     }

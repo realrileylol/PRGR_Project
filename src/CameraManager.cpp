@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <chrono>
+#include <cmath>
 
 CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent)
     : QObject(parent)
@@ -31,6 +32,10 @@ CameraManager::CameraManager(FrameProvider *frameProvider, SettingsManager *sett
     , m_currentFPS(0.0)
     , m_fpsLastUpdate(std::chrono::steady_clock::now())
     , m_fpsFrameCount(0)
+    , m_simulationMode(false)
+    , m_simTimer(nullptr)
+    , m_simPhase(0.0)
+    , m_simSourceCameraIndex(-1)
 {
     // Create videos folder
     QString videosPath = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/PRGR_Videos";
@@ -161,9 +166,120 @@ void CameraManager::restartPreviewWithExposure(int shutter, double gain) {
     emit exposureChanged();
 }
 
+void CameraManager::setSimulationMode(bool enabled) {
+    if (m_simulationMode == enabled) {
+        return;
+    }
+
+    // Restart preview cleanly if mode changes while running
+    bool wasActive = m_previewActive.load();
+    if (wasActive) {
+        stopPreview();
+    }
+
+    m_simulationMode = enabled;
+    m_simSourceImage.release();      // Re-check for placeholder images on next start
+    m_simSourceCameraIndex = -1;
+    emit simulationModeChanged();
+    qDebug() << "Camera simulation mode" << (enabled ? "ENABLED" : "DISABLED");
+
+    if (wasActive) {
+        startPreview();
+    }
+}
+
+void CameraManager::generateSimulatedFrame() {
+    const int width = m_previewWidth;
+    const int height = m_previewHeight;
+
+    // Optional user-supplied placeholder: drop a real capture at
+    // ~/Pictures/PRGR_DevFrames/cam0.png (or cam1.png) and it replaces the synthetic scene
+    if (m_simSourceCameraIndex != m_activeCameraIndex) {
+        m_simSourceImage.release();
+        m_simSourceCameraIndex = m_activeCameraIndex;
+
+        QString placeholderPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
+                                  + QString("/PRGR_DevFrames/cam%1.png").arg(m_activeCameraIndex);
+        if (QFile::exists(placeholderPath)) {
+            cv::Mat img = cv::imread(placeholderPath.toStdString(), cv::IMREAD_GRAYSCALE);
+            if (!img.empty()) {
+                cv::resize(img, m_simSourceImage, cv::Size(width, height));
+                qDebug() << "Dev mode: using placeholder image" << placeholderPath;
+            }
+        }
+    }
+
+    cv::Mat frame;
+    if (!m_simSourceImage.empty()) {
+        frame = m_simSourceImage.clone();
+    } else {
+        // Synthetic scene: dark mat, white ball with fiducial dots, slow idle drift
+        frame = cv::Mat(height, width, CV_8UC1, cv::Scalar(45));
+
+        // Hitting mat area (lighter band across lower third)
+        cv::rectangle(frame, cv::Point(0, height * 2 / 3), cv::Point(width, height),
+                      cv::Scalar(70), cv::FILLED);
+
+        // Ball: ~75 px diameter (8mm lens @ 5ft per optics guide), gentle bob
+        const int ballRadius = 38;
+        const int cx = width / 2 + static_cast<int>(8.0 * std::sin(m_simPhase * 0.3));
+        const int cy = height * 2 / 3 - ballRadius + static_cast<int>(3.0 * std::sin(m_simPhase));
+        cv::circle(frame, cv::Point(cx, cy), ballRadius, cv::Scalar(230), cv::FILLED);
+        cv::circle(frame, cv::Point(cx, cy), ballRadius, cv::Scalar(120), 2);
+
+        // Fiducial dots rotating slowly around the ball face (RPT-style)
+        for (int i = 0; i < 5; i++) {
+            double angle = m_simPhase * 0.5 + i * (2.0 * CV_PI / 5.0);
+            int dx = static_cast<int>(ballRadius * 0.55 * std::cos(angle));
+            int dy = static_cast<int>(ballRadius * 0.55 * std::sin(angle));
+            cv::circle(frame, cv::Point(cx + dx, cy + dy), 4, cv::Scalar(30), cv::FILLED);
+        }
+
+        cv::putText(frame, "DEV MODE - SIMULATED", cv::Point(10, 24),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(200), 1);
+        cv::putText(frame, QString("CAM %1").arg(m_activeCameraIndex).toStdString(),
+                    cv::Point(10, 48), cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(200), 1);
+    }
+
+    m_simPhase += 0.1;
+
+    if (m_frameProvider) {
+        m_frameProvider->updateFrame(frame);
+        emit frameReady();
+    }
+
+    // FPS tracking (same cadence as the real preview loop)
+    m_fpsFrameCount++;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_fpsLastUpdate).count();
+    if (elapsed >= FPS_UPDATE_INTERVAL_MS) {
+        m_currentFPS = (m_fpsFrameCount * 1000.0) / elapsed;
+        emit fpsChanged();
+        m_fpsFrameCount = 0;
+        m_fpsLastUpdate = now;
+    }
+}
+
 void CameraManager::startPreview() {
     if (m_previewActive.load()) {
         qWarning() << "Preview already active";
+        return;
+    }
+
+    // ═══ DEVELOPMENT MODE: simulated frames, no rpicam-vid / hardware ═══
+    if (m_simulationMode) {
+        m_previewWidth = 640;
+        m_previewHeight = 480;
+
+        if (!m_simTimer) {
+            m_simTimer = new QTimer(this);
+            connect(m_simTimer, &QTimer::timeout, this, &CameraManager::generateSimulatedFrame);
+        }
+        m_simTimer->start(33);  // ~30 FPS display rate (matches real preview throttle)
+
+        m_previewActive.store(true);
+        emit previewActiveChanged();
+        qDebug() << "Preview started in SIMULATION mode (camera" << m_activeCameraIndex << ", no hardware)";
         return;
     }
 
@@ -370,6 +486,13 @@ void CameraManager::stopPreview() {
     // qDebug() << "Stopping preview...";  // Suppress spam
     m_previewActive.store(false);
 
+    // Development Mode: just stop the frame timer
+    if (m_simTimer && m_simTimer->isActive()) {
+        m_simTimer->stop();
+        emit previewActiveChanged();
+        return;
+    }
+
     // Wait for thread to finish
     if (m_previewThread) {
         m_previewThread->wait(2000);
@@ -570,6 +693,11 @@ void CameraManager::startRecording() {
         return;
     }
 
+    if (m_simulationMode) {
+        emit errorOccurred("Recording unavailable in Development Mode (no camera hardware)");
+        return;
+    }
+
     // Stop preview if running
     if (m_previewActive.load()) {
         qDebug() << "Stopping preview before recording...";
@@ -702,6 +830,23 @@ void CameraManager::stopRecording() {
 
 void CameraManager::takeSnapshot() {
     qDebug() << "Taking snapshot...";
+
+    // Development Mode: save the current simulated frame directly
+    if (m_simulationMode) {
+        QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        QString snapshotsPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/PRGR_Snapshots";
+        QDir().mkpath(snapshotsPath);
+        QString filepath = snapshotsPath + QString("/snapshot_sim_%1.jpg").arg(timestamp);
+
+        cv::Mat frame = m_frameProvider ? m_frameProvider->getLatestFrame() : cv::Mat();
+        if (!frame.empty() && cv::imwrite(filepath.toStdString(), frame)) {
+            qDebug() << "Simulated snapshot saved:" << filepath;
+            emit snapshotCaptured(filepath);
+        } else {
+            emit errorOccurred("Snapshot failed (no simulated frame available)");
+        }
+        return;
+    }
 
     bool previewWasRunning = m_previewActive.load();
 

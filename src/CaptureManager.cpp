@@ -61,6 +61,13 @@ void CaptureManager::startCapture() {
         return;
     }
 
+    // Development Mode: capture pipeline needs real camera hardware
+    if (m_kld2Manager && m_kld2Manager->simulationMode()) {
+        emit statusChanged("Capture unavailable in Development Mode (no camera hardware)", "orange");
+        qDebug() << "Capture blocked: Development Mode active";
+        return;
+    }
+
     qDebug() << "Starting ball capture at 200 FPS...";
 
     // Reset state

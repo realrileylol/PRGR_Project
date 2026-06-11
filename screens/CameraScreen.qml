@@ -352,9 +352,14 @@ Item {
                     }
 
                     onClicked: {
-                        selectedCamera = (selectedCamera === 0) ? 1 : 0
-                        cameraManager.activeCameraIndex = selectedCamera
                         soundManager.playClick()
+                        if (selectedCamera === 0) {
+                            // Shot cam (Camera 1) is on hold — radar integration is the current focus
+                            shotCamComingSoonPopup.open()
+                        } else {
+                            selectedCamera = 0
+                            cameraManager.activeCameraIndex = 0
+                        }
                     }
                 }
 
@@ -699,6 +704,81 @@ Item {
         }
         if (recordingActive) {
             cameraManager.stopRecording()
+        }
+    }
+
+    // Shot cam (Camera 1) is on hold while radar integration is the focus
+    Popup {
+        id: shotCamComingSoonPopup
+        anchors.centerIn: parent
+        width: 360
+        height: 200
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color: card
+            radius: 12
+            border.color: edge
+            border.width: 2
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 12
+
+            Text {
+                text: "📹 Shot Cam"
+                font.pixelSize: 22
+                font.bold: true
+                color: text
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Text {
+                text: "Coming Soon"
+                font.pixelSize: 16
+                font.bold: true
+                color: accent
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Text {
+                text: "Trajectory camera is on hold while radar integration is in progress."
+                font.pixelSize: 13
+                color: hint
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            Button {
+                text: "OK"
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: 120
+                implicitHeight: 40
+
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : accent
+                    radius: 8
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 14
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    soundManager.playClick()
+                    shotCamComingSoonPopup.close()
+                }
+            }
         }
     }
 }

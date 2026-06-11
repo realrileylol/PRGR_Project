@@ -2,6 +2,7 @@
 #include <QSerialPortInfo>
 #include <QThread>
 #include <QDebug>
+#include <QRandomGenerator>
 
 KLD2Manager::KLD2Manager(QObject *parent)
     : QObject(parent)
@@ -15,6 +16,7 @@ KLD2Manager::KLD2Manager(QObject *parent)
     , m_inSwing(false)
     , m_maxClubSpeed(0.0)
     , m_ballDetected(false)
+    , m_simulationMode(false)
 {
     // Connect poll timer
     connect(m_pollTimer, &QTimer::timeout, this, &KLD2Manager::pollRadar);
@@ -57,9 +59,78 @@ void KLD2Manager::setDebugMode(bool enabled) {
     }
 }
 
+void KLD2Manager::setSimulationMode(bool enabled) {
+    if (m_simulationMode == enabled) {
+        return;
+    }
+
+    // Restart cleanly if mode changes while running
+    bool wasRunning = m_isRunning;
+    if (wasRunning) {
+        stop();
+    }
+
+    m_simulationMode = enabled;
+    emit simulationModeChanged();
+    qDebug() << "K-LD2 simulation mode" << (enabled ? "ENABLED" : "DISABLED");
+
+    if (wasRunning) {
+        start();
+    }
+}
+
+void KLD2Manager::simulateSwing() {
+    if (!m_simulationMode) {
+        qWarning() << "simulateSwing() ignored: simulation mode is off";
+        return;
+    }
+    if (!m_isRunning) {
+        qWarning() << "simulateSwing() ignored: radar not started";
+        return;
+    }
+
+    // Randomized but realistic swing: club ramps up, impact, ball departs
+    auto *rng = QRandomGenerator::global();
+    const double peakClub = 70.0 + rng->bounded(30.0);          // 70-100 mph
+    const double smash = 1.35 + rng->bounded(0.15);             // 1.35-1.50
+    const double ballSpeed = peakClub * smash;
+
+    qDebug() << "SIMULATED SWING: club" << peakClub << "mph, ball" << ballSpeed << "mph";
+
+    // Club approach ramp (downswing is ~250-300ms)
+    QTimer::singleShot(0,   this, [this, peakClub]() {
+        emit clubApproaching(peakClub * 0.55);
+        emit detectionTriggered();
+        emit clubSpeedUpdated(peakClub * 0.55);
+    });
+    QTimer::singleShot(100, this, [this, peakClub]() { emit clubSpeedUpdated(peakClub * 0.75); });
+    QTimer::singleShot(200, this, [this, peakClub]() { emit clubSpeedUpdated(peakClub * 0.92); });
+    QTimer::singleShot(280, this, [this, peakClub]() { emit clubSpeedUpdated(peakClub); });
+
+    // Impact + ball departure
+    QTimer::singleShot(300, this, [this, ballSpeed]() {
+        emit ballSpeedUpdated(ballSpeed);
+        emit ballDetected(ballSpeed);
+        emit impactDetected();
+    });
+
+    // Ball speed decays as it leaves the radar cone
+    QTimer::singleShot(400, this, [this, ballSpeed]() { emit ballSpeedUpdated(ballSpeed * 0.97); });
+    QTimer::singleShot(500, this, [this, ballSpeed]() { emit ballSpeedUpdated(ballSpeed * 0.94); });
+}
+
 bool KLD2Manager::start() {
     if (m_isRunning) {
         qWarning() << "K-LD2 already running";
+        return true;
+    }
+
+    // ═══ DEVELOPMENT MODE: no serial port, data comes from simulateSwing() ═══
+    if (m_simulationMode) {
+        m_isRunning = true;
+        emit isRunningChanged();
+        emit statusChanged("K-LD2 simulated (dev mode)", "orange");
+        qDebug() << "K-LD2 started in SIMULATION mode (no hardware)";
         return true;
     }
 

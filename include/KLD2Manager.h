@@ -23,6 +23,7 @@ class KLD2Manager : public QObject {
     Q_PROPERTY(double minBallTriggerSpeed READ minBallTriggerSpeed WRITE setMinBallTriggerSpeed NOTIFY minBallTriggerSpeedChanged)
     Q_PROPERTY(QString triggerMode READ triggerMode WRITE setTriggerMode NOTIFY triggerModeChanged)
     Q_PROPERTY(bool debugMode READ debugMode WRITE setDebugMode NOTIFY debugModeChanged)
+    Q_PROPERTY(bool simulationMode READ simulationMode WRITE setSimulationMode NOTIFY simulationModeChanged)
 
 public:
     explicit KLD2Manager(QObject *parent = nullptr);
@@ -33,11 +34,16 @@ public:
     double minBallTriggerSpeed() const { return m_minBallTriggerSpeed; }
     QString triggerMode() const { return m_triggerMode; }
     bool debugMode() const { return m_debugMode; }
+    bool simulationMode() const { return m_simulationMode; }
 
     void setMinTriggerSpeed(double speed);
     void setMinBallTriggerSpeed(double speed);
     void setTriggerMode(const QString &mode);  // "club" or "ball"
     void setDebugMode(bool enabled);
+    void setSimulationMode(bool enabled);
+
+    // Development Mode: fire a realistic swing sequence (club approach -> impact -> ball speed)
+    Q_INVOKABLE void simulateSwing();
 
 public slots:
     bool start();
@@ -62,6 +68,7 @@ signals:
     void minBallTriggerSpeedChanged();
     void triggerModeChanged();
     void debugModeChanged();
+    void simulationModeChanged();
 
 private slots:
     void pollRadar();
@@ -80,6 +87,7 @@ private:
     double m_minBallTriggerSpeed; // Ball trigger speed (default 10-15 mph)
     QString m_triggerMode;         // "club" or "ball"
     bool m_debugMode;
+    bool m_simulationMode;         // Development Mode: no serial port, simulated data
 
     // Club-based swing state machine (only used when triggerMode == "club")
     bool m_inSwing;

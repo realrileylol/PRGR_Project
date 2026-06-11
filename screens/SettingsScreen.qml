@@ -710,6 +710,85 @@ Item {
                         }
                     }
 
+                    // DEVELOPMENT MODE
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 100
+                        radius: 10
+                        color: card
+                        border.color: devModeToggle.checked ? "#FF9500" : edge
+                        border.width: 2
+
+                        RowLayout {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
+
+                            Rectangle {
+                                id: devModeToggle
+                                property bool checked: false
+
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 4
+                                border.color: checked ? "#FF9500" : edge
+                                border.width: 2
+                                color: checked ? "#FF9500" : "transparent"
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: ""
+                                    color: "white"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    visible: parent.checked
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        soundManager.playClick()
+                                        parent.checked = !parent.checked
+                                        settingsManager.setBool("developer/developmentMode", parent.checked)
+                                        cameraManager.simulationMode = parent.checked
+                                        kld2Manager.simulationMode = parent.checked
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 5
+
+                                Text {
+                                    text: "Development Mode"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: text
+                                }
+
+                                Text {
+                                    text: "Simulated camera & radar — no hardware required. For UI development and demos."
+                                    font.pixelSize: 13
+                                    color: hint
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            Text {
+                                text: devModeToggle.checked ? "SIMULATED" : "LIVE"
+                                color: devModeToggle.checked ? "#FF9500" : success
+                                font.pixelSize: 14
+                                font.bold: true
+                                Layout.rightMargin: 10
+                            }
+                        }
+                    }
+
                     Item { height: 20 }
                 }
             }
@@ -824,5 +903,6 @@ Item {
             launchToggle.checked = win.useLaunchEst || false
             simulateToggle.checked = win.useSimulateButton || false
         }
+        devModeToggle.checked = settingsManager.getBool("developer/developmentMode", false)
     }
 }

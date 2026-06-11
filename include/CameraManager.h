@@ -5,6 +5,7 @@
 #include <QString>
 #include <QProcess>
 #include <QFile>
+#include <QTimer>
 #include <opencv2/opencv.hpp>
 #include <atomic>
 
@@ -32,6 +33,7 @@ class CameraManager : public QObject {
     Q_PROPERTY(int currentShutter READ currentShutter NOTIFY exposureChanged)
     Q_PROPERTY(double currentGain READ currentGain NOTIFY exposureChanged)
     Q_PROPERTY(double currentFPS READ currentFPS NOTIFY fpsChanged)
+    Q_PROPERTY(bool simulationMode READ simulationMode WRITE setSimulationMode NOTIFY simulationModeChanged)
 
 public:
     explicit CameraManager(FrameProvider *frameProvider, SettingsManager *settings, QObject *parent = nullptr);
@@ -46,6 +48,8 @@ public:
     int currentShutter() const { return m_currentShutter; }
     double currentGain() const { return m_currentGain; }
     double currentFPS() const { return m_currentFPS; }
+    bool simulationMode() const { return m_simulationMode; }
+    void setSimulationMode(bool enabled);
 
 public slots:
     void startPreview();
@@ -62,6 +66,7 @@ signals:
     void autoExposureEnabledChanged();
     void exposureChanged();
     void fpsChanged();
+    void simulationModeChanged();
     void frameReady();
     void snapshotCaptured(const QString &filePath);
     void recordingSaved(const QString &filePath);
@@ -76,6 +81,7 @@ private:
     bool createNamedPipe(const QString &pipePath);
     void cleanupNamedPipe();
     void restartPreviewWithExposure(int shutter, double gain);
+    void generateSimulatedFrame();
 
     FrameProvider *m_frameProvider;
     SettingsManager *m_settings;
@@ -112,6 +118,13 @@ private:
     std::chrono::steady_clock::time_point m_fpsLastUpdate;
     int m_fpsFrameCount;
     static constexpr int FPS_UPDATE_INTERVAL_MS = 1000;  // Update FPS every 1 second
+
+    // Development Mode: simulated frames, no rpicam-vid / hardware
+    bool m_simulationMode;
+    QTimer *m_simTimer;
+    double m_simPhase;          // Animates the simulated ball markers
+    cv::Mat m_simSourceImage;   // Optional user-supplied placeholder (per camera)
+    int m_simSourceCameraIndex; // Which camera the cached placeholder belongs to
 };
 
 /**

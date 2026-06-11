@@ -1,116 +1,120 @@
-# PRGR Golf Launch Monitor
-## IGNORE AS OF DEC 25
+# PRGR Launch Monitor
 
-DIY golf launch monitor using Raspberry Pi and OV9281 camera.
+A DIY golf launch monitor built on Raspberry Pi 5 with dual OV9281 global shutter cameras, Doppler radar, and a Qt 6 / QML touchscreen interface. Architecture modeled after the Rapsodo MLM2 Pro (Impact Vision + Shot Vision + radar sensor fusion).
 
-## Quick Start
+![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%205-c51a4a)
+![Language](https://img.shields.io/badge/language-C%2B%2B17-blue)
+![UI](https://img.shields.io/badge/UI-Qt%206%20%2F%20QML-41cd52)
+![Vision](https://img.shields.io/badge/vision-OpenCV%204-5c3ee8)
 
-### Install Fast C++ Detection (Recommended)
+## System Overview
+
+```
+                        ┌─────────────────────────────┐
+                        │     Raspberry Pi 5 (aarch64) │
+                        │                             │
+  ┌──────────────┐ CSI  │  ┌────────────────────────┐ │
+  │ Impact Cam   ├──────┼─►│  CameraManager         │ │
+  │ OV9281+8mm   │      │  │  (rpicam-vid, YUV420)  │ │
+  │ F1.2 IR lens │      │  └──────────┬─────────────┘ │
+  └──────────────┘      │             ▼               │
+                        │  ┌────────────────────────┐ │   ┌──────────────┐
+  ┌──────────────┐ CSI  │  │  Ball Detection        │ │   │ 800x480      │
+  │ Shot Cam     ├──────┼─►│  (OpenCV: Hough, blob, │ ├──►│ Touchscreen  │
+  │ OV9281+2.8mm │      │  │  contour, MOG2, Kalman)│ │   │ Qt6/QML UI   │
+  │ (on hold)    │      │  └──────────┬─────────────┘ │   └──────────────┘
+  └──────────────┘      │             ▼               │
+                        │  ┌────────────────────────┐ │
+  ┌──────────────┐ UART │  │  Sensor Fusion         │ │
+  │ Radar        ├──────┼─►│  (camera + radar)      │ │
+  │ (K-LD2 now,  │      │  └────────────────────────┘ │
+  │  OPS243-A +  │      │                             │
+  │  K-LD7 next) │      └─────────────────────────────┘
+  └──────────────┘
+```
+
+## Hardware
+
+| Component | Spec | Role |
+|---|---|---|
+| **Compute** | Raspberry Pi 5 | All processing on-device |
+| **Impact Camera** | OV9281 (global shutter, mono, 1MP) + 8mm F1.2 IR-corrected M12 lens | Ball spin / impact capture at high FPS, portrait orientation |
+| **Shot Camera** | OV9281 + 2.8mm wide-angle | Trajectory tracking (currently on hold) |
+| **Radar (current)** | K-LD2 24 GHz Doppler | Club / ball speed, impact trigger |
+| **Radar (planned)** | OPS243-A + 2x K-LD7 | Ball speed, spin backup, launch angle, club path (OpenFlight-style) |
+| **Display** | 800x480 touchscreen | QML touch UI |
+
+Device sits ~5 ft behind a 1x1 ft hitting zone. The impact camera is physically rotated 90° CW (portrait) to maximize vertical coverage of the ball departure path.
+
+## Software Architecture
+
+- **C++17 backend** — camera control, ball detection, tracking, calibration, radar I/O
+- **Qt 6 / QML frontend** — touch-first UI with swipeable Controls and Metrics pages
+- **OpenCV 4** — multi-method ball detection (Hough circles, blob, contour, MOG2 background subtraction) with confidence scoring and Kalman trajectory tracking
+- **rpicam-vid via named pipes** — high-FPS YUV420 capture, Y-channel extraction for monochrome processing
+
+### Key Modules
+
+| Module | Purpose |
+|---|---|
+| `CameraManager` | Live preview, recording, snapshots, auto-exposure (rpicam-vid) |
+| `CaptureManager` | High-speed shot capture (640x400 @ 240 FPS), hybrid radar + camera impact detection, replay GIF |
+| `KLD2Manager` | K-LD2 radar serial protocol, club/ball trigger modes |
+| `BallDetector` | Multi-method detection with confidence scoring |
+| `TrajectoryTracker` | Kalman filter, launch angle, ball speed |
+| `CameraCalibration` | Intrinsic (checkerboard) + extrinsic (ground plane) + ball zone state machine |
+| `ProfileManager` / `HistoryManager` | Player profiles, club bags, shot history with CSV export |
+| `FrameProvider` | Thread-safe QML image provider for live camera frames |
+
+## Development Mode
+
+The app includes a runtime **Development Mode** (Settings → Development Mode) that swaps the camera and radar for simulated data sources — no hardware required. Useful for UI development, testing, and demos.
+
+- Simulated camera feed (synthetic ball with fiducial markers, or drop your own capture at `~/Pictures/PRGR_DevFrames/cam0.png`)
+- Simulated radar with realistic swing sequences (K-LD2 Radar Monitor → Simulate Swing)
+- Profiles, bag, history, and settings all use real data paths
+
+## Building
+
+Target platform is **Raspberry Pi 5 only** (depends on rpicam-vid / libcamera).
 
 ```bash
-./INSTALL_FAST_DETECTION.sh
+# Dependencies (Raspberry Pi OS Bookworm)
+sudo apt install qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
+                 libqt6serialport6-dev qml6-module-qtquick-controls \
+                 libopencv-dev cmake build-essential
+
+# Build
+mkdir build && cd build
+cmake ..
+make -j4
+
+# Run
+./PRGR_LaunchMonitor
 ```
-
-### Run the App
-
-```bash
-python3 main.py
-```
-
-### Configure for 100 FPS
-
-1. Open **Camera Settings**
-2. Select **100 FPS** or choose **"Spin Detection"** preset
-3. Click **Save**
-
-## Project Structure
-
-```
-PRGR_Project/
-├── main.py                        # Main application
-├── main.qml                       # UI definition
-├── INSTALL_FAST_DETECTION.sh      # One-command installer
-├── screens/                       # UI screens
-│   ├── CameraSettings.qml         # Camera configuration (includes 100 FPS)
-│   └── ...
-├── cpp_module/                    # C++ ball detection (3-5x faster)
-│   ├── fast_detection.cpp
-│   ├── CMakeLists.txt
-│   ├── setup.py
-│   └── build.sh
-├── docs/                          # Documentation
-│   ├── QUICK_START.md             # Installation guide
-│   ├── FAST_DETECTION_README.md   # C++ module documentation
-│   └── IMPLEMENTATION_SUMMARY.md  # Technical details
-└── tools/                         # Utilities
-    └── benchmark_detection.py     # Performance testing
-```
-
-## Features
-
-- ✅ **100 FPS capture** with OV9281 global shutter camera
-- ✅ **Optimized C++ detection** (3-5x faster than Python)
-- ✅ **Automatic fallback** to Python if C++ not built
-- ✅ **False trigger prevention** via temporal analysis
-- ✅ **Shot history tracking** with CSV export
-- ✅ **Multi-profile support** for different players
-- ✅ **Adjustable camera settings** for different lighting
-
-## Performance
-
-| Frame Rate | Python | C++ | Status |
-|------------|--------|-----|--------|
-| 30 FPS | ✅ Works | ✅ Works | Basic |
-| 60 FPS | ✅ Works | ✅ Works | Better |
-| 100 FPS | ⚠️ Marginal | ✅ Works | **Optimal** |
-| 120 FPS | ❌ Too slow | ✅ Works | Advanced |
-
-**Recommended: 100 FPS with C++ module**
 
 ## Documentation
 
-- **[Quick Start Guide](docs/QUICK_START.md)** - Installation and setup
-- **[C++ Detection README](docs/FAST_DETECTION_README.md)** - Technical details
-- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - Complete overview
+| Document | Contents |
+|---|---|
+| [Optics & Capture Guide](docs/PRGR_Optics_and_Capture_Guide.md) | Plain-language reference: ball pixel diameter, FPS, exposure, gain, IR lenses, ROI cropping, ideal spec sheets |
+| [Radar Integration Guide](docs/PRGR_Radar_Integration_Guide.md) | Start-to-finish OPS243-A + K-LD7 integration: parts, wiring, Python validation, C++ port |
+| [Camera Research Brief](docs/PRGR_Camera_Research_Brief.md) | Camera module evaluation and spin detection research |
+| [Calibration Roadmap](CALIBRATION_ROADMAP.md) | Calibration implementation plan |
 
-## Requirements
+## Project Status
 
-### Hardware
-- Raspberry Pi 4/5
-- OV9281 global shutter camera module
-- 7" touchscreen (800x480)
-
-### Software
-- Raspberry Pi OS
-- Python 3.7+
-- PySide6
-- picamera2
-- OpenCV
-- (Optional) C++ compiler for fast detection
-
-## Testing
-
-### Benchmark Performance
-
-```bash
-./tools/benchmark_detection.py
-```
-
-Shows actual FPS and processing times on your hardware.
-
-## Troubleshooting
-
-See [docs/QUICK_START.md](docs/QUICK_START.md) for detailed troubleshooting.
-
-**Common issues:**
-- "Fast C++ detection not available" → Run `./INSTALL_FAST_DETECTION.sh`
-- Camera not starting → Check camera settings and permissions
-- False triggers → Use 100 FPS and ensure proper lighting
+- ✅ Dual-camera capture pipeline (CSI, high FPS)
+- ✅ Touch UI: profiles, club bags, shot history, metrics, settings
+- ✅ Phase 1 intrinsic calibration (checkerboard)
+- ✅ Ball zone state machine (NO_BALL → STABLE → READY → IMPACT_DETECTED)
+- ✅ Development Mode (simulated camera + radar)
+- 🔄 Impact camera calibration at 5 ft
+- 🔄 Radar integration (OPS243-A + K-LD7, OpenFlight-style)
+- 📋 Spin measurement from fiducial-marked balls
+- 📋 MLM2-style shot replay
+- ⏸ Shot camera trajectory tracking (on hold)
 
 ## License
 
-DIY Project - Use freely
-
-## Credits
-
-Built for the PRGR launch monitor project using professional techniques from commercial systems like Rapsodo, SkyTrak, and TrackMan.
+Personal DIY project.
