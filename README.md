@@ -76,7 +76,7 @@ The app includes a runtime **Development Mode** (Settings → Development Mode) 
 
 ## Building
 
-Target platform is **Raspberry Pi 5 only** (depends on rpicam-vid / libcamera).
+Primary target is **Raspberry Pi 5** (live capture depends on rpicam-vid / libcamera). A Windows desktop staging build is also supported for UI work — it runs entirely in Development Mode (auto-enabled). See [docs/WINDOWS_BUILD.md](docs/WINDOWS_BUILD.md).
 
 ```bash
 # Dependencies (Raspberry Pi OS Bookworm)
@@ -100,6 +100,7 @@ make -j4
 | [Optics & Capture Guide](docs/PRGR_Optics_and_Capture_Guide.md) | Plain-language reference: ball pixel diameter, FPS, exposure, gain, IR lenses, ROI cropping, ideal spec sheets |
 | [Radar Integration Guide](docs/PRGR_Radar_Integration_Guide.md) | Start-to-finish OPS243-A + K-LD7 integration: parts, wiring, Python validation, C++ port |
 | [Camera Research Brief](docs/PRGR_Camera_Research_Brief.md) | Camera module evaluation and spin detection research |
+| [Windows Build Guide](docs/WINDOWS_BUILD.md) | Desktop staging build for UI development (Development Mode, no Pi needed) |
 | [Calibration Roadmap](CALIBRATION_ROADMAP.md) | Calibration implementation plan |
 
 ## Project Status

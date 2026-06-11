@@ -79,12 +79,20 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # Compiler flags for optimization
-target_compile_options(${PROJECT_NAME} PRIVATE
-    -O3
-    -march=native
-    -Wall
-    -Wextra
-)
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        /O2
+        /W3
+        /utf-8
+    )
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -O3
+        -march=native
+        -Wall
+        -Wextra
+    )
+endif()
 
 # Install target
 install(TARGETS ${PROJECT_NAME}

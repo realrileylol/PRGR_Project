@@ -69,7 +69,13 @@ int main(int argc, char *argv[]) {
 
     // Development Mode: simulated camera + radar, no hardware required
     // Toggled in Settings, persisted across restarts
-    if (settingsManager.getBool("developer/developmentMode", false)) {
+    // Desktop (non-Pi) builds default to ON since they have no camera/radar hardware
+#ifdef _WIN32
+    const bool devModeDefault = true;
+#else
+    const bool devModeDefault = false;
+#endif
+    if (settingsManager.getBool("developer/developmentMode", devModeDefault)) {
         cameraManager.setSimulationMode(true);
         kld2Manager.setSimulationMode(true);
         qDebug() << "⚠ DEVELOPMENT MODE ACTIVE: camera & radar are simulated";

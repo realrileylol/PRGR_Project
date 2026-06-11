@@ -4,10 +4,12 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#endif
 #include <chrono>
 #include <cmath>
 
@@ -55,6 +57,12 @@ CameraManager::~CameraManager() {
 }
 
 bool CameraManager::createNamedPipe(const QString &pipePath) {
+#ifdef _WIN32
+    // Live capture requires Pi hardware (rpicam-vid + POSIX FIFOs). Desktop builds use Development Mode.
+    Q_UNUSED(pipePath);
+    qWarning() << "Live camera capture is not available on this platform - enable Development Mode";
+    return false;
+#else
     // Remove existing pipe if any
     unlink(pipePath.toLocal8Bit().constData());
 
@@ -66,9 +74,11 @@ bool CameraManager::createNamedPipe(const QString &pipePath) {
 
     // qDebug() << "Created named pipe:" << pipePath;  // Suppress to reduce restart spam
     return true;
+#endif
 }
 
 void CameraManager::cleanupNamedPipe() {
+#ifndef _WIN32
     if (m_pipeFd >= 0) {
         close(m_pipeFd);
         m_pipeFd = -1;
@@ -77,6 +87,7 @@ void CameraManager::cleanupNamedPipe() {
     if (!m_pipePath.isEmpty()) {
         unlink(m_pipePath.toLocal8Bit().constData());
     }
+#endif
 }
 
 void CameraManager::setActiveCameraIndex(int index) {
@@ -519,6 +530,12 @@ void CameraManager::stopPreview() {
 }
 
 void CameraManager::previewLoop() {
+#ifdef _WIN32
+    // POSIX pipe I/O is unavailable on Windows; simulation mode bypasses this loop entirely.
+    m_previewActive.store(false);
+    emit errorOccurred("Live camera preview requires Raspberry Pi hardware - enable Development Mode");
+    return;
+#else
     // qDebug() << "Preview loop starting, opening pipe for reading...";  // Suppress spam
 
     // Open pipe for reading (blocks until rpicam-vid opens it for writing)
@@ -674,6 +691,7 @@ void CameraManager::previewLoop() {
         close(m_pipeFd);
         m_pipeFd = -1;
     }
+#endif
 }
 
 cv::Mat CameraManager::extractYChannelFromYUV420(const uint8_t *data, int width, int height) {

@@ -4,10 +4,12 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QProcess>
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#endif
 #include <chrono>
 #include <thread>
 
@@ -120,6 +122,13 @@ void CaptureManager::stopCapture() {
 }
 
 void CaptureManager::captureLoop() {
+#ifdef _WIN32
+    // High-speed capture depends on rpicam-vid + POSIX FIFOs (Pi-only).
+    m_isRunning.store(false);
+    emit statusChanged("Shot capture requires Raspberry Pi hardware", "orange");
+    emit isRunningChanged();
+    return;
+#else
     qDebug() << "Capture loop starting...";
 
     // Reload settings from disk to get latest Camera Settings values
@@ -370,6 +379,7 @@ void CaptureManager::captureLoop() {
     unlink(pipePath.toLocal8Bit().constData());
 
     qDebug() << "Capture loop exited";
+#endif
 }
 
 cv::Mat CaptureManager::captureFrame() {
