@@ -1,12 +1,16 @@
 #include "KLD2Manager.h"
+#ifdef HAS_QT_SERIALPORT
 #include <QSerialPortInfo>
+#endif
 #include <QThread>
 #include <QDebug>
 #include <QRandomGenerator>
 
 KLD2Manager::KLD2Manager(QObject *parent)
     : QObject(parent)
+#ifdef HAS_QT_SERIALPORT
     , m_serialPort(nullptr)
+#endif
     , m_pollTimer(new QTimer(this))
     , m_isRunning(false)
     , m_minTriggerSpeed(50.0)        // Club trigger: 50 mph (default)
@@ -134,6 +138,7 @@ bool KLD2Manager::start() {
         return true;
     }
 
+#ifdef HAS_QT_SERIALPORT
     // K-LD2 connected via GPIO UART pins
     // Try common serial ports
     QStringList portCandidates = {"/dev/serial0", "/dev/ttyAMA0", "/dev/ttyS0"};
@@ -185,6 +190,10 @@ bool KLD2Manager::start() {
 
     emit statusChanged("K-LD2 not found", "red");
     return false;
+#else
+    emit statusChanged("Serial port not available on this platform", "orange");
+    return false;
+#endif
 }
 
 void KLD2Manager::stop() {
@@ -195,11 +204,13 @@ void KLD2Manager::stop() {
     m_pollTimer->stop();
     m_isRunning = false;
 
+#ifdef HAS_QT_SERIALPORT
     if (m_serialPort) {
         m_serialPort->close();
         delete m_serialPort;
         m_serialPort = nullptr;
     }
+#endif
 
     // Reset all state
     m_inSwing = false;
@@ -212,6 +223,7 @@ void KLD2Manager::stop() {
 }
 
 void KLD2Manager::pollRadar() {
+#ifdef HAS_QT_SERIALPORT
     if (!m_serialPort || !m_serialPort->isOpen()) {
         return;
     }
@@ -219,9 +231,11 @@ void KLD2Manager::pollRadar() {
     // Send $C01 command to get directional speed data
     m_serialPort->write("$C01\r\n");
     m_serialPort->flush();
+#endif
 }
 
 void KLD2Manager::handleSerialData() {
+#ifdef HAS_QT_SERIALPORT
     if (!m_serialPort) {
         return;
     }
@@ -240,6 +254,7 @@ void KLD2Manager::handleSerialData() {
             parseResponse(lineStr);
         }
     }
+#endif
 }
 
 void KLD2Manager::parseResponse(const QString &line) {

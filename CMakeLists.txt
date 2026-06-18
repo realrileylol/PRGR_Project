@@ -7,8 +7,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find required Qt packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2 Multimedia SerialPort)
+# Find required Qt packages (Multimedia and SerialPort are Pi-only)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2)
+find_package(Qt6 QUIET COMPONENTS Multimedia SerialPort)
 
 # Find OpenCV
 find_package(OpenCV REQUIRED)
@@ -73,10 +74,18 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Quick
     Qt6::Qml
     Qt6::QuickControls2
-    Qt6::Multimedia
-    Qt6::SerialPort
     ${OpenCV_LIBS}
 )
+
+# Optional Pi-only modules
+if(TARGET Qt6::Multimedia)
+    target_link_libraries(${PROJECT_NAME} Qt6::Multimedia)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HAS_QT_MULTIMEDIA)
+endif()
+if(TARGET Qt6::SerialPort)
+    target_link_libraries(${PROJECT_NAME} Qt6::SerialPort)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HAS_QT_SERIALPORT)
+endif()
 
 # Compiler flags for optimization
 if(MSVC)

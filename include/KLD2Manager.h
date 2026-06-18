@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QObject>
+#ifdef HAS_QT_SERIALPORT
 #include <QSerialPort>
+#endif
 #include <QTimer>
 #include <QString>
 #include <QByteArray>
@@ -78,7 +80,9 @@ private:
     void parseResponse(const QString &line);
     void processSpeed(int approachingSpeed, int recedingSpeed, int approachingMag, int recedingMag);
 
+#ifdef HAS_QT_SERIALPORT
     QSerialPort *m_serialPort;
+#endif
     QTimer *m_pollTimer;
     QByteArray m_buffer;
 
