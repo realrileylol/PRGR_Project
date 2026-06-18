@@ -7,9 +7,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find required Qt packages (Multimedia and SerialPort are Pi-only)
+# Find required Qt packages (Multimedia is Pi-only)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2)
-find_package(Qt6 QUIET COMPONENTS Multimedia SerialPort)
+find_package(Qt6 QUIET COMPONENTS Multimedia)
 
 # Find OpenCV
 find_package(OpenCV REQUIRED)
@@ -24,7 +24,7 @@ include_directories(
 set(SOURCES
     src/main.cpp
     src/SettingsManager.cpp
-    src/KLD2Manager.cpp
+
     src/CameraManager.cpp
     src/CaptureManager.cpp
     src/FrameProvider.cpp
@@ -42,7 +42,7 @@ set(SOURCES
 # Header files
 set(HEADERS
     include/SettingsManager.h
-    include/KLD2Manager.h
+
     include/CameraManager.h
     include/CaptureManager.h
     include/FrameProvider.h
@@ -81,10 +81,6 @@ target_link_libraries(${PROJECT_NAME}
 if(TARGET Qt6::Multimedia)
     target_link_libraries(${PROJECT_NAME} Qt6::Multimedia)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HAS_QT_MULTIMEDIA)
-endif()
-if(TARGET Qt6::SerialPort)
-    target_link_libraries(${PROJECT_NAME} Qt6::SerialPort)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE HAS_QT_SERIALPORT)
 endif()
 
 # Compiler flags for optimization

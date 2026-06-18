@@ -13,48 +13,23 @@
 #include <chrono>
 #include <thread>
 
-CaptureManager::CaptureManager(KLD2Manager *kld2, SettingsManager *settings, QObject *parent)
+CaptureManager::CaptureManager(SettingsManager *settings, QObject *parent)
     : QObject(parent)
-    , m_kld2Manager(kld2)
     , m_settings(settings)
     , m_captureThread(nullptr)
     , m_isRunning(false)
     , m_stopping(false)
-    , m_kld2Triggered(false)
-    , m_kld2ImpactDetected(false)
-    , m_waitingForImpact(false)
-    , m_useKLD2Trigger(true)
     , m_width(320)
     , m_height(240)
 {
-    // Connect K-LD2 signals for hybrid detection
-    if (m_kld2Manager) {
-        connect(m_kld2Manager, &KLD2Manager::clubApproaching,
-                this, &CaptureManager::onKLD2ClubDetected);
-        connect(m_kld2Manager, &KLD2Manager::impactDetected,
-                this, &CaptureManager::onKLD2Impact);
-    }
-
-    // Create captures folder
     QString capturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/PRGR_Captures";
     QDir().mkpath(capturesPath);
 
-    qDebug() << "CaptureManager initialized - hybrid radar + camera verification enabled";
+    qDebug() << "CaptureManager initialized - camera-based detection";
 }
 
 CaptureManager::~CaptureManager() {
     stopCapture();
-}
-
-void CaptureManager::onKLD2ClubDetected() {
-    qDebug() << "⛳ K-LD2: Club approaching - monitoring for impact...";
-    m_kld2Triggered.store(true);
-    m_waitingForImpact.store(true);
-}
-
-void CaptureManager::onKLD2Impact() {
-    qDebug() << "🏌️ K-LD2: Impact timing detected - verifying ball movement with camera...";
-    m_kld2ImpactDetected.store(true);
 }
 
 void CaptureManager::startCapture() {
@@ -63,29 +38,9 @@ void CaptureManager::startCapture() {
         return;
     }
 
-    // Development Mode: capture pipeline needs real camera hardware
-    if (m_kld2Manager && m_kld2Manager->simulationMode()) {
-        emit statusChanged("Capture unavailable in Development Mode (no camera hardware)", "orange");
-        qDebug() << "Capture blocked: Development Mode active";
-        return;
-    }
-
     qDebug() << "Starting ball capture at 200 FPS...";
 
-    // Reset state
-    m_kld2Triggered.store(false);
-    m_kld2ImpactDetected.store(false);
-    m_waitingForImpact.store(false);
     m_stopping.store(false);
-
-    // Start K-LD2 radar if available
-    if (m_kld2Manager && m_useKLD2Trigger) {
-        qDebug() << "Starting K-LD2 radar for impact detection...";
-        if (!m_kld2Manager->start()) {
-            qWarning() << "K-LD2 failed to start - using camera-only detection";
-            m_useKLD2Trigger = false;
-        }
-    }
 
     // Start capture thread
     m_isRunning.store(true);
@@ -109,11 +64,6 @@ void CaptureManager::stopCapture() {
         m_captureThread->wait(5000);
         delete m_captureThread;
         m_captureThread = nullptr;
-    }
-
-    // Stop K-LD2
-    if (m_kld2Manager) {
-        m_kld2Manager->stop();
     }
 
     emit isRunningChanged();

@@ -5,7 +5,7 @@
 #include <QDebug>
 
 #include "SettingsManager.h"
-#include "KLD2Manager.h"
+
 #include "FrameProvider.h"
 #include "CameraManager.h"
 #include "CaptureManager.h"
@@ -31,7 +31,6 @@ int main(int argc, char *argv[]) {
 
     // Create managers
     SettingsManager settingsManager;
-    KLD2Manager kld2Manager;
     SoundManager soundManager;
     CalibrationManager calibrationManager;
     CameraCalibration cameraCalibration;
@@ -39,7 +38,7 @@ int main(int argc, char *argv[]) {
     TrajectoryTracker trajectoryTracker;
     FrameProvider frameProvider;
     CameraManager cameraManager(&frameProvider, &settingsManager);
-    CaptureManager captureManager(&kld2Manager, &settingsManager);
+    CaptureManager captureManager(&settingsManager);
     BallTracker ballTracker(&cameraManager, &cameraCalibration);
     ProfileManager profileManager;
     HistoryManager historyManager;
@@ -63,8 +62,6 @@ int main(int argc, char *argv[]) {
     trajectoryTracker.setCalibration(&cameraCalibration);
     trajectoryTracker.setBallDetector(&ballDetector);
 
-    // Connect ball tracker to radar for hybrid triggering (prevents false triggers from club)
-    ballTracker.setRadar(&kld2Manager);
     ballTracker.setFrameProvider(&frameProvider);
 
     // Development Mode: simulated camera + radar, no hardware required
@@ -77,8 +74,7 @@ int main(int argc, char *argv[]) {
 #endif
     if (settingsManager.getBool("developer/developmentMode", devModeDefault)) {
         cameraManager.setSimulationMode(true);
-        kld2Manager.setSimulationMode(true);
-        qDebug() << "⚠ DEVELOPMENT MODE ACTIVE: camera & radar are simulated";
+        qDebug() << "⚠ DEVELOPMENT MODE ACTIVE: camera is simulated";
     }
 
     // Create QML engine
@@ -89,7 +85,6 @@ int main(int argc, char *argv[]) {
 
     // Expose managers to QML
     engine.rootContext()->setContextProperty("settingsManager", &settingsManager);
-    engine.rootContext()->setContextProperty("kld2Manager", &kld2Manager);
     engine.rootContext()->setContextProperty("soundManager", &soundManager);
     engine.rootContext()->setContextProperty("calibrationManager", &calibrationManager);
     engine.rootContext()->setContextProperty("cameraCalibration", &cameraCalibration);
@@ -120,9 +115,8 @@ int main(int argc, char *argv[]) {
     qDebug() << "PRGR Launch Monitor started";
     qDebug() << "Qt version:" << qVersion();
     qDebug() << "✓ SettingsManager initialized";
-    qDebug() << "✓ KLD2Manager initialized";
     qDebug() << "✓ CameraManager initialized (rpicam-vid @ 187 FPS)";
-    qDebug() << "✓ CaptureManager initialized (hybrid radar + camera detection)";
+    qDebug() << "✓ CaptureManager initialized (camera-based detection)";
     qDebug() << "✓ BallDetector initialized (multi-method with background subtraction)";
     qDebug() << "✓ TrajectoryTracker initialized (Kalman filter + launch angle)";
     qDebug() << "✓ BallTracker initialized (high-speed tracking with adaptive search)";

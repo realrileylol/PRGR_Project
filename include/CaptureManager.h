@@ -8,7 +8,6 @@
 #include <memory>
 #include <atomic>
 
-#include "KLD2Manager.h"
 #include "SettingsManager.h"
 
 /**
@@ -16,7 +15,7 @@
  *
  * Features:
  * - 200 FPS ball tracking at 320x240
- * - Hybrid radar + camera impact verification
+ * - Camera-based impact detection
  * - Circular buffer for pre-impact frame capture
  * - Template matching + Kalman filter tracking
  * - Practice swing elimination
@@ -27,7 +26,7 @@ class CaptureManager : public QObject {
     Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
 
 public:
-    explicit CaptureManager(KLD2Manager *kld2, SettingsManager *settings, QObject *parent = nullptr);
+    explicit CaptureManager(SettingsManager *settings, QObject *parent = nullptr);
     ~CaptureManager();
 
     bool isRunning() const { return m_isRunning.load(); }
@@ -42,10 +41,6 @@ signals:
     void shotCaptured(int shotNumber);
     void replayReady(const QString &gifPath);
     void errorOccurred(const QString &error);
-
-private slots:
-    void onKLD2ClubDetected();
-    void onKLD2Impact();
 
 private:
     class CaptureThread;
@@ -70,19 +65,12 @@ private:
     bool createReplayVideo(const std::vector<cv::Mat> &frames, const QString &path, int fps, float speedMultiplier);
     bool createReplayGif(const std::vector<cv::Mat> &frames, const QString &path, int fps, float speedMultiplier);
 
-    KLD2Manager *m_kld2Manager;
     SettingsManager *m_settings;
 
     // Capture thread
     CaptureThread *m_captureThread;
     std::atomic<bool> m_isRunning;
     std::atomic<bool> m_stopping;
-
-    // K-LD2 state
-    std::atomic<bool> m_kld2Triggered;
-    std::atomic<bool> m_kld2ImpactDetected;
-    std::atomic<bool> m_waitingForImpact;
-    bool m_useKLD2Trigger;
 
     // Circular frame buffer
     std::deque<cv::Mat> m_frameBuffer;
