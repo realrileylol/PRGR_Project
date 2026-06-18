@@ -15,9 +15,9 @@ BallTracker::BallTracker(CameraManager *cameraManager,
     , m_frameProvider(nullptr)
     , m_state(TrackingState::IDLE)
     , m_status("Ready to track")
+    , m_latestRadarSpeed(0.0)
     , m_framesSinceArmed(0)
     , m_frameNumber(0)
-    , m_latestRadarSpeed(0.0)
 {
     // Default configuration (tuned for golf ball tracking)
     m_motionThreshold = 15.0;           // Pixel intensity difference

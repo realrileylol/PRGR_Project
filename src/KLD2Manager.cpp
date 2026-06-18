@@ -17,10 +17,10 @@ KLD2Manager::KLD2Manager(QObject *parent)
     , m_minBallTriggerSpeed(12.0)   // Ball trigger: 12 mph (recommended 10-15 mph)
     , m_triggerMode("ball")         // Default to ball mode (simpler, more reliable)
     , m_debugMode(false)
+    , m_simulationMode(false)
     , m_inSwing(false)
     , m_maxClubSpeed(0.0)
     , m_ballDetected(false)
-    , m_simulationMode(false)
 {
     // Connect poll timer
     connect(m_pollTimer, &QTimer::timeout, this, &KLD2Manager::pollRadar);
