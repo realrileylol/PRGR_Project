@@ -1,0 +1,5 @@
+# CODEOWNERS — assigns reviewers automatically for pull requests.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: @realrileylol owns everything
+* @realrileylol

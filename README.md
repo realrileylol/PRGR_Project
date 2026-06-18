@@ -101,21 +101,25 @@ make -j4
 | [Radar Integration Guide](docs/PRGR_Radar_Integration_Guide.md) | Start-to-finish OPS243-A + K-LD7 integration: parts, wiring, Python validation, C++ port |
 | [Camera Research Brief](docs/PRGR_Camera_Research_Brief.md) | Camera module evaluation and spin detection research |
 | [Windows Build Guide](docs/WINDOWS_BUILD.md) | Desktop staging build for UI development (Development Mode, no Pi needed) |
-| [Calibration Roadmap](CALIBRATION_ROADMAP.md) | Calibration implementation plan |
+| [Calibration Roadmap](docs/CALIBRATION_ROADMAP.md) | Calibration implementation plan |
+| [Radar Subsystem](radar/README.md) | Python radar drivers (OPS243-A + K-LD7), bridge to C++ |
 
 ## Project Status
 
-- ✅ Dual-camera capture pipeline (CSI, high FPS)
+- ✅ Impact camera capture pipeline (OV9281, 240 FPS)
 - ✅ Touch UI: profiles, club bags, shot history, metrics, settings
 - ✅ Phase 1 intrinsic calibration (checkerboard)
 - ✅ Ball zone state machine (NO_BALL → STABLE → READY → IMPACT_DETECTED)
-- ✅ Development Mode (simulated camera + radar)
+- ✅ Development Mode (simulated camera + radar, works on Windows)
+- ✅ Windows desktop staging build
+- ✅ Agent skills (code review, planning, expert engineer checks)
 - 🔄 Impact camera calibration at 5 ft
-- 🔄 Radar integration (OPS243-A + K-LD7, OpenFlight-style)
+- 🔄 Radar integration (OPS243-A + 2x K-LD7, Python drivers from OpenFlight)
+- 📋 Sensor fusion (camera spin + radar speed/angle)
 - 📋 Spin measurement from fiducial-marked balls
-- 📋 MLM2-style shot replay
-- ⏸ Shot camera trajectory tracking (on hold)
+- 📋 Ballistics / carry distance calculation
 
 ## License
 
-Personal DIY project.
+Personal DIY project. Radar drivers in `radar/openflight/` are vendored from
+[OpenFlight](https://github.com/jewbetcha/openflight) under AGPL-3.0.

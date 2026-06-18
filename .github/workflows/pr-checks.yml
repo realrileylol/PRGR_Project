@@ -1,0 +1,93 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-title:
+    name: Enforce conventional commit title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const pattern = /^(feat|fix|docs|refactor|test|chore|perf|build|ci)(\(.+\))?!?:\s.+/;
+            if (!pattern.test(title)) {
+              core.setFailed(
+                `PR title "${title}" does not follow conventional commit format.\n` +
+                `Expected: <type>(<optional scope>): <description>\n` +
+                `Allowed types: feat, fix, docs, refactor, test, chore, perf, build, ci`
+              );
+            }
+
+  python-tests:
+    name: Python tests (radar)
+    runs-on: ubuntu-latest
+    if: ${{ true }}
+    steps:
+      - name: Check for radar changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            radar:
+              - 'radar/**'
+
+      - name: Checkout
+        if: steps.filter.outputs.radar == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: steps.filter.outputs.radar == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies and run tests
+        if: steps.filter.outputs.radar == 'true'
+        run: |
+          cd radar
+          pip install -e .
+          pip install pytest
+          pytest
+
+      - name: Skip (no radar changes)
+        if: steps.filter.outputs.radar != 'true'
+        run: echo "No radar/ files changed — skipping Python tests."
+
+  python-lint:
+    name: Python lint (radar)
+    runs-on: ubuntu-latest
+    if: ${{ true }}
+    steps:
+      - name: Check for radar changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            radar:
+              - 'radar/**'
+
+      - name: Checkout
+        if: steps.filter.outputs.radar == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: steps.filter.outputs.radar == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run ruff linter
+        if: steps.filter.outputs.radar == 'true'
+        run: |
+          pip install ruff
+          cd radar
+          ruff check .
+
+      - name: Skip (no radar changes)
+        if: steps.filter.outputs.radar != 'true'
+        run: echo "No radar/ files changed — skipping Python lint."

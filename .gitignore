@@ -1,43 +1,49 @@
-# Ball capture test images
-ball_captures/
-BallSnapshotTest/
-
-# ML Training data (do not commit - can be large)
-training_data/
-
-# Video recordings (can be large)
-Videos/
-*.h264
-*.mp4
-
-# Other test output files
-*.jpg
-*.png
-spin_debug_*.jpg
-test_frame_*.jpg
-shot_*.jpg
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-
 # C++ build artifacts
-build/  # CMake build directory for main C++ project
-cpp_module/build/
-cpp_module/*.so
-cpp_module/*.egg-info/
+build/
 
 # Qt cache
 *.qmlc
 *.jsc
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+radar/.venv/
+radar/*.egg-info/
+
+# Ball capture / test images
+ball_captures/
+BallSnapshotTest/
+training_data/
+spin_debug_*.jpg
+test_frame_*.jpg
+shot_*.jpg
+
+# Video recordings
+Videos/
+*.h264
+*.mp4
+
+# Session data (raw radar captures, logs)
+session_logs/
+
+# App settings (user-specific)
+settings.json
+
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # OS files
 .DS_Store
 Thumbs.db
-build/
-settings.json
+
+# Credentials / secrets
+*.env
+!*.env.example
+credentials.json
