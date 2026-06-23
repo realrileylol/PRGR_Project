@@ -57,8 +57,8 @@ Save the plan to `./plans/{feature-name}.md` and present a summary to the user.
 
 ## Project context
 
-- Hardware: Pi 5, OV9281 cameras (global shutter, mono), K-LD2 radar (OPS243-A + K-LD7 planned), 800x480 touchscreen
+- Hardware: Pi 5, OV9281 camera (global shutter, mono), OPS243-A + 2x K-LD7 radar (planned), 800x480 touchscreen
 - Architecture: C++17 backend managers exposed to QML via Q_PROPERTY/signals, QML screens in `screens/`, headers in `include/`, sources in `src/`
-- Key pattern: Manager classes (CameraManager, KLD2Manager, CaptureManager, etc.) own hardware and expose state to QML
+- Key pattern: Manager classes (CameraManager, CaptureManager, etc.) own hardware and expose state to QML
 - Development Mode: runtime toggle that swaps real hardware for simulated data
 - Build: CMake, compiles on Pi (primary) and Windows (staging/dev mode only)

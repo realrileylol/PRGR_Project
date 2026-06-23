@@ -243,80 +243,45 @@ void CaptureManager::captureLoop() {
 
         // Check for impact if ball is locked
         if (ballLocked && isSameBall(originalBall, currentBall)) {
-            // Hybrid detection mode
-            if (m_useKLD2Trigger) {
-                // Check if radar detected impact
-                if (m_kld2ImpactDetected.load()) {
-                    qDebug() << "🔍 K-LD2 impact flag detected, verifying ball movement...";
-                    // Verify ball actually moved
-                    bool ballMoved = detectImpact(originalBall, currentBall,
-                                                  impactThreshold, impactAxis, impactDirection);
+            if (detectImpact(originalBall, currentBall, impactThreshold, impactAxis, impactDirection)) {
+                qDebug() << "Impact detected! Ball moved from" << originalBall.x << originalBall.y
+                         << "to" << currentBall.x << currentBall.y;
 
-                    if (ballMoved) {
-                        // ✅ CONFIRMED IMPACT
-                        qDebug() << "✅ CONFIRMED IMPACT: Radar + Camera both agree!";
-                        qDebug() << "   Ball moved from" << originalBall.x << originalBall.y
-                                << "to" << currentBall.x << currentBall.y;
+                emit statusChanged("Capturing impact...", "red");
 
-                        // Save replay
-                        emit statusChanged("Capturing impact...", "red");
+                std::vector<cv::Mat> replayFrames(m_frameBuffer.begin(), m_frameBuffer.end());
 
-                        std::vector<cv::Mat> replayFrames(m_frameBuffer.begin(), m_frameBuffer.end());
-
-                        // Capture 20 more post-impact frames
-                        for (int i = 0; i < 20 && m_isRunning.load(); i++) {
-                            cv::Mat postFrame = captureFrame();
-                            if (!postFrame.empty()) {
-                                replayFrames.push_back(postFrame);
-                            }
-                            std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                        }
-
-                        qDebug() << "📸 Total frames captured:" << replayFrames.size();
-
-                        // Generate replay files
-                        QString capturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/PRGR_Captures";
-                        QString videoFile = QString("%1/shot_%2_replay.mp4").arg(capturesPath).arg(shotNumber, 3, 10, QChar('0'));
-                        QString gifFile = QString("%1/shot_%2_replay.gif").arg(capturesPath).arg(shotNumber, 3, 10, QChar('0'));
-
-                        if (createReplayVideo(replayFrames, videoFile, frameRate, 0.025f)) {
-                            qDebug() << "✅ Video saved:" << videoFile;
-                        }
-
-                        if (createReplayGif(replayFrames, gifFile, frameRate, 0.025f)) {
-                            qDebug() << "✅ GIF saved:" << gifFile;
-                            emit replayReady(QFileInfo(gifFile).absoluteFilePath());
-                        }
-
-                        emit shotCaptured(shotNumber);
-                        shotNumber++;
-
-                        // Reset for next shot
-                        ballLocked = false;
-                        originalBall = {-1, -1, -1, 0.0f};
-                        m_kld2Triggered.store(false);
-                        m_kld2ImpactDetected.store(false);
-                        m_waitingForImpact.store(false);
-                        m_frameBuffer.clear();
-
-                        emit statusChanged("Ready for next shot", "green");
-
-                    } else {
-                        // ⚠️ PRACTICE SWING
-                        qDebug() << "⚠️ PRACTICE SWING: Radar detected club but ball didn't move";
-
-                        // Reset and wait for next swing
-                        m_kld2Triggered.store(false);
-                        m_kld2ImpactDetected.store(false);
-                        m_waitingForImpact.store(false);
+                for (int i = 0; i < 20 && m_isRunning.load(); i++) {
+                    cv::Mat postFrame = captureFrame();
+                    if (!postFrame.empty()) {
+                        replayFrames.push_back(postFrame);
                     }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 }
-            } else {
-                // Camera-only mode
-                if (detectImpact(originalBall, currentBall, impactThreshold, impactAxis, impactDirection)) {
-                    qDebug() << "Camera detected impact!";
-                    // Same replay logic as above...
+
+                qDebug() << "Total frames captured:" << replayFrames.size();
+
+                QString capturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/PRGR_Captures";
+                QString videoFile = QString("%1/shot_%2_replay.mp4").arg(capturesPath).arg(shotNumber, 3, 10, QChar('0'));
+                QString gifFile = QString("%1/shot_%2_replay.gif").arg(capturesPath).arg(shotNumber, 3, 10, QChar('0'));
+
+                if (createReplayVideo(replayFrames, videoFile, frameRate, 0.025f)) {
+                    qDebug() << "Video saved:" << videoFile;
                 }
+
+                if (createReplayGif(replayFrames, gifFile, frameRate, 0.025f)) {
+                    qDebug() << "GIF saved:" << gifFile;
+                    emit replayReady(QFileInfo(gifFile).absoluteFilePath());
+                }
+
+                emit shotCaptured(shotNumber);
+                shotNumber++;
+
+                ballLocked = false;
+                originalBall = {-1, -1, -1, 0.0f};
+                m_frameBuffer.clear();
+
+                emit statusChanged("Ready for next shot", "green");
             }
         }
     }

@@ -30,7 +30,6 @@ Every hardware subsystem or feature area has a Manager class:
 ## Development Mode
 - Runtime toggle (Settings screen), persisted via SettingsManager
 - `CameraManager::simulationMode` — QTimer generates synthetic frames at 30 FPS
-- `KLD2Manager::simulationMode` — simulates radar without serial port
 - `CaptureManager` — blocks with message in dev mode
 - Windows builds default to dev mode ON
 

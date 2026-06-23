@@ -35,7 +35,6 @@ plans/            Feature plans and PRDs
 - **OPS243-A radar**: ball speed, club speed, I/Q rolling buffer (Python driver)
 - **K-LD7 vertical**: launch angle (Python driver, 3 Mbaud)
 - **K-LD7 horizontal**: club path (Python driver, 3 Mbaud)
-- **K-LD2 radar**: legacy, being replaced by OPS243-A + K-LD7s
 - **Display**: 800x480 touchscreen
 
 ## Python ↔ C++ Integration
@@ -55,7 +54,7 @@ plans/            Feature plans and PRDs
 ## Development Mode
 - Runtime toggle in Settings, persisted across restarts
 - Simulated camera feed (synthetic ball with fiducial dots, or user placeholder image)
-- Simulated radar (K-LD2 test screen: Simulate Swing button)
+- Radar simulation planned (OPS243-A + K-LD7 Python bridge)
 - Windows builds default to Development Mode ON
 - Every QML screen must work in Development Mode
 

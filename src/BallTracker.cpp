@@ -1,7 +1,6 @@
 #include "BallTracker.h"
 #include "CameraManager.h"
 #include "CameraCalibration.h"
-#include "KLD2Manager.h"
 #include "FrameProvider.h"
 #include <QDebug>
 
@@ -11,11 +10,9 @@ BallTracker::BallTracker(CameraManager *cameraManager,
     : QObject(parent)
     , m_cameraManager(cameraManager)
     , m_calibration(calibration)
-    , m_radar(nullptr)
     , m_frameProvider(nullptr)
     , m_state(TrackingState::IDLE)
     , m_status("Ready to track")
-    , m_latestRadarSpeed(0.0)
     , m_framesSinceArmed(0)
     , m_frameNumber(0)
 {
@@ -38,20 +35,6 @@ BallTracker::BallTracker(CameraManager *cameraManager,
 
 BallTracker::~BallTracker() {
     disarmTracking();
-}
-
-void BallTracker::setRadar(KLD2Manager *radar) {
-    m_radar = radar;
-    if (m_radar) {
-        // Connect to ball speed signal to track latest speed
-        connect(m_radar, &KLD2Manager::ballSpeedUpdated,
-                this, &BallTracker::onRadarSpeedUpdated);
-        qDebug() << "BallTracker: Radar connected for hybrid triggering";
-    }
-}
-
-void BallTracker::onRadarSpeedUpdated(double speed) {
-    m_latestRadarSpeed = speed;
 }
 
 // ============================================================================
@@ -185,22 +168,9 @@ void BallTracker::processFrame() {
                 qDebug() << "Reference frame captured";
             } else {
                 // Monitor for motion (camera-based)
-                bool cameraMotionDetected = detectMotion(processed, m_referenceFrame);
+                bool motionDetected = detectMotion(processed, m_referenceFrame);
 
-                // If radar available, use it for confirmation (much more reliable)
-                bool radarConfirmed = false;
-                if (m_radar && m_radar->isRunning()) {
-                    radarConfirmed = (m_latestRadarSpeed > 5.0);  // Ball moving > 5 mph = real hit
-
-                    if (radarConfirmed) {
-                        qDebug() << "Radar confirmed ball speed:" << m_latestRadarSpeed << "mph";
-                    }
-                }
-
-                // Trigger if: (camera motion + radar confirms) OR (camera motion + no radar available)
-                bool shouldTrigger = cameraMotionDetected && (radarConfirmed || m_radar == nullptr || !m_radar->isRunning());
-
-                if (shouldTrigger) {
+                if (motionDetected) {
                     // Motion detected - ball hit!
                     m_hitTime = timestamp;
                     m_lastBallPos = m_stationaryBallPos;
@@ -209,8 +179,7 @@ void BallTracker::processFrame() {
                     setStatus("Hit detected - tracking");
                     emit hitDetected(m_stationaryBallPos);
 
-                    qDebug() << "Ball hit confirmed at frame" << m_frameNumber
-                             << (m_radar ? "(radar + camera)" : "(camera only)");
+                    qDebug() << "Ball hit confirmed at frame" << m_frameNumber;
 
                     // Add pre-trigger frames from buffer
                     int preTriggerFrames = std::min(5, (int)m_frameBuffer.size());

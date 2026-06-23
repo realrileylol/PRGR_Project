@@ -27,9 +27,9 @@ A DIY golf launch monitor built on Raspberry Pi 5 with dual OV9281 global shutte
                         │  ┌────────────────────────┐ │
   ┌──────────────┐ UART │  │  Sensor Fusion         │ │
   │ Radar        ├──────┼─►│  (camera + radar)      │ │
-  │ (K-LD2 now,  │      │  └────────────────────────┘ │
-  │  OPS243-A +  │      │                             │
-  │  K-LD7 next) │      └─────────────────────────────┘
+  │ OPS243-A +   │      │  └────────────────────────┘ │
+  │ 2x K-LD7     │      │                             │
+  │ (planned)    │      └─────────────────────────────┘
   └──────────────┘
 ```
 
@@ -40,7 +40,7 @@ A DIY golf launch monitor built on Raspberry Pi 5 with dual OV9281 global shutte
 | **Compute** | Raspberry Pi 5 | All processing on-device |
 | **Impact Camera** | OV9281 (global shutter, mono, 1MP) + 8mm F1.2 IR-corrected M12 lens | Ball spin / impact capture at high FPS, portrait orientation |
 | **Shot Camera** | OV9281 + 2.8mm wide-angle | Trajectory tracking (currently on hold) |
-| **Radar (current)** | K-LD2 24 GHz Doppler | Club / ball speed, impact trigger |
+| **Radar (planned)** | OPS243-A + 2x K-LD7 | Ball speed, launch angle, club path |
 | **Radar (planned)** | OPS243-A + 2x K-LD7 | Ball speed, spin backup, launch angle, club path (OpenFlight-style) |
 | **Display** | 800x480 touchscreen | QML touch UI |
 
@@ -58,8 +58,7 @@ Device sits ~5 ft behind a 1x1 ft hitting zone. The impact camera is physically 
 | Module | Purpose |
 |---|---|
 | `CameraManager` | Live preview, recording, snapshots, auto-exposure (rpicam-vid) |
-| `CaptureManager` | High-speed shot capture (640x400 @ 240 FPS), hybrid radar + camera impact detection, replay GIF |
-| `KLD2Manager` | K-LD2 radar serial protocol, club/ball trigger modes |
+| `CaptureManager` | High-speed shot capture (640x400 @ 240 FPS), camera-based impact detection, replay GIF |
 | `BallDetector` | Multi-method detection with confidence scoring |
 | `TrajectoryTracker` | Kalman filter, launch angle, ball speed |
 | `CameraCalibration` | Intrinsic (checkerboard) + extrinsic (ground plane) + ball zone state machine |
@@ -71,7 +70,7 @@ Device sits ~5 ft behind a 1x1 ft hitting zone. The impact camera is physically 
 The app includes a runtime **Development Mode** (Settings → Development Mode) that swaps the camera and radar for simulated data sources — no hardware required. Useful for UI development, testing, and demos.
 
 - Simulated camera feed (synthetic ball with fiducial markers, or drop your own capture at `~/Pictures/PRGR_DevFrames/cam0.png`)
-- Simulated radar with realistic swing sequences (K-LD2 Radar Monitor → Simulate Swing)
+- Radar simulation planned (OPS243-A + K-LD7 Python bridge)
 - Profiles, bag, history, and settings all use real data paths
 
 ## Building

@@ -57,7 +57,6 @@ You think in terms of: declarative bindings, property propagation, touch target 
 ### Development Mode
 - Every screen must work in Development Mode (no hardware)
 - Camera screens show simulated feed
-- Radar screens show "Simulate Swing" button when `kld2Manager.simulationMode`
 - Capture-related buttons show informative messages, not errors
 - Badge visible on relevant screens: "SIMULATED" vs "LIVE"
 
