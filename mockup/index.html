@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=800">
 <title>PRGR Launch Monitor</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #222; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { background: #222; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; }
 
 /* === DEVICE FRAME === */
 #device { width: 800px; height: 480px; background: #F5F7FA; position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
@@ -20,8 +20,13 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
   --total-bg: #E8F5E9; --total-border: #66BB6A; --total-value: #1B5E20;
 }
 
-/* === SCREENS === */
-.screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: none; flex-direction: column; overflow: hidden; }
+/* === SWIPE CONTAINER (Controls + Metrics) === */
+#swipe-container { position: absolute; top: 0; left: 0; width: 1600px; height: 100%; display: flex; transition: transform 0.3s ease; z-index: 1; }
+#swipe-container.dragging { transition: none; }
+.swipe-page { width: 800px; height: 480px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+
+/* === OVERLAY SCREENS (stack-based push/pop) === */
+.screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: none; flex-direction: column; overflow: hidden; z-index: 10; }
 .screen.active { display: flex; }
 
 /* === HEADER === */
@@ -52,7 +57,6 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 .scrollable::-webkit-scrollbar-thumb { background: var(--disabled); border-radius: 3px; }
 
 /* === CONTROLS PAGE === */
-#controls-page { display: flex; flex-direction: column; }
 .profile-bar { padding: 10px 14px 0; display: flex; justify-content: space-between; align-items: center; }
 .profile-bar .name { font-size: 18px; font-weight: 700; color: var(--text); }
 .profile-bar .swipe-hint { font-size: 13px; color: var(--hint); font-style: italic; }
@@ -88,10 +92,10 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 .page-dot.active { background: var(--accent); }
 
 /* === METRICS PAGE === */
-#metrics-page .metrics-header { background: var(--accent); padding: 12px 16px; display: flex; align-items: center; border-radius: 12px 12px 0 0; margin: 14px 14px 0; }
-#metrics-page .metrics-header .back-hint { color: rgba(255,255,255,0.85); font-size: 13px; flex: 1; }
-#metrics-page .metrics-header h2 { color: #fff; font-size: 20px; font-weight: 700; flex: 2; text-align: center; }
-#metrics-page .metrics-header .add-btn { width: 36px; height: 36px; background: #fff; color: var(--accent); border-radius: 50%; border: none; font-size: 22px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.metrics-header { background: var(--accent); padding: 12px 16px; display: flex; align-items: center; border-radius: 12px 12px 0 0; margin: 14px 14px 0; }
+.metrics-header .back-hint { color: rgba(255,255,255,0.85); font-size: 13px; flex: 1; cursor: pointer; }
+.metrics-header h2 { color: #fff; font-size: 20px; font-weight: 700; flex: 2; text-align: center; }
+.metrics-header .add-btn { width: 36px; height: 36px; background: #fff; color: var(--accent); border-radius: 50%; border: none; font-size: 22px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
 .metrics-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px; margin: 0 14px; background: var(--card); border: 2px solid var(--edge); border-top: none; border-radius: 0 0 12px 12px; justify-content: center; }
 .metric-card { background: var(--bg); border: 2px solid var(--edge); border-radius: 12px; padding: 8px 12px; text-align: center; min-width: 95px; flex: 1; max-width: 140px; }
 .metric-card .label { font-size: 11px; font-weight: 700; color: var(--hint); text-transform: uppercase; }
@@ -187,99 +191,105 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 .dialog input[type="text"] { width: 100%; height: 44px; border: 2px solid var(--edge); border-radius: 8px; padding: 0 12px; font-size: 16px; margin-bottom: 16px; }
 .dialog-btns { display: flex; gap: 10px; justify-content: flex-end; }
 .dialog-btns .btn { height: 44px; padding: 0 24px; }
+
+/* === SCREEN TRANSITIONS === */
+.screen-enter { animation: screenSlideIn 0.25s ease forwards; }
+@keyframes screenSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 </style>
 </head>
 <body>
 <div id="device">
 
-<!-- ==================== CONTROLS PAGE ==================== -->
-<div id="screen-controls" class="screen active">
-  <div class="profile-bar">
-    <span class="name" id="active-profile-display">No Profile</span>
-    <span class="swipe-hint">Swipe for metrics &rarr;</span>
-  </div>
-  <div class="nav-row">
-    <button class="btn btn-gray" onclick="showScreen('profile')">Profile</button>
-    <button class="btn btn-gray" onclick="showScreen('settings')">Settings</button>
-    <button class="btn btn-gray" onclick="showScreen('camera')">Camera</button>
-    <button class="btn btn-gray" onclick="showScreen('history')">History</button>
-  </div>
-  <button class="btn btn-success calib-btn" onclick="showScreen('calibration')">Calibration</button>
-  <div class="status-card card" style="margin-top:10px">
-    <div class="status-light gray" id="capture-light"></div>
-    <span class="status-text" id="capture-status">Not Started</span>
-    <div class="status-btns">
-      <button class="btn btn-success" id="start-capture-btn" onclick="toggleCapture()">Start Capture</button>
+<!-- ==================== SWIPE CONTAINER (Controls + Metrics) ==================== -->
+<div id="swipe-container">
+
+  <!-- PAGE 0: CONTROLS -->
+  <div class="swipe-page" id="page-controls">
+    <div class="profile-bar">
+      <span class="name" id="active-profile-display">No Profile</span>
+      <span class="swipe-hint">Swipe for metrics &rarr;</span>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-gray" onclick="pushScreen('profile')">Profile</button>
+      <button class="btn btn-gray" onclick="pushScreen('settings')">Settings</button>
+      <button class="btn btn-gray" onclick="pushScreen('camera')">Camera</button>
+      <button class="btn btn-gray" onclick="pushScreen('history')">History</button>
+    </div>
+    <button class="btn btn-success calib-btn" onclick="pushScreen('calibration')">Calibration</button>
+    <div class="status-card card" style="margin-top:10px">
+      <div class="status-light gray" id="capture-light"></div>
+      <span class="status-text" id="capture-status">Not Started</span>
+      <div class="status-btns">
+        <button class="btn btn-success" id="start-capture-btn" onclick="toggleCapture()">Start Capture</button>
+      </div>
+    </div>
+    <div class="card club-selector" style="margin-top:6px">
+      <label>CLUB SELECTION</label>
+      <select class="club-select" id="club-select" onchange="updateClub()">
+        <option value="Driver|10.5">Driver (10.5&deg;)</option>
+        <option value="3 Wood|15.0">3 Wood (15.0&deg;)</option>
+        <option value="5 Wood|18.0">5 Wood (18.0&deg;)</option>
+        <option value="4 Hybrid|22.0">4 Hybrid (22.0&deg;)</option>
+        <option value="5 Iron|25.0">5 Iron (25.0&deg;)</option>
+        <option value="6 Iron|28.0">6 Iron (28.0&deg;)</option>
+        <option value="7 Iron|34.0" selected>7 Iron (34.0&deg;)</option>
+        <option value="8 Iron|37.0">8 Iron (37.0&deg;)</option>
+        <option value="9 Iron|41.0">9 Iron (41.0&deg;)</option>
+        <option value="PW|45.0">PW (45.0&deg;)</option>
+        <option value="GW|50.0">GW (50.0&deg;)</option>
+        <option value="SW|54.0">SW (54.0&deg;)</option>
+        <option value="LW|58.0">LW (58.0&deg;)</option>
+        <option value="Putter|3.5">Putter (3.5&deg;)</option>
+      </select>
+    </div>
+    <div class="ready-bar">
+      <div class="ready-dot"></div>
+      <span class="ready-text">Ready</span>
+    </div>
+    <div class="page-dots">
+      <div class="page-dot active" id="dot-0" onclick="swipeTo(0)"></div>
+      <div class="page-dot" id="dot-1" onclick="swipeTo(1)"></div>
     </div>
   </div>
-  <div class="card club-selector" style="margin-top:6px">
-    <label>CLUB SELECTION</label>
-    <select class="club-select" id="club-select" onchange="updateClub()">
-      <option value="Driver|10.5">Driver (10.5&deg;)</option>
-      <option value="3 Wood|15.0">3 Wood (15.0&deg;)</option>
-      <option value="5 Wood|18.0">5 Wood (18.0&deg;)</option>
-      <option value="4 Hybrid|22.0">4 Hybrid (22.0&deg;)</option>
-      <option value="5 Iron|25.0">5 Iron (25.0&deg;)</option>
-      <option value="6 Iron|28.0">6 Iron (28.0&deg;)</option>
-      <option value="7 Iron|34.0" selected>7 Iron (34.0&deg;)</option>
-      <option value="8 Iron|37.0">8 Iron (37.0&deg;)</option>
-      <option value="9 Iron|41.0">9 Iron (41.0&deg;)</option>
-      <option value="PW|45.0">PW (45.0&deg;)</option>
-      <option value="GW|50.0">GW (50.0&deg;)</option>
-      <option value="SW|54.0">SW (54.0&deg;)</option>
-      <option value="LW|58.0">LW (58.0&deg;)</option>
-      <option value="Putter|3.5">Putter (3.5&deg;)</option>
-    </select>
-  </div>
-  <div class="ready-bar">
-    <div class="ready-dot"></div>
-    <span class="ready-text">Ready</span>
-  </div>
-  <div class="page-dots">
-    <div class="page-dot active" onclick="showScreen('controls')"></div>
-    <div class="page-dot" onclick="showScreen('metrics')"></div>
-  </div>
-</div>
 
-<!-- ==================== METRICS PAGE ==================== -->
-<div id="screen-metrics" class="screen">
-  <div style="display:flex;flex-direction:column;height:100%">
-    <div id="metrics-page">
+  <!-- PAGE 1: METRICS -->
+  <div class="swipe-page" id="page-metrics">
+    <div style="display:flex;flex-direction:column;height:100%">
       <div class="metrics-header">
-        <span class="back-hint" style="cursor:pointer" onclick="showScreen('controls')">&larr; Swipe back</span>
+        <span class="back-hint" onclick="swipeTo(0)">&larr; Swipe back</span>
         <h2>SHOT METRICS</h2>
         <button class="add-btn" title="Add metric">+</button>
       </div>
-    </div>
-    <div class="metrics-grid" id="metrics-grid">
-      <div class="metric-card"><div class="label">CLUB SPEED</div><div class="value" id="m-club">0</div><div class="unit">mph</div></div>
-      <div class="metric-card"><div class="label">BALL SPEED</div><div class="value" id="m-ball">0</div><div class="unit">mph</div></div>
-      <div class="metric-card"><div class="label">SMASH</div><div class="value" id="m-smash">0.00</div><div class="unit">factor</div></div>
-      <div class="metric-card"><div class="label">LAUNCH</div><div class="value" id="m-launch">0.0</div><div class="unit">deg</div></div>
-      <div class="metric-card"><div class="label">SPIN</div><div class="value" id="m-spin">0</div><div class="unit">rpm</div></div>
-      <div class="metric-card carry"><div class="label">CARRY</div><div class="value" id="m-carry">0</div><div class="unit">yards</div></div>
-      <div class="metric-card total"><div class="label">TOTAL</div><div class="value" id="m-total">0</div><div class="unit">yards</div></div>
-    </div>
-    <div style="flex:1"></div>
-    <button class="btn btn-accent simulate-btn" onclick="simulateShot()">SIMULATE SHOT</button>
-    <div class="page-dots" style="padding-bottom:10px">
-      <div class="page-dot" onclick="showScreen('controls')"></div>
-      <div class="page-dot active" onclick="showScreen('metrics')"></div>
+      <div class="metrics-grid" id="metrics-grid">
+        <div class="metric-card"><div class="label">CLUB SPEED</div><div class="value" id="m-club">0</div><div class="unit">mph</div></div>
+        <div class="metric-card"><div class="label">BALL SPEED</div><div class="value" id="m-ball">0</div><div class="unit">mph</div></div>
+        <div class="metric-card"><div class="label">SMASH</div><div class="value" id="m-smash">0.00</div><div class="unit">factor</div></div>
+        <div class="metric-card"><div class="label">LAUNCH</div><div class="value" id="m-launch">0.0</div><div class="unit">deg</div></div>
+        <div class="metric-card"><div class="label">SPIN</div><div class="value" id="m-spin">0</div><div class="unit">rpm</div></div>
+        <div class="metric-card carry"><div class="label">CARRY</div><div class="value" id="m-carry">0</div><div class="unit">yards</div></div>
+        <div class="metric-card total"><div class="label">TOTAL</div><div class="value" id="m-total">0</div><div class="unit">yards</div></div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-accent simulate-btn" onclick="simulateShot()">SIMULATE SHOT</button>
+      <div class="page-dots" style="padding-bottom:10px">
+        <div class="page-dot" id="dot-0b" onclick="swipeTo(0)"></div>
+        <div class="page-dot active" id="dot-1b" onclick="swipeTo(1)"></div>
+      </div>
     </div>
   </div>
-</div>
+
+</div><!-- /swipe-container -->
 
 <!-- ==================== PROFILE SCREEN ==================== -->
 <div id="screen-profile" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Profiles</h1>
     <button class="btn btn-accent" style="min-width:100px;height:48px" onclick="openDialog('new-profile-dialog')">+ New</button>
   </div>
   <div class="scrollable">
     <div class="profile-list" id="profile-list"></div>
   </div>
-  <!-- New Profile Dialog -->
   <div class="dialog-overlay" id="new-profile-dialog">
     <div class="dialog">
       <h2>Create New Profile</h2>
@@ -295,7 +305,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== MY BAG SCREEN ==================== -->
 <div id="screen-mybag" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1 style="font-size:26px">My Bag</h1>
     <button class="btn btn-danger" style="min-width:90px;height:45px;font-size:13px" onclick="resetClubs()">Reset</button>
   </div>
@@ -315,53 +325,45 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== SETTINGS SCREEN ==================== -->
 <div id="screen-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Settings</h1>
     <button class="btn btn-danger" style="min-width:140px;height:48px;font-size:13px">Reset to Default</button>
   </div>
   <div style="padding:0 14px 8px;font-size:14px;color:var(--hint)">Enable or configure simulation effects:</div>
   <div class="scrollable">
     <div class="settings-list">
-      <!-- Wind -->
       <div class="card setting-item">
         <div class="checkbox" onclick="toggleCheck(this)"></div>
         <div class="setting-text"><div class="title">Wind Effects</div></div>
-        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('wind-settings')">Configure</button>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="pushScreen('wind-settings')">Configure</button>
       </div>
-      <!-- Temperature -->
       <div class="card setting-item">
         <div class="checkbox" onclick="toggleCheck(this)"></div>
         <div class="setting-text"><div class="title">Temperature Effects</div></div>
-        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('temp-settings')">Configure</button>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="pushScreen('temp-settings')">Configure</button>
       </div>
-      <!-- Ball Type -->
       <div class="card setting-item">
         <div class="checkbox" onclick="toggleCheck(this)"></div>
         <div class="setting-text"><div class="title">Ball Type</div></div>
-        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('ball-settings')">Configure</button>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="pushScreen('ball-settings')">Configure</button>
       </div>
-      <!-- Launch -->
       <div class="card setting-item">
         <div class="checkbox" onclick="toggleCheck(this)"></div>
         <div class="setting-text"><div class="title">Launch Settings</div></div>
-        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('launch-settings')">Configure</button>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="pushScreen('launch-settings')">Configure</button>
       </div>
-      <!-- Simulate Button -->
       <div class="card setting-item">
         <div class="checkbox checked" onclick="toggleCheck(this)"></div>
         <div class="setting-text"><div class="title">Show Simulate Button</div><div class="hint">On Metrics Page</div></div>
       </div>
-      <!-- Camera Settings -->
       <div class="card setting-item">
         <div class="setting-text"><div class="title">Camera Settings</div></div>
-        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('camera-settings')">Configure</button>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="pushScreen('camera-settings')">Configure</button>
       </div>
-      <!-- Camera Test -->
       <div class="card setting-item">
         <div class="setting-text"><div class="title">Camera Performance Test</div><div class="hint">Test FPS, find optimal indoor/outdoor settings</div></div>
-        <button class="btn btn-success" style="height:50px;min-width:90px" onclick="showScreen('camera-test')">Test</button>
+        <button class="btn btn-success" style="height:50px;min-width:90px" onclick="pushScreen('camera-test')">Test</button>
       </div>
-      <!-- Dev Mode -->
       <div class="card setting-item" id="dev-mode-card" style="border-color:var(--warning)">
         <div class="checkbox checked-orange" onclick="toggleDevMode(this)"></div>
         <div class="setting-text">
@@ -377,7 +379,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== CAMERA SCREEN ==================== -->
 <div id="screen-camera" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Camera View</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -404,7 +406,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== HISTORY SCREEN ==================== -->
 <div id="screen-history" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1 style="font-size:20px">Shot History</h1>
     <button class="btn btn-accent" style="min-width:110px;height:48px;font-size:13px" onclick="exportHistory()">Export Data</button>
     <button class="btn btn-danger" style="min-width:100px;height:48px;font-size:13px" onclick="clearHistory()">Clear All</button>
@@ -426,7 +428,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== CALIBRATION SCREEN ==================== -->
 <div id="screen-calibration" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1 style="font-size:20px">Camera Calibration</h1>
     <button class="btn btn-success" style="min-width:130px;height:44px;font-size:13px">Alignment</button>
     <button class="btn btn-accent" style="min-width:130px;height:44px;font-size:13px">Ball Zone</button>
@@ -457,7 +459,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== WIND SETTINGS ==================== -->
 <div id="screen-wind-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Wind Settings</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -492,7 +494,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== TEMP SETTINGS ==================== -->
 <div id="screen-temp-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Temperature</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -520,7 +522,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== BALL SETTINGS ==================== -->
 <div id="screen-ball-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Ball Type</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -545,7 +547,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== LAUNCH SETTINGS ==================== -->
 <div id="screen-launch-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Launch Settings</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -573,7 +575,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== CAMERA SETTINGS ==================== -->
 <div id="screen-camera-settings" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Camera Settings</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -603,7 +605,7 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 <!-- ==================== CAMERA TEST ==================== -->
 <div id="screen-camera-test" class="screen">
   <div class="header">
-    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <button class="btn btn-back" onclick="popScreen()">&larr; Back</button>
     <h1>Camera Test</h1>
     <div style="min-width:100px"></div>
   </div>
@@ -627,8 +629,8 @@ body { background: #222; display: flex; justify-content: center; align-items: ce
 
 <script>
 // === STATE ===
-let currentScreen = 'controls';
-let screenHistory = ['controls'];
+let swipeIndex = 0;
+let screenStack = [];
 let profiles = [{name:'Riley',active:true,color:'#3A86FF'},{name:'John',active:false,color:'#34C759'}];
 let shotHistory = [];
 let capturing = false;
@@ -646,21 +648,100 @@ const clubs = [
   {name:'LW',loft:58.0},{name:'Putter',loft:3.5}
 ];
 
-// === NAVIGATION ===
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+// === SWIPE NAVIGATION (Controls <-> Metrics) ===
+const swipeContainer = document.getElementById('swipe-container');
+let touchStartX = 0, touchStartY = 0, touchCurrentX = 0, isDragging = false, dragStarted = false;
+const SWIPE_THRESHOLD = 50;
+const DRAG_ANGLE_LOCK = 30;
+
+function swipeTo(index) {
+  swipeIndex = Math.max(0, Math.min(1, index));
+  swipeContainer.style.transform = 'translateX(' + (-swipeIndex * 800) + 'px)';
+  updateDots();
+}
+
+function updateDots() {
+  document.getElementById('dot-0').className = 'page-dot' + (swipeIndex === 0 ? ' active' : '');
+  document.getElementById('dot-1').className = 'page-dot' + (swipeIndex === 1 ? ' active' : '');
+  document.getElementById('dot-0b').className = 'page-dot' + (swipeIndex === 0 ? ' active' : '');
+  document.getElementById('dot-1b').className = 'page-dot' + (swipeIndex === 1 ? ' active' : '');
+}
+
+function onPointerDown(x, y) {
+  if (screenStack.length > 0) return;
+  touchStartX = x;
+  touchStartY = y;
+  touchCurrentX = x;
+  isDragging = true;
+  dragStarted = false;
+}
+
+function onPointerMove(x, y) {
+  if (!isDragging) return;
+  const dx = x - touchStartX;
+  const dy = y - touchStartY;
+  if (!dragStarted) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    if (Math.abs(dy) > Math.abs(dx)) { isDragging = false; return; }
+    dragStarted = true;
+    swipeContainer.classList.add('dragging');
+  }
+  touchCurrentX = x;
+  const offset = -swipeIndex * 800 + dx;
+  const clamped = Math.max(-800, Math.min(0, offset));
+  swipeContainer.style.transform = 'translateX(' + clamped + 'px)';
+}
+
+function onPointerUp() {
+  if (!isDragging) return;
+  isDragging = false;
+  swipeContainer.classList.remove('dragging');
+  if (!dragStarted) return;
+  const dx = touchCurrentX - touchStartX;
+  if (dx < -SWIPE_THRESHOLD && swipeIndex < 1) swipeTo(1);
+  else if (dx > SWIPE_THRESHOLD && swipeIndex > 0) swipeTo(0);
+  else swipeTo(swipeIndex);
+}
+
+swipeContainer.addEventListener('touchstart', function(e) {
+  onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: true});
+swipeContainer.addEventListener('touchmove', function(e) {
+  onPointerMove(e.touches[0].clientX, e.touches[0].clientY);
+  if (dragStarted) e.preventDefault();
+}, {passive: false});
+swipeContainer.addEventListener('touchend', onPointerUp);
+swipeContainer.addEventListener('touchcancel', onPointerUp);
+
+swipeContainer.addEventListener('mousedown', function(e) {
+  onPointerDown(e.clientX, e.clientY);
+  e.preventDefault();
+});
+document.addEventListener('mousemove', function(e) {
+  onPointerMove(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', onPointerUp);
+
+// === STACK NAVIGATION (push/pop overlay screens) ===
+function pushScreen(name) {
   const el = document.getElementById('screen-' + name);
-  if (el) { el.classList.add('active'); }
-  if (name !== currentScreen) { screenHistory.push(name); }
-  currentScreen = name;
+  if (!el) return;
+  el.classList.add('active');
+  el.classList.add('screen-enter');
+  el.addEventListener('animationend', function handler() {
+    el.classList.remove('screen-enter');
+    el.removeEventListener('animationend', handler);
+  });
+  screenStack.push(name);
   if (name === 'profile') renderProfiles();
   if (name === 'mybag') renderClubs();
 }
 
-function goBack() {
-  screenHistory.pop();
-  const prev = screenHistory[screenHistory.length - 1] || 'controls';
-  showScreen(prev);
+function popScreen() {
+  if (screenStack.length === 0) return;
+  const name = screenStack.pop();
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.remove('active');
 }
 
 // === PROFILES ===
@@ -679,7 +760,7 @@ function renderProfiles() {
       </div>
       <div class="profile-actions">
         ${!p.active ? `<button class="btn btn-success" style="height:40px;padding:0 14px;font-size:13px" onclick="setActiveProfile(${i})">Set Active</button>` : ''}
-        <button class="btn btn-accent" style="height:40px;padding:0 14px;font-size:13px" onclick="showScreen('mybag')">My Bag</button>
+        <button class="btn btn-accent" style="height:40px;padding:0 14px;font-size:13px" onclick="pushScreen('mybag')">My Bag</button>
         <button class="icon-btn delete" onclick="deleteProfile(${i})">&#10005;</button>
       </div>
     </div>
@@ -726,10 +807,10 @@ function renderClubs() {
 function editClubLoft(name) {
   const club = clubs.find(c => c.name === name);
   if (!club) return;
-  const newLoft = prompt(`Edit ${name} loft (current: ${club.loft.toFixed(1)}°):`, club.loft.toFixed(1));
+  const newLoft = prompt('Edit ' + name + ' loft (current: ' + club.loft.toFixed(1) + '°):', club.loft.toFixed(1));
   if (newLoft !== null) {
     const val = parseFloat(newLoft);
-    if (!isNaN(val) && val >= 5 && val <= 70) {
+    if (!isNaN(val) && val >= 0.5 && val <= 70) {
       club.loft = val;
       renderClubs();
     }
@@ -866,7 +947,6 @@ function startSimulatedFeed() {
     if (!cameraOn) return;
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, 640, 480);
-    // Simulated ball
     const bx = 320 + Math.sin(frame*0.02) * 20;
     const by = 340 + Math.cos(frame*0.015) * 10;
     ctx.beginPath();
@@ -876,14 +956,12 @@ function startSimulatedFeed() {
     ctx.strokeStyle = '#999';
     ctx.lineWidth = 1;
     ctx.stroke();
-    // Fiducial dots on ball
     for (let a = 0; a < 6; a++) {
       const dx = bx + Math.cos(a * Math.PI/3 + frame*0.01) * 10;
       const dy = by + Math.sin(a * Math.PI/3 + frame*0.01) * 10;
       ctx.beginPath(); ctx.arc(dx, dy, 2, 0, Math.PI*2);
       ctx.fillStyle = '#333'; ctx.fill();
     }
-    // Grid overlay
     ctx.strokeStyle = 'rgba(0,255,0,0.1)';
     ctx.lineWidth = 1;
     for (let x = 0; x < 640; x += 80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,480); ctx.stroke(); }
@@ -898,7 +976,7 @@ function startSimulatedFeed() {
 function toggleAutoExp() {
   autoExp = !autoExp;
   const btn = document.getElementById('auto-exp-btn');
-  if (autoExp) { btn.textContent = 'Auto: ON'; btn.className = 'btn btn-success'; btn.style.cssText += ''; }
+  if (autoExp) { btn.textContent = 'Auto: ON'; btn.className = 'btn btn-success'; }
   else { btn.textContent = 'Auto: OFF'; btn.className = 'btn btn-gray'; }
 }
 
