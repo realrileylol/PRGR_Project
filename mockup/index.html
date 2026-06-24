@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=800">
+<title>PRGR Launch Monitor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #222; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+/* === DEVICE FRAME === */
+#device { width: 800px; height: 480px; background: #F5F7FA; position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+
+/* === COLORS === */
+:root {
+  --bg: #F5F7FA; --card: #FFFFFF; --accent: #3A86FF; --success: #34C759;
+  --danger: #DA3633; --warning: #FF9500; --text: #1A1D23; --hint: #5F6B7A;
+  --edge: #D0D5DD; --disabled: #C8CCD4;
+  --carry-bg: #FFF8E1; --carry-border: #FFD54F; --carry-value: #E65100;
+  --total-bg: #E8F5E9; --total-border: #66BB6A; --total-value: #1B5E20;
+}
+
+/* === SCREENS === */
+.screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: none; flex-direction: column; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* === HEADER === */
+.header { display: flex; align-items: center; padding: 10px 14px; gap: 10px; flex-shrink: 0; }
+.header h1 { flex: 1; text-align: center; font-size: 24px; color: var(--text); }
+
+/* === BUTTONS === */
+.btn { border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: transform 0.1s, background 0.15s; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.btn:active { transform: scale(0.95); }
+.btn-back { background: var(--success); color: #fff; min-width: 100px; height: 48px; font-size: 15px; }
+.btn-back:hover { background: #2D9A4F; }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover { background: #2E6FD9; }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #2D9A4F; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #B72D2B; }
+.btn-gray { background: var(--disabled); color: var(--text); }
+.btn-gray:hover { background: #B8BBC1; }
+.btn-warning { background: var(--warning); color: #fff; }
+
+/* === CARDS === */
+.card { background: var(--card); border: 2px solid var(--edge); border-radius: 12px; padding: 14px; }
+
+/* === SCROLLABLE === */
+.scrollable { flex: 1; overflow-y: auto; padding: 0 14px 14px; }
+.scrollable::-webkit-scrollbar { width: 6px; }
+.scrollable::-webkit-scrollbar-thumb { background: var(--disabled); border-radius: 3px; }
+
+/* === CONTROLS PAGE === */
+#controls-page { display: flex; flex-direction: column; }
+.profile-bar { padding: 10px 14px 0; display: flex; justify-content: space-between; align-items: center; }
+.profile-bar .name { font-size: 18px; font-weight: 700; color: var(--text); }
+.profile-bar .swipe-hint { font-size: 13px; color: var(--hint); font-style: italic; }
+.nav-row { display: flex; gap: 8px; padding: 10px 14px; }
+.nav-row .btn { flex: 1; height: 58px; border-radius: 12px; font-size: 15px; }
+.calib-btn { margin: 0 14px; height: 58px; border-radius: 12px; font-size: 16px; width: calc(100% - 28px); }
+
+/* Status Card */
+.status-card { margin: 10px 14px; display: flex; align-items: center; gap: 14px; }
+.status-light { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.status-light.green { background: var(--success); box-shadow: 0 0 12px rgba(52,199,89,0.5); }
+.status-light.red { background: var(--danger); }
+.status-light.gray { background: var(--disabled); }
+.status-light.yellow { background: #FFD54F; animation: pulse 0.8s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+.status-text { flex: 1; font-size: 15px; color: var(--text); }
+.status-btns { display: flex; gap: 8px; }
+.status-btns .btn { height: 50px; padding: 0 20px; }
+
+/* Club Selector */
+.club-selector { margin: 10px 14px; padding: 12px 16px; }
+.club-selector label { font-size: 13px; font-weight: 700; color: var(--hint); text-transform: uppercase; letter-spacing: 0.5px; }
+.club-select { width: 100%; height: 44px; margin-top: 8px; border: 2px solid var(--edge); border-radius: 8px; background: var(--bg); font-size: 16px; color: var(--text); padding: 0 12px; font-weight: 600; cursor: pointer; }
+
+/* Status Indicator */
+.ready-bar { margin: 8px 14px; padding: 10px 16px; background: #E9F5E9; border: 2px solid #C6E6C3; border-radius: 10px; display: flex; align-items: center; gap: 8px; }
+.ready-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); }
+.ready-text { font-size: 14px; color: #1A5D1A; font-weight: 600; }
+
+/* Page dots */
+.page-dots { display: flex; justify-content: center; gap: 8px; padding: 8px 0; }
+.page-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--disabled); cursor: pointer; transition: background 0.2s; }
+.page-dot.active { background: var(--accent); }
+
+/* === METRICS PAGE === */
+#metrics-page .metrics-header { background: var(--accent); padding: 12px 16px; display: flex; align-items: center; border-radius: 12px 12px 0 0; margin: 14px 14px 0; }
+#metrics-page .metrics-header .back-hint { color: rgba(255,255,255,0.85); font-size: 13px; flex: 1; }
+#metrics-page .metrics-header h2 { color: #fff; font-size: 20px; font-weight: 700; flex: 2; text-align: center; }
+#metrics-page .metrics-header .add-btn { width: 36px; height: 36px; background: #fff; color: var(--accent); border-radius: 50%; border: none; font-size: 22px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.metrics-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px; margin: 0 14px; background: var(--card); border: 2px solid var(--edge); border-top: none; border-radius: 0 0 12px 12px; justify-content: center; }
+.metric-card { background: var(--bg); border: 2px solid var(--edge); border-radius: 12px; padding: 8px 12px; text-align: center; min-width: 95px; flex: 1; max-width: 140px; }
+.metric-card .label { font-size: 11px; font-weight: 700; color: var(--hint); text-transform: uppercase; }
+.metric-card .value { font-size: 28px; font-weight: 700; color: var(--text); margin: 2px 0; }
+.metric-card .unit { font-size: 11px; color: var(--hint); }
+.metric-card.carry { background: var(--carry-bg); border-color: var(--carry-border); }
+.metric-card.carry .label { color: #F57F17; }
+.metric-card.carry .value { color: var(--carry-value); }
+.metric-card.total { background: var(--total-bg); border-color: var(--total-border); }
+.metric-card.total .label { color: #2E7D32; }
+.metric-card.total .value { color: var(--total-value); }
+.simulate-btn { margin: 10px 14px; height: 60px; border-radius: 12px; font-size: 20px; width: calc(100% - 28px); }
+
+/* === PROFILE SCREEN === */
+.profile-list { display: flex; flex-direction: column; gap: 10px; }
+.profile-card { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 12px; }
+.profile-card.active-profile { border: 3px solid var(--accent); }
+.avatar { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.profile-info { flex: 1; }
+.profile-info .name { font-size: 18px; font-weight: 700; color: var(--text); }
+.profile-info .status { font-size: 13px; margin-top: 2px; }
+.profile-info .status.active { color: var(--success); }
+.profile-info .status.inactive { color: var(--hint); }
+.profile-actions { display: flex; gap: 6px; }
+.profile-actions .btn { height: 40px; padding: 0 14px; font-size: 13px; }
+.icon-btn { width: 40px; height: 40px; border: 2px solid var(--edge); background: transparent; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.icon-btn.delete { border-color: var(--danger); color: var(--danger); }
+
+/* === MY BAG === */
+.preset-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.preset-row label { font-size: 15px; font-weight: 700; color: var(--text); }
+.preset-select { height: 40px; border: 2px solid var(--edge); border-radius: 8px; padding: 0 10px; font-size: 15px; flex: 1; }
+.clubs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.club-card { padding: 14px; border-radius: 10px; cursor: pointer; transition: border-color 0.15s; }
+.club-card:hover { border-color: var(--accent); }
+.club-card .club-name { font-size: 17px; font-weight: 700; color: var(--text); }
+.club-card .club-loft { font-size: 14px; color: var(--hint); margin-top: 3px; }
+
+/* === SETTINGS === */
+.settings-list { display: flex; flex-direction: column; gap: 10px; }
+.setting-item { display: flex; align-items: center; gap: 14px; padding: 14px; }
+.checkbox { width: 24px; height: 24px; border: 2px solid var(--edge); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+.checkbox.checked { background: var(--accent); border-color: var(--accent); }
+.checkbox.checked::after { content: ''; display: block; width: 6px; height: 12px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); margin-top: -2px; }
+.checkbox.checked-orange { background: var(--warning); border-color: var(--warning); }
+.checkbox.checked-orange::after { content: ''; display: block; width: 6px; height: 12px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); margin-top: -2px; }
+.setting-text { flex: 1; }
+.setting-text .title { font-size: 18px; font-weight: 700; color: var(--text); }
+.setting-text .hint { font-size: 13px; color: var(--hint); margin-top: 2px; }
+.dev-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+.dev-badge.sim { background: #FFF3E0; color: var(--warning); }
+.dev-badge.live { background: #E8F5E9; color: var(--success); }
+
+/* === CAMERA === */
+.camera-preview { flex: 1; margin: 0 14px; background: #000; border-radius: 12px; border: 2px solid var(--edge); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 200px; }
+.camera-preview .placeholder { color: #666; text-align: center; font-size: 14px; line-height: 1.6; }
+.camera-preview .live-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 6px; color: var(--success); font-size: 16px; font-weight: 700; }
+.camera-preview .fps-badge { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 6px; color: #00FF00; font-size: 18px; font-weight: 700; font-family: monospace; }
+.camera-controls { display: flex; gap: 8px; padding: 10px 14px; flex-wrap: wrap; align-items: center; }
+.camera-controls .btn { height: 50px; padding: 0 14px; font-size: 13px; }
+.camera-info { text-align: center; padding: 4px; font-size: 12px; color: var(--hint); font-style: italic; }
+
+/* === HISTORY === */
+.history-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.history-table th { background: var(--bg); padding: 8px 6px; font-weight: 700; color: var(--hint); text-align: left; position: sticky; top: 0; }
+.history-table td { padding: 8px 6px; border-bottom: 1px solid var(--edge); color: var(--text); }
+.history-table tr:nth-child(even) { background: #F9FAFB; }
+.empty-state { text-align: center; padding: 40px; color: var(--hint); font-size: 16px; line-height: 1.6; }
+
+/* === CALIBRATION === */
+.calib-content { display: flex; flex-direction: column; gap: 12px; }
+.calib-card { padding: 16px; }
+.calib-card h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+.calib-card p { font-size: 14px; color: var(--hint); line-height: 1.5; }
+.progress-bar { height: 20px; background: var(--edge); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width 0.3s; }
+
+/* === WIND SETTINGS === */
+.sub-settings { display: flex; flex-direction: column; gap: 14px; }
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row label { font-size: 15px; font-weight: 600; color: var(--text); min-width: 120px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.slider-row .val { min-width: 50px; text-align: right; font-weight: 700; color: var(--accent); }
+.direction-grid { display: grid; grid-template-columns: repeat(3, 60px); gap: 6px; justify-content: center; margin: 10px 0; }
+.dir-btn { width: 60px; height: 60px; border: 2px solid var(--edge); border-radius: 10px; background: var(--card); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.dir-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* === DIALOGS === */
+.dialog-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+.dialog-overlay.active { display: flex; }
+.dialog { background: var(--card); border-radius: 12px; padding: 24px; max-width: 450px; width: 90%; }
+.dialog h2 { font-size: 20px; color: var(--text); margin-bottom: 16px; }
+.dialog input[type="text"] { width: 100%; height: 44px; border: 2px solid var(--edge); border-radius: 8px; padding: 0 12px; font-size: 16px; margin-bottom: 16px; }
+.dialog-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.dialog-btns .btn { height: 44px; padding: 0 24px; }
+</style>
+</head>
+<body>
+<div id="device">
+
+<!-- ==================== CONTROLS PAGE ==================== -->
+<div id="screen-controls" class="screen active">
+  <div class="profile-bar">
+    <span class="name" id="active-profile-display">No Profile</span>
+    <span class="swipe-hint">Swipe for metrics &rarr;</span>
+  </div>
+  <div class="nav-row">
+    <button class="btn btn-gray" onclick="showScreen('profile')">Profile</button>
+    <button class="btn btn-gray" onclick="showScreen('settings')">Settings</button>
+    <button class="btn btn-gray" onclick="showScreen('camera')">Camera</button>
+    <button class="btn btn-gray" onclick="showScreen('history')">History</button>
+  </div>
+  <button class="btn btn-success calib-btn" onclick="showScreen('calibration')">Calibration</button>
+  <div class="status-card card" style="margin-top:10px">
+    <div class="status-light gray" id="capture-light"></div>
+    <span class="status-text" id="capture-status">Not Started</span>
+    <div class="status-btns">
+      <button class="btn btn-success" id="start-capture-btn" onclick="toggleCapture()">Start Capture</button>
+    </div>
+  </div>
+  <div class="card club-selector" style="margin-top:6px">
+    <label>CLUB SELECTION</label>
+    <select class="club-select" id="club-select" onchange="updateClub()">
+      <option value="Driver|10.5">Driver (10.5&deg;)</option>
+      <option value="3 Wood|15.0">3 Wood (15.0&deg;)</option>
+      <option value="5 Wood|18.0">5 Wood (18.0&deg;)</option>
+      <option value="4 Hybrid|22.0">4 Hybrid (22.0&deg;)</option>
+      <option value="5 Iron|25.0">5 Iron (25.0&deg;)</option>
+      <option value="6 Iron|28.0">6 Iron (28.0&deg;)</option>
+      <option value="7 Iron|34.0" selected>7 Iron (34.0&deg;)</option>
+      <option value="8 Iron|37.0">8 Iron (37.0&deg;)</option>
+      <option value="9 Iron|41.0">9 Iron (41.0&deg;)</option>
+      <option value="PW|45.0">PW (45.0&deg;)</option>
+      <option value="GW|50.0">GW (50.0&deg;)</option>
+      <option value="SW|54.0">SW (54.0&deg;)</option>
+      <option value="LW|58.0">LW (58.0&deg;)</option>
+      <option value="Putter|3.5">Putter (3.5&deg;)</option>
+    </select>
+  </div>
+  <div class="ready-bar">
+    <div class="ready-dot"></div>
+    <span class="ready-text">Ready</span>
+  </div>
+  <div class="page-dots">
+    <div class="page-dot active" onclick="showScreen('controls')"></div>
+    <div class="page-dot" onclick="showScreen('metrics')"></div>
+  </div>
+</div>
+
+<!-- ==================== METRICS PAGE ==================== -->
+<div id="screen-metrics" class="screen">
+  <div style="display:flex;flex-direction:column;height:100%">
+    <div id="metrics-page">
+      <div class="metrics-header">
+        <span class="back-hint" style="cursor:pointer" onclick="showScreen('controls')">&larr; Swipe back</span>
+        <h2>SHOT METRICS</h2>
+        <button class="add-btn" title="Add metric">+</button>
+      </div>
+    </div>
+    <div class="metrics-grid" id="metrics-grid">
+      <div class="metric-card"><div class="label">CLUB SPEED</div><div class="value" id="m-club">0</div><div class="unit">mph</div></div>
+      <div class="metric-card"><div class="label">BALL SPEED</div><div class="value" id="m-ball">0</div><div class="unit">mph</div></div>
+      <div class="metric-card"><div class="label">SMASH</div><div class="value" id="m-smash">0.00</div><div class="unit">factor</div></div>
+      <div class="metric-card"><div class="label">LAUNCH</div><div class="value" id="m-launch">0.0</div><div class="unit">deg</div></div>
+      <div class="metric-card"><div class="label">SPIN</div><div class="value" id="m-spin">0</div><div class="unit">rpm</div></div>
+      <div class="metric-card carry"><div class="label">CARRY</div><div class="value" id="m-carry">0</div><div class="unit">yards</div></div>
+      <div class="metric-card total"><div class="label">TOTAL</div><div class="value" id="m-total">0</div><div class="unit">yards</div></div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn btn-accent simulate-btn" onclick="simulateShot()">SIMULATE SHOT</button>
+    <div class="page-dots" style="padding-bottom:10px">
+      <div class="page-dot" onclick="showScreen('controls')"></div>
+      <div class="page-dot active" onclick="showScreen('metrics')"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PROFILE SCREEN ==================== -->
+<div id="screen-profile" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Profiles</h1>
+    <button class="btn btn-accent" style="min-width:100px;height:48px" onclick="openDialog('new-profile-dialog')">+ New</button>
+  </div>
+  <div class="scrollable">
+    <div class="profile-list" id="profile-list"></div>
+  </div>
+  <!-- New Profile Dialog -->
+  <div class="dialog-overlay" id="new-profile-dialog">
+    <div class="dialog">
+      <h2>Create New Profile</h2>
+      <input type="text" id="new-profile-name" placeholder="e.g., Riley, John, Sarah..." maxlength="20">
+      <div class="dialog-btns">
+        <button class="btn btn-gray" onclick="closeDialog('new-profile-dialog')">Cancel</button>
+        <button class="btn btn-success" onclick="createProfile()">Create Profile</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MY BAG SCREEN ==================== -->
+<div id="screen-mybag" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1 style="font-size:26px">My Bag</h1>
+    <button class="btn btn-danger" style="min-width:90px;height:45px;font-size:13px" onclick="resetClubs()">Reset</button>
+  </div>
+  <div class="preset-row">
+    <label>Preset:</label>
+    <select class="preset-select" id="preset-select">
+      <option>Default Set</option>
+    </select>
+    <button class="btn btn-accent" style="width:40px;height:40px;font-size:20px">+</button>
+  </div>
+  <div style="padding:0 14px 4px;font-size:13px;color:var(--hint)">Click any club to edit its loft angle</div>
+  <div class="scrollable">
+    <div class="clubs-grid" id="clubs-grid"></div>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS SCREEN ==================== -->
+<div id="screen-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Settings</h1>
+    <button class="btn btn-danger" style="min-width:140px;height:48px;font-size:13px">Reset to Default</button>
+  </div>
+  <div style="padding:0 14px 8px;font-size:14px;color:var(--hint)">Enable or configure simulation effects:</div>
+  <div class="scrollable">
+    <div class="settings-list">
+      <!-- Wind -->
+      <div class="card setting-item">
+        <div class="checkbox" onclick="toggleCheck(this)"></div>
+        <div class="setting-text"><div class="title">Wind Effects</div></div>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('wind-settings')">Configure</button>
+      </div>
+      <!-- Temperature -->
+      <div class="card setting-item">
+        <div class="checkbox" onclick="toggleCheck(this)"></div>
+        <div class="setting-text"><div class="title">Temperature Effects</div></div>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('temp-settings')">Configure</button>
+      </div>
+      <!-- Ball Type -->
+      <div class="card setting-item">
+        <div class="checkbox" onclick="toggleCheck(this)"></div>
+        <div class="setting-text"><div class="title">Ball Type</div></div>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('ball-settings')">Configure</button>
+      </div>
+      <!-- Launch -->
+      <div class="card setting-item">
+        <div class="checkbox" onclick="toggleCheck(this)"></div>
+        <div class="setting-text"><div class="title">Launch Settings</div></div>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('launch-settings')">Configure</button>
+      </div>
+      <!-- Simulate Button -->
+      <div class="card setting-item">
+        <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+        <div class="setting-text"><div class="title">Show Simulate Button</div><div class="hint">On Metrics Page</div></div>
+      </div>
+      <!-- Camera Settings -->
+      <div class="card setting-item">
+        <div class="setting-text"><div class="title">Camera Settings</div></div>
+        <button class="btn btn-accent" style="height:50px;min-width:110px" onclick="showScreen('camera-settings')">Configure</button>
+      </div>
+      <!-- Camera Test -->
+      <div class="card setting-item">
+        <div class="setting-text"><div class="title">Camera Performance Test</div><div class="hint">Test FPS, find optimal indoor/outdoor settings</div></div>
+        <button class="btn btn-success" style="height:50px;min-width:90px" onclick="showScreen('camera-test')">Test</button>
+      </div>
+      <!-- Dev Mode -->
+      <div class="card setting-item" id="dev-mode-card" style="border-color:var(--warning)">
+        <div class="checkbox checked-orange" onclick="toggleDevMode(this)"></div>
+        <div class="setting-text">
+          <div class="title">Development Mode</div>
+          <div class="hint">Simulated camera &mdash; no hardware required. For UI development and demos.</div>
+        </div>
+        <span class="dev-badge sim" id="dev-badge">SIMULATED</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CAMERA SCREEN ==================== -->
+<div id="screen-camera" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Camera View</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="camera-preview" id="camera-preview">
+    <div class="live-badge" id="cam-live" style="display:none">&bull; LIVE</div>
+    <div class="fps-badge" id="cam-fps" style="display:none">0.0 FPS</div>
+    <div class="placeholder" id="cam-placeholder">High-FPS Preview (60-100 FPS)<br><br>Click 'Start Camera' below</div>
+    <canvas id="cam-canvas" style="display:none;width:100%;height:100%"></canvas>
+  </div>
+  <div class="camera-controls">
+    <span style="font-size:14px;font-weight:700;color:var(--text)">Status:</span>
+    <span id="cam-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--danger);display:inline-block"></span>
+    <span id="cam-status-text" style="font-size:13px;color:var(--hint)">Stopped</span>
+    <div style="flex:1"></div>
+    <button class="btn btn-success" style="height:50px;padding:0 12px;font-size:13px" id="auto-exp-btn" onclick="toggleAutoExp()">Auto: ON</button>
+    <button class="btn btn-accent" style="height:50px;padding:0 12px;font-size:13px" id="cam-toggle-btn" onclick="toggleCamera()">Start Camera</button>
+    <button class="btn btn-accent" style="height:50px;padding:0 12px;font-size:13px">CAM 0</button>
+    <button class="btn btn-danger" style="height:50px;padding:0 12px;font-size:13px;opacity:0.5" disabled>Record</button>
+    <button class="btn btn-success" style="height:50px;padding:0 12px;font-size:13px;opacity:0.5" disabled>Snapshot</button>
+  </div>
+  <div class="camera-info">Camera preview appears in the black area above when active</div>
+</div>
+
+<!-- ==================== HISTORY SCREEN ==================== -->
+<div id="screen-history" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1 style="font-size:20px">Shot History</h1>
+    <button class="btn btn-accent" style="min-width:110px;height:48px;font-size:13px" onclick="exportHistory()">Export Data</button>
+    <button class="btn btn-danger" style="min-width:100px;height:48px;font-size:13px" onclick="clearHistory()">Clear All</button>
+  </div>
+  <div class="scrollable">
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="history-table" id="history-table">
+        <thead>
+          <tr><th>Date/Time</th><th>Profile</th><th>Club</th><th>Ball Spd</th><th>Club Spd</th><th>Smash</th><th>Launch</th><th>Spin</th><th>Carry</th><th>Total</th></tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <div class="empty-state" id="history-empty">No shots recorded yet.<br><br>Simulate a shot to see it here!</div>
+    </div>
+  </div>
+  <div style="text-align:center;padding:6px;font-size:12px;color:var(--hint);font-style:italic" id="history-count">0 total shot(s) recorded</div>
+</div>
+
+<!-- ==================== CALIBRATION SCREEN ==================== -->
+<div id="screen-calibration" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1 style="font-size:20px">Camera Calibration</h1>
+    <button class="btn btn-success" style="min-width:130px;height:44px;font-size:13px">Alignment</button>
+    <button class="btn btn-accent" style="min-width:130px;height:44px;font-size:13px">Ball Zone</button>
+  </div>
+  <div class="scrollable">
+    <div class="calib-content">
+      <div class="card calib-card">
+        <h3>Intrinsic Calibration</h3>
+        <p>Hold a checkerboard pattern (9x6) in front of the camera at various angles. The system needs 20 frames from different positions to calculate lens distortion parameters.</p>
+        <div style="margin-top:12px;font-size:14px;color:var(--text);font-weight:600">0 / 20 frames captured</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div class="card calib-card">
+        <h3>Extrinsic Calibration</h3>
+        <p>Define the ground plane by placing 4 markers at known positions. This maps pixel coordinates to real-world distances for accurate ball tracking.</p>
+        <div style="margin-top:8px;font-size:14px;color:var(--hint)">Status: Not started</div>
+      </div>
+      <div class="card calib-card">
+        <h3>Ball Zone Definition</h3>
+        <p>Click on the ball edges (3-4 points) and zone corners (4 points) to define where the ball sits. The system uses this to detect when the ball is present and track its departure.</p>
+        <div style="margin-top:8px;font-size:14px;color:var(--hint)">Status: Requires extrinsic calibration first</div>
+      </div>
+      <button class="btn btn-accent" style="height:50px;width:100%;font-size:16px;margin-top:6px">Begin Intrinsic Calibration</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== WIND SETTINGS ==================== -->
+<div id="screen-wind-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Wind Settings</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card sub-settings" style="padding:20px">
+      <div class="slider-row">
+        <label>Wind Speed</label>
+        <input type="range" min="0" max="30" value="10" oninput="this.nextElementSibling.textContent=this.value+' mph'">
+        <span class="val">10 mph</span>
+      </div>
+      <div style="text-align:center;font-size:15px;font-weight:700;color:var(--text);margin-top:10px">Wind Direction</div>
+      <div class="direction-grid">
+        <div class="dir-btn" onclick="selectDir(this)">&nwarr;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&uarr;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&nearr;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&larr;</div>
+        <div class="dir-btn" style="font-size:12px;cursor:default">&bull;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&rarr;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&swarr;</div>
+        <div class="dir-btn active" onclick="selectDir(this)">&darr;</div>
+        <div class="dir-btn" onclick="selectDir(this)">&searr;</div>
+      </div>
+      <div class="slider-row" style="margin-top:10px">
+        <label>Gust Factor</label>
+        <input type="range" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=this.value+'%'">
+        <span class="val">20%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TEMP SETTINGS ==================== -->
+<div id="screen-temp-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Temperature</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card sub-settings" style="padding:20px">
+      <div class="slider-row">
+        <label>Temperature</label>
+        <input type="range" min="30" max="110" value="72" oninput="this.nextElementSibling.textContent=this.value+'&deg;F'">
+        <span class="val">72&deg;F</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Altitude</label>
+        <input type="range" min="0" max="8000" value="500" step="100" oninput="this.nextElementSibling.textContent=this.value+' ft'">
+        <span class="val">500 ft</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Humidity</label>
+        <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value+'%'">
+        <span class="val">50%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== BALL SETTINGS ==================== -->
+<div id="screen-ball-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Ball Type</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card sub-settings" style="padding:20px">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px">Compression Rating</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="ball-options">
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid var(--edge);border-radius:8px;cursor:pointer">
+          <input type="radio" name="ball" value="low"> <span>Low (60-70) &mdash; Soft feel, less distance</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid var(--edge);border-radius:8px;cursor:pointer">
+          <input type="radio" name="ball" value="mid" checked> <span>Mid-High (80-90) &mdash; Most popular, balanced</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid var(--edge);border-radius:8px;cursor:pointer">
+          <input type="radio" name="ball" value="high"> <span>High (100+) &mdash; Tour-level, max distance</span>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LAUNCH SETTINGS ==================== -->
+<div id="screen-launch-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Launch Settings</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card sub-settings" style="padding:20px">
+      <div class="slider-row">
+        <label>Default Launch</label>
+        <input type="range" min="5" max="35" value="14" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'&deg;'">
+        <span class="val">14&deg;</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Spin Rate</label>
+        <input type="range" min="1000" max="10000" value="3500" step="100" oninput="this.nextElementSibling.textContent=this.value+' rpm'">
+        <span class="val">3500 rpm</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Smash Factor</label>
+        <input type="range" min="1.0" max="1.55" value="1.42" step="0.01" oninput="this.nextElementSibling.textContent=this.value+'x'">
+        <span class="val">1.42x</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CAMERA SETTINGS ==================== -->
+<div id="screen-camera-settings" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Camera Settings</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card sub-settings" style="padding:20px">
+      <div class="slider-row">
+        <label>Shutter Speed</label>
+        <input type="range" min="50" max="10000" value="200" step="50" oninput="this.nextElementSibling.textContent=this.value+'&micro;s'">
+        <span class="val">200&micro;s</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Gain (ISO)</label>
+        <input type="range" min="1" max="16" value="8" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'x'">
+        <span class="val">8x</span>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Frame Rate</label>
+        <input type="range" min="30" max="240" value="180" step="10" oninput="this.nextElementSibling.textContent=this.value+' FPS'">
+        <span class="val">180 FPS</span>
+      </div>
+      <div style="margin-top:14px;font-size:14px;color:var(--hint)">Resolution: 640 x 480 (VGA, OV9281 sensor)</div>
+      <div style="margin-top:6px;font-size:14px;color:var(--hint)">Format: YUV420 (Y-channel extraction)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CAMERA TEST ==================== -->
+<div id="screen-camera-test" class="screen">
+  <div class="header">
+    <button class="btn btn-back" onclick="goBack()">&larr; Back</button>
+    <h1>Camera Test</h1>
+    <div style="min-width:100px"></div>
+  </div>
+  <div class="scrollable">
+    <div class="card calib-card">
+      <h3>FPS Performance Test</h3>
+      <p>Tests the actual frame rate achieved with your current camera settings. Useful for finding the optimal shutter/gain balance for indoor vs outdoor shooting.</p>
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button class="btn btn-success" style="height:50px;flex:1;font-size:16px">Start Test</button>
+        <button class="btn btn-danger" style="height:50px;flex:1;font-size:16px;opacity:0.5" disabled>Stop Test</button>
+      </div>
+      <div style="margin-top:16px;text-align:center">
+        <div style="font-size:48px;font-weight:700;color:var(--accent)">-- FPS</div>
+        <div style="font-size:14px;color:var(--hint);margin-top:4px">Measured frame rate</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /device -->
+
+<script>
+// === STATE ===
+let currentScreen = 'controls';
+let screenHistory = ['controls'];
+let profiles = [{name:'Riley',active:true,color:'#3A86FF'},{name:'John',active:false,color:'#34C759'}];
+let shotHistory = [];
+let capturing = false;
+let cameraOn = false;
+let autoExp = true;
+let cameraAnimFrame = null;
+let currentClub = '7 Iron';
+let currentLoft = 34.0;
+
+const clubs = [
+  {name:'Driver',loft:10.5},{name:'3 Wood',loft:15.0},{name:'5 Wood',loft:18.0},
+  {name:'4 Hybrid',loft:22.0},{name:'5 Iron',loft:25.0},{name:'6 Iron',loft:28.0},
+  {name:'7 Iron',loft:34.0},{name:'8 Iron',loft:37.0},{name:'9 Iron',loft:41.0},
+  {name:'PW',loft:45.0},{name:'GW',loft:50.0},{name:'SW',loft:54.0},
+  {name:'LW',loft:58.0},{name:'Putter',loft:3.5}
+];
+
+// === NAVIGATION ===
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) { el.classList.add('active'); }
+  if (name !== currentScreen) { screenHistory.push(name); }
+  currentScreen = name;
+  if (name === 'profile') renderProfiles();
+  if (name === 'mybag') renderClubs();
+}
+
+function goBack() {
+  screenHistory.pop();
+  const prev = screenHistory[screenHistory.length - 1] || 'controls';
+  showScreen(prev);
+}
+
+// === PROFILES ===
+function renderProfiles() {
+  const list = document.getElementById('profile-list');
+  if (profiles.length === 0) {
+    list.innerHTML = '<div class="empty-state">No profiles yet.<br><br>Click \'+ New\' to create your first profile.</div>';
+    return;
+  }
+  list.innerHTML = profiles.map((p,i) => `
+    <div class="card profile-card ${p.active ? 'active-profile' : ''}">
+      <div class="avatar" style="background:${p.color}">${p.name.substring(0,2).toUpperCase()}</div>
+      <div class="profile-info">
+        <div class="name">${p.name}</div>
+        <div class="status ${p.active?'active':'inactive'}">${p.active?'Active Profile':'Inactive'}</div>
+      </div>
+      <div class="profile-actions">
+        ${!p.active ? `<button class="btn btn-success" style="height:40px;padding:0 14px;font-size:13px" onclick="setActiveProfile(${i})">Set Active</button>` : ''}
+        <button class="btn btn-accent" style="height:40px;padding:0 14px;font-size:13px" onclick="showScreen('mybag')">My Bag</button>
+        <button class="icon-btn delete" onclick="deleteProfile(${i})">&#10005;</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function createProfile() {
+  const name = document.getElementById('new-profile-name').value.trim();
+  if (!name || name.length < 2) return;
+  const colors = ['#3A86FF','#34C759','#DA3633','#FF9500','#9B5FF2','#FF6B6B'];
+  profiles.push({name, active:false, color:colors[profiles.length % colors.length]});
+  document.getElementById('new-profile-name').value = '';
+  closeDialog('new-profile-dialog');
+  renderProfiles();
+}
+
+function setActiveProfile(idx) {
+  profiles.forEach(p => p.active = false);
+  profiles[idx].active = true;
+  document.getElementById('active-profile-display').textContent = profiles[idx].name;
+  renderProfiles();
+}
+
+function deleteProfile(idx) {
+  if (confirm('Delete profile "' + profiles[idx].name + '"? This cannot be undone.')) {
+    profiles.splice(idx, 1);
+    renderProfiles();
+    const active = profiles.find(p => p.active);
+    document.getElementById('active-profile-display').textContent = active ? active.name : 'No Profile';
+  }
+}
+
+// === MY BAG ===
+function renderClubs() {
+  const grid = document.getElementById('clubs-grid');
+  grid.innerHTML = clubs.map(c => `
+    <div class="card club-card" onclick="editClubLoft('${c.name}')">
+      <div class="club-name">${c.name}</div>
+      <div class="club-loft">${c.loft.toFixed(1)}&deg; loft</div>
+    </div>
+  `).join('');
+}
+
+function editClubLoft(name) {
+  const club = clubs.find(c => c.name === name);
+  if (!club) return;
+  const newLoft = prompt(`Edit ${name} loft (current: ${club.loft.toFixed(1)}°):`, club.loft.toFixed(1));
+  if (newLoft !== null) {
+    const val = parseFloat(newLoft);
+    if (!isNaN(val) && val >= 5 && val <= 70) {
+      club.loft = val;
+      renderClubs();
+    }
+  }
+}
+
+function resetClubs() {
+  if (confirm('Reset all clubs to default loft values?')) {
+    const defaults = [10.5,15.0,18.0,22.0,25.0,28.0,34.0,37.0,41.0,45.0,50.0,54.0,58.0,3.5];
+    clubs.forEach((c,i) => c.loft = defaults[i]);
+    renderClubs();
+  }
+}
+
+// === CLUB SELECT ===
+function updateClub() {
+  const val = document.getElementById('club-select').value.split('|');
+  currentClub = val[0];
+  currentLoft = parseFloat(val[1]);
+}
+
+// === CAPTURE ===
+function toggleCapture() {
+  const light = document.getElementById('capture-light');
+  const status = document.getElementById('capture-status');
+  const btn = document.getElementById('start-capture-btn');
+  capturing = !capturing;
+  if (capturing) {
+    light.className = 'status-light green';
+    status.textContent = 'Ready - Waiting for shot...';
+    btn.textContent = 'Stop';
+    btn.className = 'btn btn-danger';
+  } else {
+    light.className = 'status-light gray';
+    status.textContent = 'Not Started';
+    btn.textContent = 'Start Capture';
+    btn.className = 'btn btn-success';
+  }
+}
+
+// === SIMULATE SHOT ===
+function simulateShot() {
+  const clubSpeed = 70 + Math.random() * 30;
+  const smash = 1.35 + Math.random() * 0.15;
+  const ballSpeed = clubSpeed * smash;
+  const launch = 8 + Math.random() * 18;
+  const spin = 2000 + Math.random() * 5000;
+  const carry = ballSpeed * 1.1 + Math.random() * 30;
+  const total = carry + 10 + Math.random() * 20;
+
+  document.getElementById('m-club').textContent = clubSpeed.toFixed(1);
+  document.getElementById('m-ball').textContent = ballSpeed.toFixed(1);
+  document.getElementById('m-smash').textContent = smash.toFixed(2);
+  document.getElementById('m-launch').textContent = launch.toFixed(1);
+  document.getElementById('m-spin').textContent = Math.round(spin);
+  document.getElementById('m-carry').textContent = Math.round(carry);
+  document.getElementById('m-total').textContent = Math.round(total);
+
+  const now = new Date();
+  const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const activeProfile = profiles.find(p => p.active);
+  shotHistory.unshift({
+    time: timestamp,
+    profile: activeProfile ? activeProfile.name : '-',
+    club: currentClub,
+    ballSpeed: ballSpeed.toFixed(1),
+    clubSpeed: clubSpeed.toFixed(1),
+    smash: smash.toFixed(2),
+    launch: launch.toFixed(1),
+    spin: Math.round(spin),
+    carry: Math.round(carry),
+    total: Math.round(total)
+  });
+  renderHistory();
+}
+
+// === HISTORY ===
+function renderHistory() {
+  const body = document.getElementById('history-body');
+  const empty = document.getElementById('history-empty');
+  const count = document.getElementById('history-count');
+  if (shotHistory.length === 0) {
+    empty.style.display = 'block';
+    body.innerHTML = '';
+  } else {
+    empty.style.display = 'none';
+    body.innerHTML = shotHistory.map(s => `
+      <tr><td>${s.time}</td><td>${s.profile}</td><td>${s.club}</td><td>${s.ballSpeed}</td><td>${s.clubSpeed}</td><td>${s.smash}</td><td>${s.launch}</td><td>${s.spin}</td><td>${s.carry}</td><td>${s.total}</td></tr>
+    `).join('');
+  }
+  count.textContent = shotHistory.length + ' total shot(s) recorded';
+}
+
+function exportHistory() { alert('CSV export would save to ~/Documents/PRGR_ShotHistory.csv'); }
+function clearHistory() {
+  if (confirm('Delete all shot history? This cannot be undone.')) {
+    shotHistory = [];
+    renderHistory();
+  }
+}
+
+// === CAMERA ===
+function toggleCamera() {
+  cameraOn = !cameraOn;
+  const btn = document.getElementById('cam-toggle-btn');
+  const dot = document.getElementById('cam-status-dot');
+  const txt = document.getElementById('cam-status-text');
+  const live = document.getElementById('cam-live');
+  const fps = document.getElementById('cam-fps');
+  const ph = document.getElementById('cam-placeholder');
+  const canvas = document.getElementById('cam-canvas');
+
+  if (cameraOn) {
+    btn.textContent = 'Stop Camera'; btn.className = 'btn btn-danger';
+    dot.style.background = 'var(--success)'; txt.textContent = 'Active';
+    live.style.display = 'block'; fps.style.display = 'block';
+    ph.style.display = 'none'; canvas.style.display = 'block';
+    startSimulatedFeed();
+  } else {
+    btn.textContent = 'Start Camera'; btn.className = 'btn btn-accent';
+    dot.style.background = 'var(--danger)'; txt.textContent = 'Stopped';
+    live.style.display = 'none'; fps.style.display = 'none';
+    ph.style.display = 'block'; canvas.style.display = 'none';
+    if (cameraAnimFrame) cancelAnimationFrame(cameraAnimFrame);
+  }
+}
+
+function startSimulatedFeed() {
+  const canvas = document.getElementById('cam-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 640; canvas.height = 480;
+  let frame = 0;
+  function draw() {
+    if (!cameraOn) return;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, 640, 480);
+    // Simulated ball
+    const bx = 320 + Math.sin(frame*0.02) * 20;
+    const by = 340 + Math.cos(frame*0.015) * 10;
+    ctx.beginPath();
+    ctx.arc(bx, by, 18, 0, Math.PI*2);
+    ctx.fillStyle = '#ddd';
+    ctx.fill();
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Fiducial dots on ball
+    for (let a = 0; a < 6; a++) {
+      const dx = bx + Math.cos(a * Math.PI/3 + frame*0.01) * 10;
+      const dy = by + Math.sin(a * Math.PI/3 + frame*0.01) * 10;
+      ctx.beginPath(); ctx.arc(dx, dy, 2, 0, Math.PI*2);
+      ctx.fillStyle = '#333'; ctx.fill();
+    }
+    // Grid overlay
+    ctx.strokeStyle = 'rgba(0,255,0,0.1)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < 640; x += 80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,480); ctx.stroke(); }
+    for (let y = 0; y < 480; y += 80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(640,y); ctx.stroke(); }
+    frame++;
+    document.getElementById('cam-fps').textContent = (28 + Math.random()*4).toFixed(1) + ' FPS';
+    cameraAnimFrame = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function toggleAutoExp() {
+  autoExp = !autoExp;
+  const btn = document.getElementById('auto-exp-btn');
+  if (autoExp) { btn.textContent = 'Auto: ON'; btn.className = 'btn btn-success'; btn.style.cssText += ''; }
+  else { btn.textContent = 'Auto: OFF'; btn.className = 'btn btn-gray'; }
+}
+
+// === SETTINGS HELPERS ===
+function toggleCheck(el) {
+  if (el.classList.contains('checked')) { el.classList.remove('checked'); }
+  else if (el.classList.contains('checked-orange')) { el.classList.remove('checked-orange'); }
+  else { el.classList.add('checked'); }
+}
+
+function toggleDevMode(el) {
+  const card = document.getElementById('dev-mode-card');
+  const badge = document.getElementById('dev-badge');
+  if (el.classList.contains('checked-orange')) {
+    el.classList.remove('checked-orange');
+    card.style.borderColor = 'var(--edge)';
+    badge.className = 'dev-badge live'; badge.textContent = 'LIVE';
+  } else {
+    el.classList.add('checked-orange');
+    card.style.borderColor = 'var(--warning)';
+    badge.className = 'dev-badge sim'; badge.textContent = 'SIMULATED';
+  }
+}
+
+function selectDir(el) {
+  el.parentElement.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// === DIALOGS ===
+function openDialog(id) { document.getElementById(id).classList.add('active'); }
+function closeDialog(id) { document.getElementById(id).classList.remove('active'); }
+
+// === INIT ===
+renderProfiles();
+renderHistory();
+const active = profiles.find(p => p.active);
+if (active) document.getElementById('active-profile-display').textContent = active.name;
+</script>
+</body>
+</html>
