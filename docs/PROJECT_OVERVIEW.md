@@ -55,9 +55,27 @@ Python drivers vendored from the OpenFlight project.
 
 | Component | Spec | Role |
 |---|---|---|
-| **Raspberry Pi 5** | 8 GB RAM, quad-core Arm Cortex-A76 @ 2.4 GHz, aarch64 | All processing on-device: camera pipeline, ball detection, sensor fusion, UI |
-| **Touchscreen** | 800 × 480, capacitive touch | The entire user interface (Qt 6 / QML) |
+| **[Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)** | 8 GB RAM, quad-core Arm Cortex-A76 @ 2.4 GHz, aarch64 | All processing on-device: camera pipeline, ball detection, sensor fusion, UI |
+| **[Waveshare 5" DSI LCD](https://www.waveshare.com/5inch-dsi-lcd.htm)** | 800 × 480 IPS, DSI interface @ 60 Hz, 5-point capacitive touch, 6H tempered glass, ~1.2 W | The entire user interface (Qt 6 / QML) |
 | **microSD / storage** | Raspberry Pi OS Bookworm (64-bit) | OS, application binary, shot history, calibration data |
+
+**Display details.** The [Waveshare 5inch DSI LCD](https://www.waveshare.com/5inch-dsi-lcd.htm)
+is a driver-free plug-and-play panel with a native **800 × 480** resolution — which the
+entire PRGR UI targets exactly, so there is **no scaling** and every pixel maps 1:1. It
+connects over the **DSI ribbon** (not HDMI), supports **5-point capacitive touch** through
+a tempered-glass surface, and draws only ~1.2 W. Software backlight brightness control is
+supported. See the [Waveshare wiki](https://www.waveshare.com/wiki/5inch_DSI_LCD) for setup.
+
+> ⚠️ **Pi 5 cable gotcha:** the Raspberry Pi 5 changed its DSI/CSI connector to the smaller
+> 22-pin FPC. This panel needs the correct adapter cable for the Pi 5 — the
+> **[Waveshare Pi5-Display-Cable-200mm](https://www.waveshare.com/pi5-display-cable-200mm.htm)**
+> (or the official Raspberry Pi DSI cable for Pi 5). The cable that ships in the box is for
+> older Pi models with the 15-pin connector.
+
+**Related display variants** (same 800 × 480, if you ever swap panels):
+- [5inch Capacitive IPS Touch Display (Type B)](https://www.waveshare.com/5inch-dsi-lcd-b.htm) — lower power consumption variant
+- [5inch DSI Display, IPS, touch optional](https://www.waveshare.com/50h-800480-ips.htm) — thin/light design
+- [5inch Display, DPI Interface, IPS, No Touch](https://www.waveshare.com/5inch-lcd-for-pi.htm) — non-touch DPI variant
 
 ### Impact Camera
 
@@ -66,7 +84,7 @@ few feet of departure at very high frame rates.
 
 | Attribute | Spec |
 |---|---|
-| **Sensor** | OmniVision **OV9281** — global shutter, monochrome, 1 MP |
+| **Sensor** | OmniVision **[OV9281](https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/)** — global shutter, monochrome, 1 MP |
 | **Native resolution** | 1280 × 800 |
 | **Pixel pitch** | 3.0 µm |
 | **Sensor size** | 3.84 mm × 2.40 mm |
@@ -94,9 +112,9 @@ Drivers are vendored from the OpenFlight project (Python), then bridged to the C
 
 | Module | Spec | Role |
 |---|---|---|
-| **OPS243-A Doppler radar** | OmniPreSense, USB serial, exposes raw I/Q data | **Ball speed, club speed**, and spin backup via I/Q rolling buffer |
-| **K-LD7 radar #1 (vertical)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Launch angle** (vertical) |
-| **K-LD7 radar #2 (horizontal)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Club path / aim** (horizontal) |
+| **[OPS243-A Doppler radar](https://omnipresense.com/product/ops243-doppler-radar-sensor/)** | OmniPreSense, USB serial, exposes raw I/Q data | **Ball speed, club speed**, and spin backup via I/Q rolling buffer |
+| **[K-LD7 radar #1 (vertical)](https://www.rfbeam.ch/product?id=36)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Launch angle** (vertical) |
+| **[K-LD7 radar #2 (horizontal)](https://www.rfbeam.ch/product?id=36)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Club path / aim** (horizontal) |
 
 > ⚠️ **Hardware notes for radar:**
 > - Buy the **OPS243-A**, *not* the OPS243-A-W (WiFi) — the WiFi version's baud rate is
@@ -108,7 +126,7 @@ Drivers are vendored from the OpenFlight project (Python), then bridged to the C
 
 | Component | Spec | Role |
 |---|---|---|
-| **SparkFun SEN-14262 Sound Detector** | Requires a 47 kΩ resistor (R17) mod for 3.3 V | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture |
+| **[SparkFun SEN-14262 Sound Detector](https://www.sparkfun.com/products/14262)** | Requires a 47 kΩ resistor (R17) mod for 3.3 V | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture |
 
 ### Approximate cost of the radar add-on
 
