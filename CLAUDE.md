@@ -46,7 +46,7 @@ plans/            Feature plans and PRDs
 
 ## Key Constants (include/HardcodedConstants.h)
 - Device distance: 5 ft from ball
-- Golf ball: 42.67mm diameter
+- Golf ball: 42.67mm diameter (Not yet calibrated)
 - OV9281: 1280x800 native, 3.0µm pixel pitch
 - Ball pixel diameter at 5ft with 8mm lens: ~75px
 - NEVER modify HardcodedConstants.h without explicit user approval
