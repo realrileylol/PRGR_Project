@@ -40,12 +40,35 @@ range, using a device that:
 - **Development Mode everywhere** — every screen and feature works with simulated data
   so the UI can be built and tested without any hardware attached.
 
-### Current phase
-The project is in the **impact-camera + calibration** phase. The camera capture
-pipeline runs at high FPS, the ball-zone state machine detects when a ball is present
-and when it leaves, and intrinsic camera calibration (checkerboard) is implemented.
-Radar integration (OPS243-A + 2× K-LD7) is the next major hardware milestone, with the
-Python drivers vendored from the OpenFlight project.
+### Current phase (as of 2026-07-01)
+The software foundation is in place — the camera capture pipeline runs at high FPS, the
+ball-zone state machine detects when a ball is present and when it leaves, and intrinsic
+camera calibration (checkerboard) is implemented. **No physical geometry has been
+validated on hardware yet.** The immediate priority is getting the **radars working
+first**, then using real radar behavior to drive the rest of the physical setup — see
+the sequence below.
+
+### Development Sequence (order of operations)
+
+The physical geometry of the build is **not** being guessed up front. It will be
+established empirically, in this order:
+
+1. **Get the radars working** — OPS243-A + 2× K-LD7 (with the OpenFlight-vendored Python
+   drivers). Prove we can read ball speed, club speed, launch angle, and club path.
+2. **Establish the radars' accurate range** — determine the **maximum distance** at which
+   the radars still return accurate, trustworthy data. This becomes the anchor constraint
+   for where everything else sits.
+3. **Incorporate the impact camera** — only once the radar working distance is known do we
+   introduce the camera, then work out **how far the ball needs to be** so that:
+   - the ball's **pixel diameter** is large enough for reliable spin/impact detection,
+   - the camera's field of view still covers the departure path,
+   - the camera distance is compatible with the radar's accurate range.
+4. **Calibrate and measure** — with a real, fixed geometry, run intrinsic/extrinsic
+   calibration, confirm the ball's actual pixel size, and lock in the true distances.
+
+> 📌 The **~5 ft** figure and the **8 mm lens** pairing are the _starting hypothesis_ for
+> step 3, not a settled fact. Expect these numbers to change once real radar range and
+> real camera pixel-size data are in hand.
 
 ---
 
@@ -91,10 +114,10 @@ few feet of departure at very high frame rates.
 | **Lens** | 8 mm F1.2 IR-corrected M12 |
 | **Interface** | CSI (camera serial interface) via libcamera / rpicam-vid |
 | **Orientation** | Rotated **90° clockwise (portrait)** to maximize vertical coverage of the ball's departure path |
-| **Distance from ball** | ~5 ft |
+| **Distance from ball** | _**TBD** — ~5 ft is a proposed test target, **not yet validated** (as of 2026-07-01). The real distance will be derived from radar range + camera pixel-size needs (see [Development Sequence](#development-sequence-order-of-operations))_ |
 | **Preview mode** | 640 × 480 @ 180 FPS |
 | **Capture mode** | 640 × 400 @ 240 FPS |
-| **Expected ball size** | ~75 px diameter at 5 ft with the 8 mm lens |
+| **Expected ball size** | _~75 px diameter at 5 ft with the 8 mm lens (theoretical, per the pinhole model — to be confirmed on hardware)_ |
 
 **Why global shutter?** A global-shutter sensor exposes every pixel at the same instant.
 A rolling shutter (found in most cheap cameras) exposes row by row, which smears and
@@ -264,8 +287,10 @@ UI work happen away from the hardware.
 - ✅ Ball-zone state machine (NO_BALL → STABLE → READY → IMPACT_DETECTED)
 - ✅ Development Mode (simulated camera; works on Windows)
 - ✅ Windows desktop staging build
-- 🔄 Impact camera calibration at working distance
-- 🔄 Radar integration (OPS243-A + 2× K-LD7, Python drivers from OpenFlight)
+- 🔄 **Radar integration (OPS243-A + 2× K-LD7, Python drivers from OpenFlight) — current priority**
+- 📋 Establish radar max accurate range (defines the build geometry)
+- 📋 Introduce impact camera; derive ball distance from pixel-size + radar range
+- 📋 Impact camera calibration at the (empirically determined) working distance
 - 📋 Sensor fusion (camera spin + radar speed/angle)
 - 📋 Spin measurement from fiducial-marked balls
 - 📋 Ballistics / carry distance calculation
