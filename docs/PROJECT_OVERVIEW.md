@@ -115,8 +115,8 @@ few feet of departure at very high frame rates.
 | **Interface** | CSI (camera serial interface) via libcamera / rpicam-vid |
 | **Orientation** | Rotated **90° clockwise (portrait)** to maximize vertical coverage of the ball's departure path |
 | **Distance from ball** | _**TBD** — ~5 ft is a proposed test target, **not yet validated** (as of 2026-07-01). The real distance will be derived from radar range + camera pixel-size needs (see [Development Sequence](#development-sequence-order-of-operations))_ |
-| **Preview mode** | 640 × 480 @ 180 FPS |
-| **Capture mode** | 640 × 400 @ 240 FPS |
+| **Preview mode** | 640 × 480 sensor → **480 × 640 portrait** @ 180 FPS (after 90° CW rotation) |
+| **Capture mode** | 640 × 400 sensor → **400 × 640 portrait** @ 240 FPS (after 90° CW rotation) |
 | **Expected ball size** | _~75 px diameter at 5 ft with the 8 mm lens (theoretical, per the pinhole model — to be confirmed on hardware)_ |
 | **Manuals** | [OV9281 sensor datasheet](https://www.ovt.com/products/ov9281/) · [Arducam OV9281 for Pi (product + docs)](https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/) · [libcamera / rpicam-vid docs](https://www.raspberrypi.com/documentation/computers/camera_software.html) |
 

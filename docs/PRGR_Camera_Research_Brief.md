@@ -31,8 +31,11 @@ special markings.
 - **Native resolution**: 1280×800
 - **Pixel pitch**: 3.0 µm
 - **Sensor dimensions**: 3.84 mm × 2.40 mm
-- **Operating modes**: 640×480 @ 180 FPS (preview), 640×400 @ 240 FPS (capture). Sensor
-  captures in landscape, software rotates 90° CW → **portrait display**.
+- **Operating modes**: preview 640×480 sensor → **480×640 portrait** @ 180 FPS; capture
+  640×400 sensor → **400×640 portrait** @ 240 FPS. The sensor reads out in landscape;
+  software rotates 90° CW to portrait. Portrait puts the **long (640 px) axis vertical**, so
+  it covers more of the ball's climbing departure path — the ball stays in frame for more
+  frames (a few extra ms of tracking) than a landscape orientation would allow.
 - **Goal**: 240 FPS at the highest resolution that sustains it, in portrait orientation.
 - **Lens**: 8 mm F1.2 IR-corrected M12 (replacing the earlier 12 mm telephoto). Confirmed
   specs: FOV **50° × 41° × 31°** (D×H×V), minimum object distance **0.2 m**, BFL 6.58 mm,

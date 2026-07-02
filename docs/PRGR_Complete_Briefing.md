@@ -102,8 +102,8 @@ feet of departure at very high frame rates.
 | **Sensor size** | 3.84 mm × 2.40 mm |
 | **Interface** | CSI (MIPI) via libcamera / rpicam-vid |
 | **Orientation** | Rotated **90° clockwise (portrait)** to maximize vertical coverage of the departure path |
-| **Preview mode** | 640 × 480 @ 180 FPS |
-| **Capture mode** | 640 × 400 @ 240 FPS |
+| **Preview mode** | 640 × 480 sensor → **480 × 640 portrait** @ 180 FPS (after 90° CW rotation) |
+| **Capture mode** | 640 × 400 sensor → **400 × 640 portrait** @ 240 FPS (after 90° CW rotation) |
 
 **Lens (8 mm F1.2 M12):**
 
