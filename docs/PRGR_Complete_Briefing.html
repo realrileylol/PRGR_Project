@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRGR Launch Monitor — Complete Project Briefing</title>
+<style>
+  :root {
+    --bg: #ffffff; --text: #1a1d23; --muted: #5f6b7a; --edge: #e2e6ec;
+    --accent: #3a86ff; --accent-dark: #2450b8; --card: #f7f9fc;
+    --warn-bg: #fff7ed; --warn-edge: #f59e0b;
+    --note-bg: #eff6ff; --note-edge: #3a86ff;
+    --think-bg: #f5f3ff; --think-edge: #8b5cf6;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: #e9edf3; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6; font-size: 16px;
+  }
+  .page {
+    max-width: 860px; margin: 32px auto; background: var(--bg);
+    padding: 56px 64px; border-radius: 10px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.12);
+  }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 40px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--edge); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 18px; margin: 28px 0 10px; color: var(--accent-dark); }
+  h4 { font-size: 15px; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  p { margin: 10px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .subtitle { color: var(--muted); font-style: italic; margin: 0 0 4px; }
+  .meta { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
+  hr { border: none; border-top: 1px solid var(--edge); margin: 32px 0; }
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: #f0f2f6; padding: 1px 6px; border-radius: 4px;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.88em;
+  }
+  pre {
+    background: #0f1524; color: #d8e0f0; padding: 18px 20px; border-radius: 8px;
+    overflow-x: auto; font-size: 12.5px; line-height: 1.45;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--edge); padding: 8px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--card); font-weight: 700; }
+  tr:nth-child(even) td { background: #fafbfd; }
+  blockquote {
+    margin: 16px 0; padding: 12px 16px; border-left: 4px solid var(--note-edge);
+    background: var(--note-bg); border-radius: 0 6px 6px 0;
+  }
+  blockquote.warn { border-left-color: var(--warn-edge); background: var(--warn-bg); }
+  blockquote.think { border-left-color: var(--think-edge); background: var(--think-bg); }
+  blockquote p:first-child { margin-top: 0; }
+  blockquote p:last-child { margin-bottom: 0; }
+  .toc { background: var(--card); border: 1px solid var(--edge); border-radius: 8px; padding: 14px 22px; }
+  .toc ol { margin: 4px 0; }
+  .img-placeholder {
+    border: 2px dashed var(--warn-edge); background: var(--warn-bg); border-radius: 10px;
+    padding: 40px 24px; text-align: center; color: #92600a; margin: 18px 0;
+  }
+  .img-placeholder strong { display: block; font-size: 16px; margin-bottom: 6px; }
+  .img-placeholder .hint { font-size: 13px; color: #a06a10; }
+  figure { margin: 18px 0; }
+  figure img { max-width: 100%; border: 1px solid var(--edge); border-radius: 10px; display: block; }
+  figcaption { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 6px; text-align: center; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .page { box-shadow: none; margin: 0; max-width: none; padding: 0 12px; border-radius: 0; }
+    h2 { page-break-after: avoid; }
+    table, pre, blockquote, figure, .img-placeholder { page-break-inside: avoid; }
+    a { color: var(--text); }
+  }
+  @media (max-width: 640px) {
+    .page { padding: 28px 20px; margin: 0; border-radius: 0; }
+    body { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>PRGR Launch Monitor — Complete Project Briefing</h1>
+<p class="subtitle">A single, self-contained overview of the PRGR DIY golf launch monitor: what it is, the full hardware stack with specs, how everything connects, power, the development plan, and where the project stands.</p>
+<p class="meta">Last updated: 2026-07-01</p>
+
+<hr>
+
+<div class="toc">
+<strong>Contents</strong>
+<ol>
+  <li>What it is</li>
+  <li>Goals</li>
+  <li>Hardware — full component specs (compute &amp; display, camera + lens, radar array, impact trigger, power, BOM)</li>
+  <li>How it all connects</li>
+  <li>Software stack</li>
+  <li>Development sequence &amp; current status</li>
+  <li>Key open question — spin detection</li>
+  <li>The short version</li>
+</ol>
+</div>
+
+<h2>1. What it is</h2>
+<p>A <strong>DIY golf launch monitor</strong> — a device that measures what happens to a golf ball and club at the moment of impact and for the first few feet of flight, then calculates the full shot: <strong>carry distance, total distance, ball speed, club speed, launch angle, spin, and smash factor</strong>.</p>
+<p>Everything runs on a <strong>Raspberry Pi 5</strong> with a touchscreen. A high-speed camera watches the ball for spin, and three Doppler radars measure speed and angles. All processing happens on-device — no phone app, no cloud service, no subscription. You hit a ball and the numbers appear on the screen.</p>
+<p>The architecture is modeled after the commercial <strong>Rapsodo MLM2 Pro</strong> (a camera for spin + Doppler radar for speed/angle, fused together), assembled from off-the-shelf sensors and open hardware at a fraction of the retail cost.</p>
+
+<h2>2. Goals</h2>
+<p>Produce <strong>accurate, repeatable shot data</strong> for a golfer practicing indoors or at a range, from a device that:</p>
+<ol>
+  <li><strong>Detects the moment of impact</strong> (camera + radar + optional sound trigger)</li>
+  <li><strong>Measures ball speed and club speed</strong> (Doppler radar)</li>
+  <li><strong>Measures launch angle and club path</strong> (twin radars at different orientations)</li>
+  <li><strong>Detects ball spin</strong> (high-FPS camera watching the ball leave the tee)</li>
+  <li><strong>Fuses all sensor inputs</strong> into a single confident shot reading</li>
+  <li><strong>Calculates carry and total distance</strong> via a ballistics model</li>
+  <li><strong>Presents it all</strong> on a fast, touch-first 800×480 screen</li>
+</ol>
+<p><strong>Design principles:</strong> on-device only, sensor fusion over any single source, touch-first UI, and a Development Mode so every screen works with simulated data (no hardware needed) for UI work and demos.</p>
+
+<h2>3. Hardware — full component specs</h2>
+
+<h3>Compute &amp; display</h3>
+<table>
+<tr><th>Component</th><th>Spec</th><th>Role</th></tr>
+<tr><td><strong>Raspberry Pi 5</strong> (8 GB)</td><td>Quad-core Arm Cortex-A76 @ 2.4 GHz, aarch64</td><td>All processing: camera pipeline, vision, sensor fusion, UI</td></tr>
+<tr><td><strong>Waveshare 5" DSI LCD</strong></td><td>800 × 480 IPS, DSI @ 60 Hz, 5-point capacitive touch, 6H tempered glass, ~1.2 W</td><td>The entire touchscreen UI</td></tr>
+<tr><td><strong>microSD / storage</strong></td><td>Raspberry Pi OS Bookworm (64-bit)</td><td>OS, app binary, shot history, calibration</td></tr>
+</table>
+<p>The display's native <strong>800 × 480</strong> matches the UI target exactly — no scaling, every pixel maps 1:1. It connects over the <strong>DSI ribbon</strong> (not HDMI) and is driver-free.</p>
+<blockquote class="warn"><p>⚠️ <strong>Pi 5 cable gotcha:</strong> the Raspberry Pi 5 uses a smaller 22-pin DSI connector, so this panel needs the correct adapter cable for the Pi 5 (Waveshare Pi5-Display-Cable-200mm or the official Pi 5 DSI cable). The cable in the box is for older 15-pin Pis.</p></blockquote>
+<p>Links: <a href="https://www.raspberrypi.com/products/raspberry-pi-5/">Raspberry Pi 5</a> · <a href="https://www.waveshare.com/5inch-dsi-lcd.htm">Waveshare 5" DSI LCD</a></p>
+
+<h3>Impact camera + lens</h3>
+<p>The single most important sensor for spin detection — it watches the ball for the first few feet of departure at very high frame rates.</p>
+<h4>Sensor (OV9281)</h4>
+<table>
+<tr><th>Attribute</th><th>Spec</th></tr>
+<tr><td><strong>Sensor</strong></td><td>OmniVision OV9281 — global shutter, monochrome, 1 MP</td></tr>
+<tr><td><strong>Native resolution</strong></td><td>1280 × 800</td></tr>
+<tr><td><strong>Pixel pitch</strong></td><td>3.0 µm</td></tr>
+<tr><td><strong>Sensor size</strong></td><td>3.84 mm × 2.40 mm</td></tr>
+<tr><td><strong>Interface</strong></td><td>CSI (MIPI) via libcamera / rpicam-vid</td></tr>
+<tr><td><strong>Orientation</strong></td><td>Rotated <strong>90° clockwise (portrait)</strong> to maximize vertical coverage of the departure path</td></tr>
+<tr><td><strong>Preview mode</strong></td><td>640 × 480 @ 180 FPS</td></tr>
+<tr><td><strong>Capture mode</strong></td><td>640 × 400 @ 240 FPS</td></tr>
+</table>
+<h4>Lens (8 mm F1.2 M12)</h4>
+<table>
+<tr><th>Attribute</th><th>Value</th></tr>
+<tr><td><strong>Focal length</strong></td><td>8 mm</td></tr>
+<tr><td><strong>Aperture</strong></td><td>F1.2 (fixed iris)</td></tr>
+<tr><td><strong>Mount</strong></td><td>M12</td></tr>
+<tr><td><strong>Field of view (D × H × V)</strong></td><td>50° × 41° × 31°</td></tr>
+<tr><td><strong>Minimum object distance</strong></td><td>0.2 m (20 cm)</td></tr>
+<tr><td><strong>Back focal length (BFL)</strong></td><td>6.58 mm</td></tr>
+<tr><td><strong>Construction</strong></td><td>7 elements in 6 groups, aluminum-alloy barrel</td></tr>
+<tr><td><strong>IR correction (day/night)</strong></td><td>Yes</td></tr>
+<tr><td><strong>Focus / Zoom</strong></td><td>Manual focus, fixed zoom</td></tr>
+<tr><td><strong>Dimensions</strong></td><td>Ø16 mm × 30.2 mm</td></tr>
+<tr><td><strong>Operating temp</strong></td><td>−20 °C to +80 °C</td></tr>
+</table>
+<p><strong>Why global shutter?</strong> A global-shutter sensor exposes every pixel at the same instant. A rolling shutter smears and skews a fast-moving ball. For measuring spin and speed at impact, global shutter is non-negotiable.</p>
+<p><strong>Why monochrome + IR + F1.2?</strong> Mono sensors collect light on every pixel — critical for the short (~100–300 µs) exposures that freeze motion. The F1.2 aperture and IR-corrected lens make those microsecond exposures possible under indoor lighting.</p>
+<p><strong>Distance from ball — TBD.</strong> ~5 ft is a <em>starting hypothesis</em>, <strong>not yet validated</strong> (as of 2026-07-01). The real distance will be derived from the radars' accurate range plus the ball's required pixel size (see §6). Theoretical ball size with the 8 mm lens:</p>
+<table>
+<tr><th>Distance</th><th>Ball pixel diameter (theoretical)</th></tr>
+<tr><td>5 ft</td><td>~75 px</td></tr>
+<tr><td>6 ft</td><td>~62 px</td></tr>
+<tr><td>7 ft</td><td>~53 px</td></tr>
+<tr><td>8 ft</td><td>~47 px</td></tr>
+</table>
+<p>Links: <a href="https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/">Arducam OV9281 for Pi</a> · <a href="https://www.raspberrypi.com/documentation/computers/camera_software.html">libcamera docs</a></p>
+
+<h3>Radar array</h3>
+<p>Three Doppler radars provide speed and angle data, cross-checking the camera. Drivers are vendored from the open-source <strong>OpenFlight</strong> project (Python), then bridged to the C++ app.</p>
+<table>
+<tr><th>Module</th><th>Frequency</th><th>Interface</th><th>Role</th><th>Manuals</th></tr>
+<tr><td><strong>OPS243-A</strong></td><td>24.125 GHz</td><td>USB / UART / RS-232</td><td>Ball speed, club speed, spin backup (I/Q)</td><td><a href="https://omnipresense.com/product/ops243-doppler-radar-sensor/">Product</a> · <a href="https://omnipresense.com/wp-content/uploads/2025/10/AN-010-AD_API_Interface.pdf">API (AN-010)</a> · <a href="https://fcc.report/FCC-ID/2ALLL243A/4525695.pdf">User Manual</a></td></tr>
+<tr><td><strong>K-LD7 #1 (vertical)</strong></td><td>24.05–24.25 GHz</td><td>UART (3.3 V)</td><td>Launch angle (vertical)</td><td><a href="https://rfbeam.ch/product/k-ld7-radar-transceiver/">Product</a> · <a href="https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf">Datasheet</a></td></tr>
+<tr><td><strong>K-LD7 #2 (horizontal)</strong></td><td>24.05–24.25 GHz</td><td>UART (3.3 V)</td><td>Club path / aim (horizontal)</td><td><a href="https://rfbeam.ch/product/k-ld7-radar-transceiver/">Product</a> · <a href="https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf">Datasheet</a></td></tr>
+</table>
+<p><strong>OPS243-A — details:</strong> K-band Doppler radar, 24.125 GHz, 1–100 m detection range, speed up to 348 mph, inbound/outbound direction, ~20° × 24° beam. Outputs raw <strong>I/Q</strong> samples (the reason it was chosen — needed for spin/impact buffering). Default UART 19,200 baud. −40 to +85 °C.</p>
+<p><strong>K-LD7 (×2) — details:</strong> 24 GHz fully-digital radar transceiver measuring speed, direction, distance, and <strong>angle</strong>. 3.2–5.5 V supply, ~20–60 mA, 3×4 patch antenna, on-board DSP with a target list and tracking filter. Run at <strong>3 Mbaud</strong> in this project. One oriented for vertical angle (launch angle), one for horizontal (club path).</p>
+<blockquote class="warn"><p>⚠️ <strong>Radar hardware notes:</strong></p>
+<ul>
+  <li>Buy the <strong>OPS243-A</strong>, <em>not</em> the OPS243-A-W (WiFi) — the WiFi version's baud rate is too slow to stream I/Q data.</li>
+  <li>The K-LD7 modules require <strong>3.3 V</strong> FTDI USB-serial adapters. A <strong>5 V adapter will damage</strong> the module. Do not exceed 5.5 V supply.</li>
+</ul></blockquote>
+
+<h3>Impact trigger (under evaluation — optional)</h3>
+<table>
+<tr><th>Component</th><th>Spec</th><th>Role</th></tr>
+<tr><td><strong>SparkFun SEN-14262 Sound Detector</strong></td><td>Analog + gate + envelope outputs; preamp gain set by <strong>R17</strong></td><td>Detects the <em>sound</em> of impact to trigger the radar's rolling I/Q buffer capture</td></tr>
+</table>
+<blockquote class="think"><p>🤔 <strong>Still deciding whether this is needed.</strong> OpenFlight uses a sound trigger to mark the <em>exact instant</em> of impact so the right slice of the OPS243-A rolling I/Q buffer can be captured. But PRGR already has <strong>two other impact markers</strong>: the <strong>radar</strong> (a sudden speed-threshold crossing) and the <strong>camera</strong> (<code>IMPACT_DETECTED</code> from the ball-zone state machine). The sound trigger's only real advantage is sub-frame <strong>timing precision</strong>. <strong>Current plan:</strong> start with radar/camera triggering and treat the sound detector as <strong>optional</strong>, adding it later only if the I/Q capture window proves hard to hit without it. Acoustic triggering in a bay has downsides (false triggers from mat noise / reflections, plus the R17 gain tuning) that aren't worth it unless the precision proves necessary.</p></blockquote>
+<blockquote><p>📌 <strong>R17 mod (if used):</strong> R17 is an unpopulated resistor footprint that sets the preamp gain. Populating it (~33–47 kΩ) in parallel with R3 lowers the gain so the detector isn't permanently saturated at 3.3 V — otherwise the GATE output latches high and never registers a distinct impact.</p></blockquote>
+<p>Links: <a href="https://www.sparkfun.com/products/14262">Product</a> · <a href="https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all">Hookup Guide</a></p>
+
+<h3>Power</h3>
+<p>The Raspberry Pi 5 is power-sensitive. It needs a <strong>5 V / 5 A (25 W)</strong> USB-C source that performs a proper Power Delivery (PD) handshake. <strong>Without that handshake the Pi 5 caps total USB current to 600 mA</strong>, which starves the three-radar array and causes capture failures. A genuine 5 A supply unlocks the Pi's <strong>~1.6 A USB budget</strong> — the amount needed to run the OPS243-A + 2× K-LD7 simultaneously. <em>(This limit is well-documented by the OpenFlight project, whose Pi 5 + triple-radar + touchscreen stack is the same as ours.)</em></p>
+<p><strong>Three ways to power the build:</strong></p>
+<table>
+<tr><th>Scenario</th><th>Source</th><th>Notes</th></tr>
+<tr><td><strong>Bench / indoor</strong></td><td><a href="https://www.raspberrypi.com/products/27w-power-supply/">Official Raspberry Pi 27 W USB-C PD</a> (5 V / 5 A)</td><td>Reference standard. Guarantees the PD handshake.</td></tr>
+<tr><td><strong>Mobile / range (simple)</strong></td><td>5 V / 5 A PD-compliant USB-C power bank (25 W)</td><td>Must advertise <strong>5 V / 5 A</strong>, not just "25 W" at higher voltages.</td></tr>
+<tr><td><strong>Integrated tower (our build)</strong></td><td><a href="https://talentcell.com/lithium-ion-battery/12v/pb120b1.html">TalentCell PB120B1</a> (12 V, 142 Wh) → 12 V-to-5 V/5 A USB-C buck converter</td><td>Self-contained battery for a tower enclosure.</td></tr>
+</table>
+<p><strong>The tower / TalentCell approach.</strong> For a self-contained tower we use a <strong>TalentCell PB120B1</strong> — a 12 V lithium pack, <strong>38,400 mAh / 142 Wh</strong>, 3s4p 18650 cells, with a <strong>12 V / 6 A DC</strong> output and a 5 V / 2.4 A USB output. Wiring it correctly matters:</p>
+<ul>
+  <li>⚠️ <strong>Do NOT power the Pi 5 from the TalentCell's own 5 V USB port</strong> — it's only <strong>2.4 A</strong>, below the Pi 5's requirement, and it does not do a PD handshake.</li>
+  <li>Instead feed the <strong>12 V DC output</strong> (up to 72 W available) into a <strong>12 V → 5 V / 5 A USB-C buck converter</strong> (a 25 W, 5 A-rated module), and run that into the Pi.</li>
+  <li>A plain buck converter is <strong>not PD-compliant</strong>, so add <code>usb_max_current_enable=1</code> to <code>/boot/firmware/config.txt</code> to unlock the full USB budget for the radars without a PD negotiation.</li>
+  <li>Use <strong>5 A-rated USB-C pigtails / ≥ 20 AWG wire</strong> between the buck and the Pi.</li>
+</ul>
+<p><strong>Runtime:</strong> at ~15–25 W typical draw (Pi + 3 radars + 5" screen), the 142 Wh pack gives roughly <strong>5–7 hours</strong> of range time (buck efficiency ~90 %).</p>
+
+<h3>Bill of materials</h3>
+<table>
+<tr><th>Item</th><th>Approx. cost</th></tr>
+<tr><td>Raspberry Pi 5 (8 GB)</td><td>~$80</td></tr>
+<tr><td>Waveshare 5" DSI LCD + Pi 5 DSI cable</td><td>~$40</td></tr>
+<tr><td>OV9281 camera + 8 mm F1.2 M12 lens</td><td>~$40</td></tr>
+<tr><td>OPS243-A Doppler radar</td><td>~$249</td></tr>
+<tr><td>K-LD7 radar ×2</td><td>~$120</td></tr>
+<tr><td>3.3 V FTDI USB-serial adapters ×2</td><td>~$20</td></tr>
+<tr><td>SparkFun SEN-14262 sound detector (+ 47 kΩ resistor) — <em>optional, under evaluation</em></td><td>~$13</td></tr>
+<tr><td>TalentCell PB120B1 + 12 V→5 V/5 A buck converter</td><td>~$110</td></tr>
+<tr><td>Wiring, connectors, 3D-printed enclosure</td><td>~$30</td></tr>
+<tr><td><strong>Approx. total</strong></td><td><strong>~$700</strong></td></tr>
+</table>
+<p><em>The radar add-on alone (OPS243-A + 2× K-LD7 + adapters + trigger + wiring) is ~$412 if you already have the Pi, screen, and camera.</em></p>
+
+<h2>4. How it all connects</h2>
+<pre><code>  ┌──────────────┐  CSI   ┌───────────────────────────────────┐
+  │ Impact Cam   ├───────►│  Raspberry Pi 5                   │
+  │ OV9281 + 8mm │        │                                   │
+  │ 90° portrait │        │  ┌─────────────────────────────┐  │   ┌──────────────┐
+  └──────────────┘        │  │ C++17 backend               │  ├──►│ 800×480      │
+                          │  │  camera • OpenCV vision •   │  │   │ Touchscreen  │
+  ┌──────────────┐  USB   │  │  calibration • fusion • UI  │  │   │ Qt 6 / QML   │
+  │ OPS243-A     ├───────►│  └──────────────┬──────────────┘  │   └──────────────┘
+  └──────────────┘        │                 │ Unix socket      │
+  ┌──────────────┐ 3.3V   │  ┌──────────────▼──────────────┐  │
+  │ 2× K-LD7     ├───────►│  │ Python radar drivers        │  │
+  │  (UART)      │  UART  │  │  (OPS243 + K-LD7)           │  │
+  └──────────────┘        │  └─────────────────────────────┘  │
+  ┌──────────────┐ GPIO   │                                   │
+  │ Sound (opt.) ├───────►│   Power: 5V/5A USB-C PD           │
+  └──────────────┘        └───────────────────────────────────┘
+  (sound trigger optional / under evaluation — see below)</code></pre>
+<ul>
+  <li><strong>C++17 backend</strong> does the heavy lifting: camera control, ball detection (OpenCV 4), calibration, sensor fusion, and the UI logic.</li>
+  <li><strong>Python</strong> runs the radar drivers (vendored from OpenFlight) as a <strong>child process</strong>. C++ and Python communicate over a <strong>Unix domain socket</strong> (<code>/tmp/prgr_radar.sock</code>) using newline-delimited JSON — message types: heartbeat, status, shot_data, error. Python sends a heartbeat every 2 s; C++ flags the radar "offline" after 3 missed beats.</li>
+  <li><strong>Qt 6 / QML</strong> is the touchscreen front-end — a fast, finger-first UI at exactly 800×480, reading state from the C++ managers via <code>Q_PROPERTY</code> bindings.</li>
+</ul>
+
+<h2>5. Software stack</h2>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+<tr><td><strong>Backend</strong></td><td>C++17</td><td>Camera pipeline, ball detection, sensor fusion, UI managers</td></tr>
+<tr><td><strong>Frontend</strong></td><td>Qt 6 / QML</td><td>Touch-first 800×480 UI</td></tr>
+<tr><td><strong>Vision</strong></td><td>OpenCV 4</td><td>Ball detection (Hough, blob, contour, MOG2), Kalman tracking, calibration</td></tr>
+<tr><td><strong>Radar drivers</strong></td><td>Python 3.10+</td><td>OPS243-A &amp; K-LD7 serial drivers (vendored from OpenFlight, AGPL-3.0)</td></tr>
+<tr><td><strong>Camera capture</strong></td><td>libcamera / rpicam-vid</td><td>High-FPS YUV420 capture, Y-channel extraction for mono processing</td></tr>
+<tr><td><strong>Build</strong></td><td>CMake</td><td>Pi is the primary target; Windows desktop staging build supported (Dev Mode only)</td></tr>
+</table>
+<p><strong>Ball detection</strong> uses multi-method scoring: Hough circle transform, blob detection, contour finding, and MOG2 background subtraction, with the highest-confidence result chosen. A Kalman filter and a ball-zone state machine (NO_BALL → STABLE → READY → IMPACT_DETECTED) handle in-frame tracking and the impact trigger.</p>
+<p><strong>Development Mode</strong> swaps real hardware for simulated data so every screen works with no camera or radar attached — this is how UI work and demos happen on a laptop.</p>
+
+<h2>6. Development sequence &amp; current status</h2>
+<p>The physical geometry of the build is <strong>not</strong> being guessed up front — it's established empirically, <strong>radar-first</strong>:</p>
+<ol>
+  <li><strong>Get the radars working</strong> — OPS243-A + 2× K-LD7 (OpenFlight-vendored Python drivers). Prove we can read ball speed, club speed, launch angle, and club path. <em>(current priority)</em></li>
+  <li><strong>Establish the radars' accurate range</strong> — the <strong>maximum distance</strong> at which the radars return trustworthy data. This becomes the anchor constraint for everything else.</li>
+  <li><strong>Incorporate the impact camera</strong> — only once radar range is known, work out how far the ball must be so the ball's <strong>pixel diameter</strong> is large enough for spin detection, the FOV covers the departure path, and the distance is compatible with the radar's range.</li>
+  <li><strong>Calibrate and measure</strong> — with real, fixed geometry, run calibration and lock in the true distances.</li>
+</ol>
+<p><strong>Status (as of 2026-07-01):</strong></p>
+<table>
+<tr><th>Done</th><th>In progress / planned</th></tr>
+<tr><td>✅ Impact camera capture pipeline (up to 240 FPS)</td><td>🔄 <strong>Radar integration — current priority</strong></td></tr>
+<tr><td>✅ Full touch UI (profiles, bag, history, metrics, settings)</td><td>📋 Establish radar max accurate range</td></tr>
+<tr><td>✅ Intrinsic camera calibration (checkerboard)</td><td>📋 Introduce camera; derive ball distance</td></tr>
+<tr><td>✅ Ball-zone state machine</td><td>📋 Calibrate real geometry</td></tr>
+<tr><td>✅ Development Mode (runs on laptop, simulated)</td><td>📋 Sensor fusion (camera spin + radar)</td></tr>
+<tr><td>✅ Windows desktop staging build</td><td>📋 Spin measurement + ballistics</td></tr>
+</table>
+<blockquote><p>The <strong>~5 ft</strong> camera distance and <strong>8 mm lens</strong> are the starting hypothesis for step 3, not settled facts. Expect these to change once real radar range and camera pixel-size data are in hand.</p></blockquote>
+
+<h3>Physical build (in progress)</h3>
+<!-- TOWER_IMAGE_PLACEHOLDER -->
+<div class="img-placeholder">
+  <strong>[ Tower CAD render goes here ]</strong>
+  <span class="hint">Two-bay radar + electronics test tower. Image to be embedded once <code>tower_render.png</code> is provided.</span>
+</div>
+<p>A <strong>two-bay tower</strong> enclosure is being designed in CAD as a <strong>radar + electronics test rig</strong>: one bay for the Pi 5 and power (TalentCell + buck), one bay with angled mounts for the three radars. The <strong>camera mount is still TBD</strong> — its height and vertical position relative to the ball need to be determined for optimal capture, which depends on the lens FOV and the (not-yet-fixed) camera distance. Screen mounting and final packaging come in a later revision once all hardware is in hand. This is a <strong>test rig first, product enclosure later.</strong></p>
+
+<h2>7. Key open question — spin detection</h2>
+<p>The biggest research unknown: <strong>can spin be measured on an unmarked golf ball, or do we need specially marked balls?</strong></p>
+<ul>
+  <li>The commercial Rapsodo MLM2 Pro <strong>requires</strong> RPT-dotted balls for spin — without them it reports "N/A." This suggests even Rapsodo couldn't reliably measure spin from unmarked balls at this price point.</li>
+  <li>Options under evaluation: logo/number tracking, dimple-pattern optical flow, ML approaches, TaylorMade Pix / Callaway Triple Track patterned balls, RPT-style dotted balls, or DIY sticker markers.</li>
+  <li>The answer drives a hard requirement: <strong>how many pixels of ball diameter</strong> we need on target, which in turn drives the camera distance and lens choice in step 3 above.</li>
+</ul>
+<p>Currently, spin is <strong>not yet implemented</strong> — the camera captures the frames, but spin analysis (RPM, axis) isn't coded, and the UI shows placeholder values.</p>
+
+<h2>8. The short version</h2>
+<blockquote><p>A Raspberry Pi 5 with a high-speed global-shutter camera (spin) and three 24 GHz Doppler radars (ball/club speed, launch angle, club path) measures a golf shot and shows the numbers on an 800×480 touchscreen. An optional sound trigger can catch the impact; a C++ backend fuses camera + radar data; Python drives the radars; Qt/QML runs the UI. Power comes from a 5 V/5 A source — a wall PD supply, a PD power bank, or a 12 V TalentCell battery through a buck converter for a portable tower.</p>
+<p>The software foundation and full UI are built and working in simulation. The immediate focus is getting the radars operational, then fitting the camera geometry around the radars' real accurate range. The biggest open question is whether spin can be read from unmarked balls or whether marked balls are required.</p></blockquote>
+
+</div>
+</body>
+</html>
