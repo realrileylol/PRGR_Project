@@ -31,7 +31,7 @@ plans/            Feature plans and PRDs
 
 ## Hardware Architecture
 - **Impact Camera**: OV9281 + 8mm F1.2 IR-corrected M12 lens, 90° CW portrait, 5ft from ball
-  - Preview: 640x480 @ 180 FPS | Capture: 640x400 @ 240 FPS
+  - Preview: 640x480 @ 180 FPS | Capture: 640x400 @ 240 FPS  NOTE: Will be turning cam 90 degrees for a portrait pov looking down range. This will help increase FPS
 - **OPS243-A radar**: ball speed, club speed, I/Q rolling buffer (Python driver)
 - **K-LD7 vertical**: launch angle (Python driver, 3 Mbaud)
 - **K-LD7 horizontal**: club path (Python driver, 3 Mbaud)
