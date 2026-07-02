@@ -200,13 +200,23 @@ Drivers are vendored from the OpenFlight project (Python), then bridged to the C
 >   **damage** the module.
 > - The K-LD7 tops out at 5.5 V supply — do not power it from a 12 V rail.
 
-### Impact Trigger (planned)
+### Impact Trigger (under evaluation — may be dropped)
 
 | Component | Spec | Role | Manuals |
 |---|---|---|---|
 | **SparkFun SEN-14262 Sound Detector** | Analog + gate + envelope outputs; preamp gain adjustable via **R17** (default gain 100 / 20 dB); populate R17 to reduce gain for 3.3 V operation | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture | [Product](https://www.sparkfun.com/products/14262) · [Hookup Guide](https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all) |
 
-> 📌 **On the R17 mod:** R17 is an unpopulated resistor footprint that sets the preamp
+> 🤔 **Is the sound trigger even needed?** OpenFlight uses it to mark the *exact instant* of
+> impact so the correct slice of the OPS243-A rolling I/Q buffer can be captured. But PRGR
+> has **two other impact markers** already: the **radar** (a sudden speed-threshold crossing)
+> and the **camera** (`IMPACT_DETECTED` from the ball-zone state machine). The sound trigger's
+> only real advantage is sub-frame **timing precision**. **Current plan:** start with
+> radar/camera triggering and treat the sound detector as **optional** — add it later *only*
+> if the I/Q capture window proves hard to hit without it. Acoustic triggering in a bay has
+> real downsides (false triggers from mat noise, other players, reflections; the R17 tuning)
+> that aren't worth it unless the timing precision proves genuinely necessary.
+
+> 📌 **On the R17 mod (if the sound trigger is used):** R17 is an unpopulated resistor footprint that sets the preamp
 > gain. Per the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all),
 > populating R17 (e.g. ~33–47 kΩ) in parallel with R3 lowers the gain so the detector
 > isn't permanently saturated at 3.3 V — otherwise the GATE output can stay latched high
@@ -255,6 +265,24 @@ For a self-contained tower we use a **TalentCell PB120B1** — a 12 V lithium pa
 142 Wh pack yields roughly **5–7 hours** of range time (buck efficiency ~90 %), less under
 sustained peak load. This is the reason for the large 142 Wh cell — a smaller TalentCell
 would cut a range session short.
+
+### Enclosure / physical build (in progress)
+
+A **two-bay tower** enclosure is being designed in CAD for the **radar + electronics test
+rig** (as of 2026-07-01):
+
+- **Electronics bay** — houses the Raspberry Pi 5 and the power (TalentCell + buck).
+- **Radar bay** — angled mounts for the OPS243-A + 2× K-LD7, aimed down the target line.
+- **Camera mount** — *still to be determined.* The camera's **height and vertical position**
+  need to be worked out for optimal capture (how high/low it sits relative to the ball and
+  departure path). This depends on the lens FOV and the eventual camera-to-ball distance, so
+  it's deferred until the radar-range step is done (see Development Sequence).
+- **Screen mount and final packaging** — planned for a later revision, once all hardware is
+  in hand for testing.
+
+> This is a **test rig first, product enclosure later.** The immediate goal is a physical
+> platform to validate the radars and work out the camera geometry, not a finished product
+> shell.
 
 ---
 

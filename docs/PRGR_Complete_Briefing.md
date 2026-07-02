@@ -174,14 +174,24 @@ vertical angle (launch angle), one for horizontal (club path).
 
 ---
 
-### Impact trigger
+### Impact trigger (under evaluation — optional)
 
 | Component | Spec | Role |
 |---|---|---|
 | **SparkFun SEN-14262 Sound Detector** | Analog + gate + envelope outputs; preamp gain set by **R17** | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture |
 
-> 📌 **R17 mod:** R17 is an unpopulated resistor footprint that sets the preamp gain.
-> Populating it (~33–47 kΩ) in parallel with R3 lowers the gain so the detector isn't
+> 🤔 **Still deciding whether this is needed.** OpenFlight uses a sound trigger to mark the
+> *exact instant* of impact so the right slice of the OPS243-A rolling I/Q buffer can be
+> captured. But PRGR already has **two other impact markers**: the **radar** (a sudden
+> speed-threshold crossing) and the **camera** (`IMPACT_DETECTED` from the ball-zone state
+> machine). The sound trigger's only real advantage is sub-frame **timing precision**.
+> **Current plan:** start with radar/camera triggering and treat the sound detector as
+> **optional**, adding it later only if the I/Q capture window proves hard to hit without it.
+> Acoustic triggering in a bay has downsides (false triggers from mat noise / reflections,
+> plus the R17 gain tuning) that aren't worth it unless the precision proves necessary.
+
+> 📌 **R17 mod (if used):** R17 is an unpopulated resistor footprint that sets the preamp
+> gain. Populating it (~33–47 kΩ) in parallel with R3 lowers the gain so the detector isn't
 > permanently saturated at 3.3 V — otherwise the GATE output latches high and never
 > registers a distinct impact.
 
@@ -235,7 +245,7 @@ roughly **5–7 hours** of range time (buck efficiency ~90 %).
 | OPS243-A Doppler radar | ~$249 |
 | K-LD7 radar ×2 | ~$120 |
 | 3.3 V FTDI USB-serial adapters ×2 | ~$20 |
-| SparkFun SEN-14262 sound detector (+ 47 kΩ resistor) | ~$13 |
+| SparkFun SEN-14262 sound detector (+ 47 kΩ resistor) — *optional, under evaluation* | ~$13 |
 | TalentCell PB120B1 + 12 V→5 V/5 A buck converter | ~$110 |
 | Wiring, connectors, 3D-printed enclosure | ~$30 |
 | **Approx. total** | **~$700** |
@@ -262,8 +272,9 @@ already have the Pi, screen, and camera.*
   │  (UART)      │  UART  │  │  (OPS243 + K-LD7)           │  │
   └──────────────┘        │  └─────────────────────────────┘  │
   ┌──────────────┐ GPIO   │                                   │
-  │ Sound trigger├───────►│   Power: 5V/5A USB-C PD           │
+  │ Sound (opt.) ├───────►│   Power: 5V/5A USB-C PD           │
   └──────────────┘        └───────────────────────────────────┘
+  (sound trigger optional / under evaluation — see below)
 ```
 
 - **C++17 backend** does the heavy lifting: camera control, ball detection (OpenCV 4),
@@ -327,6 +338,14 @@ empirically, **radar-first**:
 > The **~5 ft** camera distance and **8 mm lens** are the starting hypothesis for step 3, not
 > settled facts. Expect these to change once real radar range and camera pixel-size data are
 > in hand.
+
+**Physical build (in progress).** A **two-bay tower** enclosure is being designed in CAD as a
+**radar + electronics test rig**: one bay for the Pi 5 and power (TalentCell + buck), one bay
+with angled mounts for the three radars. The **camera mount is still TBD** — its height and
+vertical position relative to the ball need to be determined for optimal capture, which
+depends on the lens FOV and the (not-yet-fixed) camera distance. Screen mounting and final
+packaging come in a later revision once all hardware is in hand. This is a **test rig first,
+product enclosure later.**
 
 ---
 
