@@ -1,62 +1,93 @@
 # PRGR DIY Golf Launch Monitor - Camera & Spin Research Brief
 
 ## Purpose
-This document provides full context for researching camera module options and golf ball spin detection strategies for a DIY golf launch monitor. The goal is to determine: (1) whether proposed replacement camera modules are suitable, (2) what golf balls can be used for spin measurement, and (3) whether spin can be measured on ANY ball without special markings.
+This document provides full context for researching camera module options and golf ball
+spin detection strategies for a DIY golf launch monitor. The goal is to determine:
+(1) whether proposed replacement camera modules are suitable, (2) what golf balls can be
+used for spin measurement, and (3) whether spin can be measured on ANY ball without
+special markings.
+
+> **Architecture note (updated 2026-07-01):** This project has moved from a
+> **two-camera** design to a **single impact/spin camera + triple-radar** design. The
+> trajectory/speed/angle job that a second wide-angle camera used to do is now handled by
+> the radar array (OPS243-A + 2× K-LD7). The old two-camera material is retained at the
+> bottom of this brief (Appendix) for reference, since some research questions and the
+> pixel-budget math still draw on it. **The camera-to-ball distance is not yet fixed** —
+> see the sequencing note below.
 
 ---
 
 ## 1. Current System Architecture
 
 ### Hardware
-- **Platform**: Raspberry Pi 5 (aarch64)
-- **Display**: 800x480 touchscreen
-- **Two cameras co-located 7-8 feet (2133-2438mm) behind the ball**
-- Modeled after the Rapsodo MLM2 Pro (Impact Vision + Shot Vision architecture)
+- **Platform**: Raspberry Pi 5 (aarch64, 8 GB)
+- **Display**: Waveshare 5" DSI LCD, 800×480, 5-point capacitive touch
+- **One camera** (impact/spin) behind the ball
+- **Three Doppler radars** (OPS243-A + 2× K-LD7) for speed, launch angle, and club path
+- Modeled after the Rapsodo MLM2 Pro (camera "Impact Vision" + radar sensor fusion)
 
-### Camera 0 - Impact/Spin Camera (current)
-- **Sensor**: OV9281 (1/4" format, global shutter)
-- **Native resolution**: 1280x800
-- **Pixel pitch**: 3.0 um
-- **Sensor dimensions**: 3.84mm x 2.40mm
-- **Current operating mode**: 640x480 @ 180 FPS (sensor outputs 640x480, rotated 90° CW → **480x640 portrait display**)
-- **Goal**: 240 FPS at the highest resolution possible while maintaining portrait orientation. Ideal target: 640x480 @ 240 FPS (rotated → **480x640 portrait**) or higher resolution if the sensor/interface can sustain 240 FPS.
-- **Lens**: 12mm F1.2 M12 telephoto (ordered 8mm F1.4 IR-corrected replacement)
-- **Connection**: CSI (MIPI) — both cameras are CSI-connected to the Raspberry Pi 5
-- **Orientation**: Physically rotated 90 degrees clockwise (portrait mode). The sensor captures in landscape, software rotates to portrait. All coordinates must account for this rotation.
-- **Purpose**: Capture ball spin/impact via telephoto optical zoom from 7-8 feet
-- **Distance from ball**: 7-8 feet (co-located with trajectory cam)
+### The impact/spin camera
+- **Sensor**: OV9281 (1/4" format, global shutter, monochrome, 1 MP)
+- **Native resolution**: 1280×800
+- **Pixel pitch**: 3.0 µm
+- **Sensor dimensions**: 3.84 mm × 2.40 mm
+- **Operating modes**: 640×480 @ 180 FPS (preview), 640×400 @ 240 FPS (capture). Sensor
+  captures in landscape, software rotates 90° CW → **portrait display**.
+- **Goal**: 240 FPS at the highest resolution that sustains it, in portrait orientation.
+- **Lens**: 8 mm F1.2 IR-corrected M12 (replacing the earlier 12 mm telephoto)
+- **Connection**: CSI (MIPI) to the Raspberry Pi 5
+- **Orientation**: physically rotated **90° clockwise** (portrait). The sensor captures in
+  landscape; software rotates to portrait. All coordinates must account for this rotation.
+- **Purpose**: capture ball spin/impact via the camera; radars handle speed/angle
+- **Distance from ball**: **TBD — not yet validated (see below)**
 
-### Camera 1 - Trajectory Camera (current)
-- **Sensor**: OV9281 (identical sensor to Camera 0)
-- **Current operating mode**: 640x400 @ 240 FPS in capture mode, 640x480 @ 180 FPS in preview mode
-- **Display orientation**: Landscape (no rotation) — **640x400 as-is**
-- **Lens**: 2.8mm wide-angle
-- **Connection**: CSI (MIPI) — both cameras are CSI-connected to the Raspberry Pi 5
-- **Purpose**: Track ball trajectory through the hitbox volume (1ft x 1ft x 1ft at 7-8ft distance)
+### Why the distance is TBD (development sequence)
+The physical geometry is being established **empirically, radar-first**, not guessed:
 
-### Ball Size at Camera Distance (Pinhole Camera Model)
-Formula: `pixel_diameter = (ball_diameter_mm * focal_length_mm) / (distance_mm * pixel_pitch_mm)`
+1. **Get the radars working** (OPS243-A + 2× K-LD7) and prove speed/angle/path readout.
+2. **Establish the radars' maximum accurate range** — this becomes the anchor constraint.
+3. **Introduce the impact camera** and work out how far the ball must be so that the ball's
+   **pixel diameter** is large enough for spin detection, the FOV covers the departure
+   path, and the distance is compatible with the radar's accurate range.
+4. **Calibrate and measure** with real, fixed geometry.
 
-- Golf ball diameter: 42.67mm
-- Pixel pitch: 3.0um = 0.003mm
+> The **~5 ft** distance and **8 mm lens** pairing are the *starting hypothesis* for step 3,
+> not a settled fact. The pixel-diameter numbers below are theoretical (pinhole model) and
+> must be confirmed on hardware once the real distance is chosen.
 
-**Impact cam with current 12mm lens @ 640x480 (rotated to 480x640 portrait):**
-- At 7ft (2133mm): ~80 pixels diameter
-- At 8ft (2438mm): ~70 pixels diameter
+### Ball size at camera distance (pinhole camera model)
+Formula: `pixel_diameter = (ball_diameter_mm × focal_length_mm) / (distance_mm × pixel_pitch_mm)`
 
-**Impact cam with incoming 8mm lens @ 640x480 (rotated to 480x640 portrait, goal: 240 FPS):**
-- At 7ft: ~53 pixels diameter  
-- At 8ft: ~46 pixels diameter
+- Golf ball diameter: 42.67 mm
+- Pixel pitch: 3.0 µm = 0.003 mm
 
-**Trajectory cam (2.8mm lens) @ 640x400 landscape:**
-- At 7ft: ~19 pixels diameter
-- At 8ft: ~16 pixels diameter
+**Impact cam with 8 mm lens (theoretical, OV9281 @ 3.0 µm):**
+
+| Distance | Ball pixel diameter |
+|---|---|
+| 5 ft (1524 mm) | ~75 px |
+| 6 ft (1829 mm) | ~62 px |
+| 7 ft (2133 mm) | ~53 px |
+| 8 ft (2438 mm) | ~47 px |
+
+**Impact cam with 12 mm lens (earlier telephoto, for comparison):**
+
+| Distance | Ball pixel diameter |
+|---|---|
+| 7 ft (2133 mm) | ~80 px |
+| 8 ft (2438 mm) | ~70 px |
+
+The closer the camera / longer the lens, the more pixels on the ball — but the smaller the
+covered volume. This trade-off is exactly what step 3 above resolves.
 
 ---
 
 ## 2. Proposed Replacement Camera Modules (from vendor)
 
-Both modules are manufactured by **ShenZhen HongJia Precision Imaging Co., Ltd.** (cammodule.com.cn)
+Both modules are manufactured by **ShenZhen HongJia Precision Imaging Co., Ltd.**
+(cammodule.com.cn). These were evaluated during the two-camera era; the QQSJ-8967 was
+originally a *trajectory-camera* candidate, which is now moot (radar does trajectory).
+The QQSJ-1356 remains interesting as a potential **higher-resolution spin-camera upgrade**.
 
 ### Module A: QQSJ-1356
 
@@ -76,7 +107,7 @@ Both modules are manufactured by **ShenZhen HongJia Precision Imaging Co., Ltd.*
 | **Dimensions** | 38mm x 38mm x 15.6mm |
 | **Power** | 5.02V x 0.16A at 1080p/120fps MJPG |
 | **Built-in Lens** | Focal length 1.47mm, FOV D:210 H:210 degrees, Distortion <15%, F/NO not specified, 650nm IR-cut filter |
-| **Notes** | This is a FISHEYE lens module (210 degree FOV). The lens would need to be replaced with an M12 telephoto for spin use. Sensor is larger (1/2.6") than OV9281 (1/4"). |
+| **Notes** | FISHEYE lens module (210 degree FOV). Lens would need replacing with an M12 telephoto for spin use. Sensor is larger (1/2.6") than OV9281 (1/4"). More pixels on target = potential spin-camera upgrade, but it is **USB, not CSI** — a consideration for the Pi 5 pipeline. |
 
 ### Module B: QQSJ-8967
 
@@ -93,7 +124,7 @@ Both modules are manufactured by **ShenZhen HongJia Precision Imaging Co., Ltd.*
 | **Dimensions** | 38mm x 38mm x 17.81mm |
 | **Power** | 5.11V x 0.17A at 1280x800/120fps MJPG |
 | **Built-in Lens** | Focal length 2.88mm, FOV D:74 H:65 V:45 degrees, Distortion <0.2%, F/2.2, 650nm IR-cut filter |
-| **Notes** | This is essentially an OV9281-equivalent (same resolution, same pixel size, same 1/4" sensor). The lens is a 2.88mm wide-angle, very close to our current 2.8mm trajectory cam lens. This would be a direct trajectory camera replacement. Achieves 210fps at lower resolutions (640x400) which beats our current 180fps. |
+| **Notes** | Essentially an OV9281-equivalent. Was a trajectory-cam candidate — **no longer needed** now that radar handles trajectory. Kept here for completeness. |
 
 ---
 
@@ -123,85 +154,129 @@ The system uses multi-method detection with confidence scoring:
 
 5. **Auto Mode**: Tries all three primary methods and picks highest confidence
 
-### Trajectory Tracking
+### Trajectory Tracking (in-frame, camera-side)
 - Kalman filter with 4-state model (x, y, velocity_x, velocity_y)
 - Ball zone state machine: NO_BALL -> BALL_IN_ZONE -> STABLE -> READY -> IMPACT_DETECTED
+- Note: full **shot** trajectory/speed/angle now comes from radar; the camera's tracking is
+  for in-frame ball detection and the impact trigger, not the flight solution.
 
 ### Spin Detection Status
 - **NOT YET IMPLEMENTED** as actual spin measurement
-- Camera 0 captures high-FPS frames of the ball at impact
+- The impact camera captures high-FPS frames of the ball at impact
 - Y-channel (luma) extraction exists but spin analysis (RPM, axis) is not coded
-- Spin value in the UI is currently simulated (random 5800-6700 rpm for testing)
+- Spin value in the UI is currently simulated (random rpm for testing)
 - The system stores spin RPM in shot history but it's placeholder data
 
 ### Current Ball Size Thresholds
 - Detector min radius: 4-5 pixels
 - Detector max radius: 15-50 pixels (configurable)
-- These are tuned for the trajectory camera (small ball at distance with wide-angle lens)
-- Impact camera would see a much larger ball image (50-80 pixels with telephoto)
+- These were tuned for a small ball at distance; the impact camera at close range with the
+  8 mm lens will see a much larger ball (~47–75 px depending on final distance), so these
+  thresholds will need re-tuning once the working distance is set.
 
 ---
 
 ## 4. Key Questions for Research
 
 ### Camera Module Selection
-1. Is the QQSJ-1356 (1/2.6" sensor, 1920x1200, 120fps) worth using as the impact/spin camera? Its larger sensor gives more pixels on target, but would require an M12 lens swap (the stock 210-degree fisheye is useless for this).
-2. Is the QQSJ-8967 (1/4" sensor, 1280x800, 210fps at 640x400) a good trajectory camera replacement? It matches the OV9281 specs almost exactly but achieves higher FPS at lower resolutions.
-3. What would the ball pixel diameter be with the QQSJ-1356 sensor + an 8mm or 12mm M12 lens at 7-8 feet? (Need to know the actual pixel pitch and sensor format to calculate.)
-4. Does the QQSJ-1356 use the same OV9281 sensor or a different one (like SC2210 or similar)? The 1/2.6" format and 1920x1200 resolution suggest it may be a different sensor entirely.
+1. Is the QQSJ-1356 (1/2.6" sensor, 1920x1200, 120fps) worth using as the impact/spin
+   camera upgrade? Its larger sensor gives more pixels on target, but it's USB (not CSI)
+   and would require an M12 lens swap (the stock 210° fisheye is useless for this).
+2. What would the ball pixel diameter be with the QQSJ-1356 sensor + an 8 mm or 12 mm M12
+   lens at the eventual working distance?
+3. Does the QQSJ-1356 use the same OV9281 sensor or a different one (e.g. SC2210)? The
+   1/2.6" format and 1920x1200 resolution suggest a different sensor entirely.
+4. Is there a **CSI** global-shutter module with more resolution than the OV9281 that can
+   still hit 240 FPS in a windowed mode? (CSI is preferred to keep the existing pipeline.)
 
 ### Ball & Spin Detection Strategy
-5. **Can spin be measured on ANY golf ball (no stickers, no special markings)?** What methods exist?
-   - Logo tracking (Titleist logo, number, alignment line)
-   - Dimple pattern matching / optical flow
-   - Machine learning approaches
-6. **TaylorMade TP5/TP5x Pix pattern balls** - are the built-in geometric patterns on Pix balls sufficient for spin tracking? How many pixels of ball diameter are needed to resolve them?
-7. **Callaway Triple Track** - are the alignment lines sufficient for spin axis detection?
-8. **RPT (Rapsodo) dotted balls** - these are specifically designed for launch monitors. Are they the gold standard? Can we replicate the dot pattern with stickers?
-9. **DIY sticker approach** - what size, color, and pattern of stickers would work? How many are needed? Where on the ball?
-10. **Minimum pixel requirements** - how many pixels of ball diameter are needed for reliable spin measurement using:
-    - Logo tracking only
-    - Dimple pattern matching
-    - Custom dot/sticker markers
-    - High-contrast geometric patterns (Pix-style)
+5. **Can spin be measured on ANY golf ball (no stickers, no special markings)?** What
+   methods exist? (Logo tracking, dimple-pattern optical flow, ML approaches.)
+6. **TaylorMade TP5/TP5x Pix pattern balls** — are the built-in geometric patterns
+   sufficient for spin tracking? How many pixels of ball diameter are needed to resolve
+   them?
+7. **Callaway Triple Track** — are the alignment lines sufficient for spin axis detection?
+8. **RPT (Rapsodo) dotted balls** — the gold standard for launch monitors? Can we replicate
+   the dot pattern with stickers?
+9. **DIY sticker approach** — what size, color, and pattern of stickers would work? How many
+   are needed and where on the ball?
+10. **Minimum pixel requirements** — how many pixels of ball diameter are needed for
+    reliable spin measurement via logo tracking, dimple matching, custom dots, or Pix-style
+    high-contrast patterns?
 
 ### Physics & Constraints
-- Camera distance: fixed at 7-8 feet (2133-2438mm) behind the ball
-- Exposure time: 100-300 microseconds (need F1.2-F1.4 for indoor lighting)
-- The spin camera sees the ball BEFORE impact (at address) and for a few frames DURING/AFTER impact
-- Ball speed after impact: 100-170 mph for a typical iron shot
-- At 130 mph ball speed and 240 FPS, the ball moves approximately 0.9 inches per frame — more frames in the spin-visible window than 180 FPS
-- Higher FPS = more frames during the critical spin-visible window (240 FPS is the target)
+- **Camera distance**: TBD — determined empirically after radar range is known (not the
+  old fixed 7–8 ft assumption).
+- Exposure time: ~100–300 µs (need F1.2–F1.4 for indoor lighting)
+- The spin camera sees the ball BEFORE impact (at address) and for a few frames
+  DURING/AFTER impact
+- Ball speed after impact: ~100–170 mph for a typical iron shot
+- At 130 mph ball speed and 240 FPS, the ball moves ~0.9 inches per frame — more frames in
+  the spin-visible window than at 180 FPS
+- Higher FPS = more frames during the critical spin-visible window (**240 FPS is the target**)
 
 ### Ideal Specs Wish List (for the spin/impact camera)
 - Global shutter (mandatory — no rolling shutter artifacts at high speed)
 - Highest resolution possible while sustaining 240 FPS (portrait orientation)
-- **240 FPS is the target frame rate** — this is non-negotiable for spin capture
-- 3.0um or larger pixel pitch (better low-light sensitivity)
-- Compatible with M12 lens mount (so we can use telephoto lenses)
-- CSI (MIPI) interface to Raspberry Pi 5 preferred (both current cameras are CSI)
-- F1.2-F1.4 lens aperture for microsecond exposures under indoor lighting
+- **240 FPS is the target frame rate** — non-negotiable for spin capture
+- 3.0 µm or larger pixel pitch (better low-light sensitivity)
+- M12 lens mount compatibility (for telephoto lenses)
+- CSI (MIPI) interface to the Raspberry Pi 5 preferred
+- F1.2–F1.4 lens aperture for microsecond exposures under indoor lighting
 
 ---
 
 ## 5. Reference Architecture (Rapsodo MLM2 Pro)
 
-The MLM2 Pro uses a similar dual-camera + radar design:
-- **Impact Vision camera**: Telephoto lens (estimated 6-8mm), captures ball at impact for spin
-- **Shot Vision camera**: Wide-angle lens, captures trajectory through detection volume
-- Both cameras co-located at approximately 6.5-8.5 feet from the ball
+The MLM2 Pro uses a camera + radar design:
+- **Impact Vision camera**: telephoto lens (est. 6–8 mm), captures ball at impact for spin
+- **Shot Vision camera**: wide-angle lens, captures trajectory through the detection volume
+- Both cameras co-located ~6.5–8.5 ft from the ball
 - Uses **RPT (Rapsodo Precision Technology) dotted balls** for spin measurement
-- Likely uses OV9281 or similar global shutter sensor
-- NIR (850-940nm) illumination suspected for consistent lighting
-- Sensor fusion with 24GHz Doppler radar for velocity
+- Likely uses OV9281 or similar global-shutter sensor
+- NIR (850–940 nm) illumination suspected for consistent lighting
+- Sensor fusion with 24 GHz Doppler radar for velocity
 
-The MLM2 Pro REQUIRES RPT-dotted balls for spin data. Without them, it reports "N/A" for spin metrics. This suggests that even Rapsodo couldn't reliably measure spin from unmarked balls at this price point.
+The MLM2 Pro REQUIRES RPT-dotted balls for spin data; without them it reports "N/A" for
+spin. This suggests even Rapsodo couldn't reliably measure spin from unmarked balls at this
+price point — a key data point for our own ball strategy.
+
+> **PRGR difference:** the MLM2 Pro uses *two* cameras and *one* radar. PRGR flips the
+> emphasis — *one* camera (spin) and *three* radars (speed + vertical angle + horizontal
+> path) — so more of the flight solution comes from radar and the single camera can focus
+> entirely on spin.
 
 ---
 
 ## 6. Summary of What I Need From This Research
 
-1. **Camera decision**: Should I buy the QQSJ-1356, the QQSJ-8967, or something else entirely? Or stick with my current OV9281 + new 8mm lens?
-2. **Ball strategy**: Can I realistically measure spin on unmarked balls, or do I need special balls/stickers? What's the minimum viable approach?
-3. **Pixel budget**: Given my camera distance (7-8ft) and lens options (8mm or 12mm), how many pixels do I need on the ball for each spin detection method?
-4. **Frame rate vs resolution tradeoff**: 240 FPS is the target. What's the highest resolution achievable at 240 FPS for spin detection? Is 640x480 @ 240fps sufficient, or do we need a different sensor to get higher resolution at that frame rate?
+1. **Camera decision**: stick with the current OV9281 + 8 mm lens, or upgrade to the
+   QQSJ-1356 (or another higher-res global-shutter module) for the spin camera?
+2. **Ball strategy**: can I realistically measure spin on unmarked balls, or do I need
+   special balls/stickers? What's the minimum viable approach?
+3. **Pixel budget**: given the eventual camera distance and lens, how many pixels do I need
+   on the ball for each spin-detection method?
+4. **Frame rate vs resolution tradeoff**: 240 FPS is the target. What's the highest
+   resolution achievable at 240 FPS for spin detection? Is 640×480 @ 240 fps enough, or is a
+   different sensor needed for more resolution at that frame rate?
+
+---
+
+## Appendix — Legacy Two-Camera Design (reference only)
+
+> ⚠️ _Superseded. Retained because some pixel-budget math and module notes above reference
+> it. This is **not** the current architecture._
+
+_The original design used **two co-located cameras 7–8 ft (2133–2438 mm) behind the ball**,
+mirroring the MLM2 Pro's Impact Vision + Shot Vision split:_
+
+- _**Camera 0 — Impact/Spin:** OV9281, 12 mm F1.2 M12 telephoto, 90° CW portrait, 640×480 @
+  180 FPS (→ 480×640 portrait). Captured spin via optical zoom from 7–8 ft._
+- _**Camera 1 — Trajectory:** OV9281, 2.8 mm wide-angle, landscape, 640×400 @ 240 FPS.
+  Tracked the ball through a **1 ft × 1 ft × 1 ft hitbox** at 7–8 ft._
+
+_This was replaced by the single-camera + triple-radar design because the radar array
+covers speed and angles more directly than a second camera, simplifying the build, wiring,
+and calibration. Some constants from this era still live in `include/HardcodedConstants.h`
+(12 mm / 2.8 mm lenses, 7–8 ft hitbox) and have not yet been reconciled — see
+`docs/PROJECT_OVERVIEW.md`, Appendix A._
