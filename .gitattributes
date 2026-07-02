@@ -1,0 +1,17 @@
+# Normalize line endings so branch switches / pulls don't flag phantom changes.
+# Text files use LF in the repo; git converts on checkout per-platform as needed.
+* text=auto
+
+# Scripts and configs that must stay LF
+*.sh   text eol=lf
+*.py   text eol=lf
+*.txt  text eol=lf
+*.md   text eol=lf
+
+# Binary assets — never touch line endings
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.7z   binary
+*.exe  binary

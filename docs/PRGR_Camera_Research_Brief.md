@@ -284,6 +284,16 @@ mirroring the MLM2 Pro's Impact Vision + Shot Vision split:_
 
 _This was replaced by the single-camera + triple-radar design because the radar array
 covers speed and angles more directly than a second camera, simplifying the build, wiring,
-and calibration. Some constants from this era still live in `include/HardcodedConstants.h`
-(12 mm / 2.8 mm lenses, 7–8 ft hitbox) and have not yet been reconciled — see
-`docs/PROJECT_OVERVIEW.md`, Appendix A._
+and calibration._
+
+_In that design a **3D "hitbox"** — a 1 ft × 1 ft × 1 ft volume located **7–8 ft** from the
+ball (near face 7 ft / 2133.6 mm, far face 8 ft / 2438.4 mm, origin at the ball at address)
+— was the detection zone the trajectory camera had to cover._
+
+> 📌 _**Unreconciled constants:** `include/HardcodedConstants.h` still contains the
+> two-camera values — `SPIN_CAM_FOCAL_LENGTH_MM = 12.0`, `TRAJ_CAM_FOCAL_LENGTH_MM = 2.8`,
+> and the `HITBOX_NEAR_FT = 7.0` / `HITBOX_FAR_FT = 8.0` hitbox — which conflict with the
+> current single-camera, 8 mm, ~5 ft design. Per project rules, `HardcodedConstants.h` is
+> **not** modified without explicit approval, so this mismatch is flagged here rather than
+> silently changed. Decide later whether to (a) update the constants to the single-camera
+> 5 ft design, or (b) keep them if the two-camera idea is revived._

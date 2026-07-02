@@ -94,14 +94,22 @@ make -j4
 
 ## Documentation
 
+**Start here:** [Complete Project Briefing](docs/PRGR_Complete_Briefing.md) — the single
+self-contained overview (what it is, full hardware specs, wiring, power, status). Shareable
+[PDF](docs/exports/PRGR_Complete_Briefing.pdf) / [HTML](docs/exports/PRGR_Complete_Briefing.html) exports are in [`docs/exports/`](docs/exports/).
+
 | Document | Contents |
 |---|---|
+| [Complete Project Briefing](docs/PRGR_Complete_Briefing.md) | **Canonical overview** — hardware, power, wiring, development plan, status |
 | [Optics & Capture Guide](docs/PRGR_Optics_and_Capture_Guide.md) | Plain-language reference: ball pixel diameter, FPS, exposure, gain, IR lenses, ROI cropping, ideal spec sheets |
 | [Radar Integration Guide](docs/PRGR_Radar_Integration_Guide.md) | Start-to-finish OPS243-A + K-LD7 integration: parts, wiring, Python validation, C++ port |
 | [Camera Research Brief](docs/PRGR_Camera_Research_Brief.md) | Camera module evaluation and spin detection research |
-| [Windows Build Guide](docs/WINDOWS_BUILD.md) | Desktop staging build for UI development (Development Mode, no Pi needed) |
 | [Calibration Roadmap](docs/CALIBRATION_ROADMAP.md) | Calibration implementation plan |
+| [Windows Build Guide](docs/WINDOWS_BUILD.md) | Desktop staging build for UI development (Development Mode, no Pi needed) |
 | [Radar Subsystem](radar/README.md) | Python radar drivers (OPS243-A + K-LD7), bridge to C++ |
+
+Generated PDF/HTML exports of the briefing and optics guide live in
+[`docs/exports/`](docs/exports/) — do not hand-edit them; they are rebuilt from the markdown.
 
 ## Project Status
 
@@ -109,11 +117,11 @@ make -j4
 - ✅ Touch UI: profiles, club bags, shot history, metrics, settings
 - ✅ Phase 1 intrinsic calibration (checkerboard)
 - ✅ Ball zone state machine (NO_BALL → STABLE → READY → IMPACT_DETECTED)
-- ✅ Development Mode (simulated camera + radar, works on Windows)
+- ✅ Development Mode (simulated camera, works on Windows)
 - ✅ Windows desktop staging build
 - ✅ Agent skills (code review, planning, expert engineer checks)
-- 🔄 Impact camera calibration at 5 ft
-- 🔄 Radar integration (OPS243-A + 2x K-LD7, Python drivers from OpenFlight)
+- 🔄 Radar integration (OPS243-A + 2x K-LD7, Python drivers from OpenFlight) — current priority
+- 📋 Establish radar accurate range, then set impact-camera distance (see the briefing)
 - 📋 Sensor fusion (camera spin + radar speed/angle)
 - 📋 Spin measurement from fiducial-marked balls
 - 📋 Ballistics / carry distance calculation

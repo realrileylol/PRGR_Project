@@ -18,7 +18,6 @@ You think in terms of: Doppler shift, FFT bin resolution, signal-to-noise ratio,
   - Vertical unit: launch angle measurement
   - Horizontal unit: club path (azimuth)
   - Lower sample rate than OPS243-A, but provides angle information OPS243-A cannot
-- **K-LD2** (current, being replaced): 24 GHz CW Doppler, simple speed-only, UART 38400 baud
 
 ### Doppler physics
 - Doppler shift: `f_d = 2 × v × f_c / c` where f_c = 24 GHz

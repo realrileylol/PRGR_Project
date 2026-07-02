@@ -1,6 +1,15 @@
 # C++ build artifacts
 build/
 
+# Windows dev-setup downloads / logs (never commit these)
+opencv-setup.*
+opencv*.7z
+opencv*.exe
+aqtinstall.log
+extract_opencv.py
+*.7z
+*.exe
+
 # Qt cache
 *.qmlc
 *.jsc

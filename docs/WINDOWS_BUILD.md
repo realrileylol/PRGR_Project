@@ -2,8 +2,8 @@
 
 This builds the full PRGR Launch Monitor UI on a Windows laptop — no Raspberry Pi,
 no cameras, no radar. The app starts in **Development Mode** automatically
-(simulated camera feed + simulated radar), so every screen is clickable:
-profiles, club bags, settings, history, the K-LD2 monitor with "Simulate Swing", etc.
+(simulated camera feed), so every screen is clickable:
+profiles, club bags, settings, history, camera view, calibration, etc.
 
 Live capture paths are compiled out on Windows (`#ifdef _WIN32` guards) and show a
 friendly message instead of crashing.
@@ -121,8 +121,7 @@ one time only).
 | Feature | Status |
 |---|---|
 | Full QML UI (all screens) | ✅ |
-| Development Mode (auto-on) | ✅ simulated camera + radar |
-| Simulate Swing (K-LD2 monitor) | ✅ |
+| Development Mode (auto-on) | ✅ simulated camera |
 | Profiles / club bag / history / settings | ✅ real data, stored locally |
 | Live camera preview | ❌ shows "requires Raspberry Pi hardware" |
 | Shot capture / recording | ❌ Pi only |

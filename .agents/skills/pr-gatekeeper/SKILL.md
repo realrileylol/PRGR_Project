@@ -48,7 +48,7 @@ Flag titles that are vague (`update stuff`), missing the type prefix, or missing
 
 - Must have pytest coverage for any new or modified functions.
 - Confirm no hardcoded serial port paths (should use config or CLI args).
-- Check baud rate constants match hardware specs (38400 for K-LD2, 3000000 for K-LD7, 115200 for OPS243-A unless configured otherwise).
+- Check baud rate constants match hardware specs (3000000 for K-LD7, 115200 for OPS243-A unless configured otherwise).
 
 ### 6. QML / UI Changes
 
