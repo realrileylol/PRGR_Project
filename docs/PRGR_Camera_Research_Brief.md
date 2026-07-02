@@ -34,7 +34,11 @@ special markings.
 - **Operating modes**: 640×480 @ 180 FPS (preview), 640×400 @ 240 FPS (capture). Sensor
   captures in landscape, software rotates 90° CW → **portrait display**.
 - **Goal**: 240 FPS at the highest resolution that sustains it, in portrait orientation.
-- **Lens**: 8 mm F1.2 IR-corrected M12 (replacing the earlier 12 mm telephoto)
+- **Lens**: 8 mm F1.2 IR-corrected M12 (replacing the earlier 12 mm telephoto). Confirmed
+  specs: FOV **50° × 41° × 31°** (D×H×V), minimum object distance **0.2 m**, BFL 6.58 mm,
+  7 elements / 6 groups, fixed iris, manual focus, −20 °C to +80 °C. The 31° vertical FOV
+  and 0.2 m minimum focus bound how close the camera can sit and how much departure path it
+  sees.
 - **Connection**: CSI (MIPI) to the Raspberry Pi 5
 - **Orientation**: physically rotated **90° clockwise** (portrait). The sensor captures in
   landscape; software rotates to portrait. All coordinates must account for this rotation.

@@ -129,6 +129,30 @@ non-negotiable.
 light — critical for fast, short exposures that freeze motion. The IR-corrected lens
 keeps the image sharp under infrared illumination.
 
+#### Impact camera lens (8 mm F1.2 M12)
+
+The lens paired with the OV9281 for spin/impact capture. Fixed iris, manual focus,
+IR-corrected ("day/night") so it stays sharp under IR illumination.
+
+| Attribute | Value |
+|---|---|
+| **Focal length** | 8 mm |
+| **Aperture** | F1.2 (fixed iris) |
+| **Mount** | M12 |
+| **Field of view (D × H × V)** | 50° × 41° × 31° |
+| **Minimum object distance (M.O.D.)** | 0.2 m (20 cm) |
+| **Back focal length (BFL)** | 6.58 mm |
+| **Lens construction** | 7 elements in 6 groups, aluminum-alloy barrel |
+| **IR correction (day/night)** | Yes |
+| **Focus / Zoom** | Manual focus, fixed zoom |
+| **Dimensions** | Ø16 mm × 30.2 mm |
+| **Operating temperature** | −20 °C to +80 °C |
+
+> 📌 The **31° vertical FOV** and **0.2 m minimum focus** are the numbers that matter for
+> step 3 of the development sequence — they set how much of the ball's departure path the
+> camera covers at a given distance, and how close the camera can physically sit. The
+> **F1.2** aperture is what makes the microsecond exposures possible under indoor lighting.
+
 ### Radar (planned integration)
 
 Three Doppler radar modules provide speed and angle data, cross-checking the camera.
@@ -193,6 +217,44 @@ Drivers are vendored from the OpenFlight project (Python), then bridged to the C
 
 ~$412 for the OPS243-A, two K-LD7 modules, two 3.3 V FTDI adapters, the sound detector,
 and wiring — assuming you already have the Pi 5, touchscreen, and impact camera.
+
+### Power
+
+The Raspberry Pi 5 is power-sensitive. It needs a **5 V / 5 A (25 W)** USB-C source that
+performs a proper Power Delivery (PD) handshake. **Without that handshake the Pi 5 caps
+total USB current to 600 mA**, which starves the three-radar array and causes capture
+failures. A genuine 5 A supply unlocks the Pi's **~1.6 A USB budget** — the amount needed
+to run the OPS243-A + 2× K-LD7 simultaneously. *(This limitation is well-documented by the
+OpenFlight project, whose Pi 5 + triple-radar + touchscreen stack is the same as ours.)*
+
+Three ways to power the build:
+
+| Scenario | Source | Notes |
+|---|---|---|
+| **Bench / indoor** | [Official Raspberry Pi 27 W USB-C PD](https://www.raspberrypi.com/products/27w-power-supply/) (5 V / 5 A) | The reference standard. Guarantees the PD handshake and full USB budget. |
+| **Mobile / range (simple)** | A 5 V / 5 A PD-compliant USB-C power bank (25 W EPR) | Must actually advertise **5 V / 5 A**, not just "25 W" at higher voltages. |
+| **Integrated tower (our build)** | [TalentCell PB120B1](https://talentcell.com/lithium-ion-battery/12v/pb120b1.html) (12 V, 142 Wh) → 12 V-to-5 V/5 A USB-C buck converter | Self-contained battery for a tower enclosure. See below. |
+
+#### The tower / TalentCell approach
+
+For a self-contained tower we use a **TalentCell PB120B1** — a 12 V lithium pack,
+**38,400 mAh / 142 Wh**, 3s4p 18650 cells, with a **12 V / 6 A DC** output and a
+5 V / 2.4 A USB output. Wiring it correctly matters:
+
+- ⚠️ **Do NOT power the Pi 5 from the TalentCell's own 5 V USB port** — it's only **2.4 A**,
+  below the Pi 5's requirement, and it does **not** do a PD handshake.
+- Instead, feed the **12 V DC output** (up to 72 W available) into a **12 V → 5 V / 5 A
+  USB-C buck converter** (a 25 W, 5 A-rated "DC 12V/24V to 5V USB-C" module), and run that
+  into the Pi.
+- Because a plain buck converter is **not PD-compliant**, tell the Pi firmware to trust the
+  5 A supply by adding **`usb_max_current_enable=1`** to `/boot/firmware/config.txt`. This
+  unlocks the full USB budget for the radars even without a PD negotiation.
+- Use **5 A-rated USB-C pigtails / ≥ 20 AWG wire** between the buck converter and the Pi.
+
+**Runtime estimate.** At a typical system draw of ~15–25 W (Pi + 3 radars + 5" screen), the
+142 Wh pack yields roughly **5–7 hours** of range time (buck efficiency ~90 %), less under
+sustained peak load. This is the reason for the large 142 Wh cell — a smaller TalentCell
+would cut a range session short.
 
 ---
 

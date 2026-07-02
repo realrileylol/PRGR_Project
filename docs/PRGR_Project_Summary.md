@@ -38,18 +38,39 @@ device that:
 |---|---|---|---|
 | **Raspberry Pi 5** (8 GB) | Quad-core Arm SBC | Runs everything — camera, vision, radar fusion, UI | [link](https://www.raspberrypi.com/products/raspberry-pi-5/) |
 | **Waveshare 5" DSI LCD** | 800×480 IPS, 5-pt capacitive touch | The entire touchscreen UI | [link](https://www.waveshare.com/5inch-dsi-lcd.htm) |
-| **OV9281 impact camera** | 1 MP global-shutter mono, 8 mm IR lens | High-speed spin/impact capture (up to 240 FPS) | [link](https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/) |
+| **OV9281 impact camera** | 1 MP global-shutter mono + **8 mm F1.2 M12** IR lens (FOV 50°×41°×31°, 0.2 m min focus) | High-speed spin/impact capture (up to 240 FPS) | [link](https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/) |
 | **OPS243-A radar** | 24 GHz Doppler, I/Q output | Ball speed, club speed, spin backup | [product](https://omnipresense.com/product/ops243-doppler-radar-sensor/) · [API](https://omnipresense.com/wp-content/uploads/2025/10/AN-010-AD_API_Interface.pdf) |
 | **K-LD7 radar ×2** | 24 GHz digital radar w/ angle | Launch angle (vertical) + club path (horizontal) | [product](https://rfbeam.ch/product/k-ld7-radar-transceiver/) · [datasheet](https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf) |
 | **SparkFun sound detector** | Acoustic trigger (SEN-14262) | Detects impact "click" to trigger radar capture | [product](https://www.sparkfun.com/products/14262) · [guide](https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all) |
+| **Power** | 5 V / 5 A (25 W) USB-C PD — wall supply, PD power bank, or TalentCell 12 V battery + buck converter for a tower build | Powers the whole system | see [Power](#power) below |
 
 **Key hardware gotchas:**
 - Buy the **OPS243-A**, *not* the WiFi version (baud rate too slow for I/Q data).
 - K-LD7 radars need **3.3 V** serial adapters — a 5 V adapter will **damage** them.
 - The Pi 5 needs the correct **DSI cable** for the display (its connector changed from
   older Pis).
+- **Power is critical:** the Pi 5 needs a true **5 V / 5 A** supply. Without it, the Pi
+  caps USB current to 600 mA and **starves the radars** — capture fails.
 
 Approx. cost of the radar add-on (if you already have the Pi, screen, and camera): **~$412**.
+
+### Power
+
+The Raspberry Pi 5 needs a **5 V / 5 A (25 W)** USB-C source that does a proper Power
+Delivery (PD) handshake. Without it, the Pi throttles total USB current to **600 mA**,
+which starves the three-radar array. A full 5 A unlocks the **~1.6 A USB budget** the
+radars need. Three options:
+
+| Scenario | Source |
+|---|---|
+| Bench / indoor | [Official Raspberry Pi 27 W USB-C PD](https://www.raspberrypi.com/products/27w-power-supply/) (5 V / 5 A) |
+| Mobile / range | 5 V / 5 A PD-compliant USB-C power bank (25 W) |
+| Integrated tower (our build) | [TalentCell PB120B1](https://talentcell.com/lithium-ion-battery/12v/pb120b1.html) (12 V, **142 Wh**) → 12 V-to-5 V/5 A USB-C buck converter |
+
+**Tower build note:** don't use the TalentCell's own 5 V USB port (only 2.4 A). Feed its
+**12 V output** into a **12 V→5 V/5 A buck converter**, and add `usb_max_current_enable=1`
+to `/boot/firmware/config.txt` so the non-PD supply still unlocks the radar USB budget.
+The 142 Wh pack gives roughly **5–7 hours** of range time.
 
 ---
 
