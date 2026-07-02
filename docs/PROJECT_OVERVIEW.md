@@ -118,6 +118,7 @@ few feet of departure at very high frame rates.
 | **Preview mode** | 640 × 480 @ 180 FPS |
 | **Capture mode** | 640 × 400 @ 240 FPS |
 | **Expected ball size** | _~75 px diameter at 5 ft with the 8 mm lens (theoretical, per the pinhole model — to be confirmed on hardware)_ |
+| **Manuals** | [OV9281 sensor datasheet](https://www.ovt.com/products/ov9281/) · [Arducam OV9281 for Pi (product + docs)](https://www.arducam.com/product/arducam-ov9281-1mp-global-shutter-mipi-camera-modules-for-raspberry-pi/) · [libcamera / rpicam-vid docs](https://www.raspberrypi.com/documentation/computers/camera_software.html) |
 
 **Why global shutter?** A global-shutter sensor exposes every pixel at the same instant.
 A rolling shutter (found in most cheap cameras) exposes row by row, which smears and
@@ -133,23 +134,60 @@ keeps the image sharp under infrared illumination.
 Three Doppler radar modules provide speed and angle data, cross-checking the camera.
 Drivers are vendored from the OpenFlight project (Python), then bridged to the C++ app.
 
-| Module | Spec | Role |
-|---|---|---|
-| **[OPS243-A Doppler radar](https://omnipresense.com/product/ops243-doppler-radar-sensor/)** | OmniPreSense, USB serial, exposes raw I/Q data | **Ball speed, club speed**, and spin backup via I/Q rolling buffer |
-| **[K-LD7 radar #1 (vertical)](https://www.rfbeam.ch/product?id=36)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Launch angle** (vertical) |
-| **[K-LD7 radar #2 (horizontal)](https://www.rfbeam.ch/product?id=36)** | RFbeam, 3.3 V serial @ 3 Mbaud | **Club path / aim** (horizontal) |
+| Module | Frequency | Interface | Role | Manuals |
+|---|---|---|---|---|
+| **OPS243-A** | 24.125 GHz | USB / UART / RS-232 | Ball speed, club speed, spin backup (I/Q) | [Product](https://omnipresense.com/product/ops243-doppler-radar-sensor/) · [API (AN-010)](https://omnipresense.com/wp-content/uploads/2025/10/AN-010-AD_API_Interface.pdf) · [User Manual](https://fcc.report/FCC-ID/2ALLL243A/4525695.pdf) |
+| **K-LD7 #1 (vertical)** | 24.05–24.25 GHz | UART (3.3 V) | Launch angle (vertical) | [Product](https://rfbeam.ch/product/k-ld7-radar-transceiver/) · [Datasheet](https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf) |
+| **K-LD7 #2 (horizontal)** | 24.05–24.25 GHz | UART (3.3 V) | Club path / aim (horizontal) | [Product](https://rfbeam.ch/product/k-ld7-radar-transceiver/) · [Datasheet](https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf) |
+
+#### OPS243-A — full specs
+| Attribute | Value |
+|---|---|
+| **Type** | K-band Doppler (motion + speed + direction) radar |
+| **Operating frequency** | 24.125 GHz (K-band, FCC/CE certified) |
+| **Detection range** | 1 m – 100 m (object dependent) |
+| **Speed reporting** | up to 348 mph (velocity via Doppler shift) |
+| **Direction** | inbound / outbound |
+| **Beam width (−3 dB)** | ~20° × 24° |
+| **Interfaces** | USB, UART, RS-232 |
+| **Default UART** | 8 data bits, no parity, 1 stop bit, 19,200 baud |
+| **Raw data** | exposes **I/Q** samples — the reason this radar was chosen (needed for spin/impact buffer) |
+| **Operating temp** | −40 °C to +85 °C |
+| **Manuals** | [Product page](https://omnipresense.com/product/ops243-doppler-radar-sensor/) · [AN-010 API Interface (serial commands)](https://omnipresense.com/wp-content/uploads/2025/10/AN-010-AD_API_Interface.pdf) · [UM-003 User Manual](https://fcc.report/FCC-ID/2ALLL243A/4525695.pdf) |
+
+#### K-LD7 (×2) — full specs
+| Attribute | Value |
+|---|---|
+| **Type** | 24 GHz fully-digital Doppler radar transceiver (speed, direction, distance, **angle**) |
+| **Operating frequency** | 24.05 – 24.25 GHz (ISM band) |
+| **Supply voltage** | 3.2 V – 5.5 V |
+| **Current draw** | ~20 – 60 mA (depends on speed-range setting) |
+| **Antenna** | 3 × 4 patch array, asymmetrical beam |
+| **On-board DSP** | target list with speed, direction, distance, and angle; built-in tracking filter |
+| **Serial interface** | UART — used at **3 Mbaud** in this project for fast readout |
+| **Operating temp** | −40 °C to +85 °C |
+| **Roles** | one oriented for **vertical** angle (launch angle), one for **horizontal** angle (club path) |
+| **Manuals** | [Product page](https://rfbeam.ch/product/k-ld7-radar-transceiver/) · [Datasheet + communication protocol (PDF)](https://www.mouser.com/datasheet/2/1565/K_LD7_Datasheet-3446777.pdf) |
 
 > ⚠️ **Hardware notes for radar:**
 > - Buy the **OPS243-A**, *not* the OPS243-A-W (WiFi) — the WiFi version's baud rate is
 >   too slow to stream I/Q data.
 > - The K-LD7 modules require **3.3 V** FTDI USB-serial adapters. A 5 V adapter will
 >   **damage** the module.
+> - The K-LD7 tops out at 5.5 V supply — do not power it from a 12 V rail.
 
 ### Impact Trigger (planned)
 
-| Component | Spec | Role |
-|---|---|---|
-| **[SparkFun SEN-14262 Sound Detector](https://www.sparkfun.com/products/14262)** | Requires a 47 kΩ resistor (R17) mod for 3.3 V | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture |
+| Component | Spec | Role | Manuals |
+|---|---|---|---|
+| **SparkFun SEN-14262 Sound Detector** | Analog + gate + envelope outputs; preamp gain adjustable via **R17** (default gain 100 / 20 dB); populate R17 to reduce gain for 3.3 V operation | Detects the *sound* of impact to trigger the radar's rolling I/Q buffer capture | [Product](https://www.sparkfun.com/products/14262) · [Hookup Guide](https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all) |
+
+> 📌 **On the R17 mod:** R17 is an unpopulated resistor footprint that sets the preamp
+> gain. Per the [SparkFun hookup guide](https://learn.sparkfun.com/tutorials/sound-detector-hookup-guide/all),
+> populating R17 (e.g. ~33–47 kΩ) in parallel with R3 lowers the gain so the detector
+> isn't permanently saturated at 3.3 V — otherwise the GATE output can stay latched high
+> and never register a distinct impact. Tune the exact value if the gate LED stays lit
+> without sound.
 
 ### Approximate cost of the radar add-on
 
