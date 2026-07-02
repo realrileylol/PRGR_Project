@@ -339,7 +339,11 @@ empirically, **radar-first**:
 > settled facts. Expect these to change once real radar range and camera pixel-size data are
 > in hand.
 
-**Physical build (in progress).** A **two-bay tower** enclosure is being designed in CAD as a
+**Physical build (in progress).**
+
+![Two-bay radar + electronics test tower (CAD render)](images/hardware/tower_render.png)
+
+A **two-bay tower** enclosure is being designed in CAD as a
 **radar + electronics test rig**: one bay for the Pi 5 and power (TalentCell + buck), one bay
 with angled mounts for the three radars. The **camera mount is still TBD** — its height and
 vertical position relative to the ball need to be determined for optimal capture, which

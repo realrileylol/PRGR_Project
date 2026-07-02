@@ -268,6 +268,11 @@ would cut a range session short.
 
 ### Enclosure / physical build (in progress)
 
+![Two-bay radar + electronics test tower (CAD render)](images/hardware/tower_render.png)
+
+*CAD render of the current two-bay test tower — electronics bay (Pi 5 + power) on one side,
+angled radar mounts on the other. Camera mount not yet added.*
+
 A **two-bay tower** enclosure is being designed in CAD for the **radar + electronics test
 rig** (as of 2026-07-01):
 
