@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optics & Capture Guide</title><style>
+:root{
+  --ink:#161a20; --body:#2b3138; --muted:#5f6b7a; --faint:#8a94a2;
+  --line:#e4e8ee; --line2:#eef1f5; --accent:#2f6bff; --accent-ink:#1c46c2;
+  --band:#0f2033; --band2:#16324f;
+  --warn-bg:#fff8ec; --warn-edge:#e8912b;
+  --note-bg:#eef4ff; --note-edge:#2f6bff;
+  --think-bg:#f4f1ff; --think-edge:#7c56e6;
+  --code-bg:#0f1626; --code-ink:#dce4f5;
+  --carry:#e07b00; --total:#1f8a4c;
+}
+*{box-sizing:border-box;}
+html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+body{
+  margin:0; color:var(--body); background:#eceff4;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px; line-height:1.62; letter-spacing:.005em;
+}
+.sheet{max-width:880px; margin:28px auto; background:#fff; padding:0 0 64px;
+  box-shadow:0 8px 40px rgba(16,32,51,.14); border-radius:10px; overflow:hidden;}
+.pad{padding:0 60px;}
+
+/* Cover band */
+.cover{background:linear-gradient(135deg,var(--band),var(--band2)); color:#fff;
+  padding:44px 60px 40px; position:relative;}
+.cover::after{content:""; position:absolute; left:0; right:0; bottom:0; height:5px;
+  background:linear-gradient(90deg,var(--accent),#57d3a4);}
+.cover .brand{font-size:12px; letter-spacing:.32em; text-transform:uppercase;
+  color:#9fc0ff; font-weight:700; margin-bottom:14px;}
+.cover h1{font-size:30px; line-height:1.18; margin:0; letter-spacing:-.02em; font-weight:800;}
+.cover .sub{margin:12px 0 0; color:#c9d7ec; font-size:15px; max-width:70ch;}
+.cover .date{margin:16px 0 0; color:#8fa7c8; font-size:12.5px; letter-spacing:.02em;}
+
+/* Typography */
+h2{font-size:21px; font-weight:800; color:var(--ink); letter-spacing:-.01em;
+  margin:34px 0 12px; padding-bottom:9px; border-bottom:2px solid var(--line);}
+h3{font-size:16.5px; font-weight:700; color:var(--accent-ink); margin:22px 0 8px;}
+h4{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--muted); margin:16px 0 6px;}
+p{margin:9px 0;}
+strong{color:var(--ink); font-weight:700;}
+a{color:var(--accent); text-decoration:none;}
+a:hover{text-decoration:underline;}
+ul,ol{margin:9px 0; padding-left:22px;}
+li{margin:4px 0;}
+hr{border:0; border-top:1px solid var(--line); margin:26px 0;}
+code{background:#eef1f6; color:#233; padding:1px 6px; border-radius:5px;
+  font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.86em;}
+pre{background:var(--code-bg); color:var(--code-ink); padding:16px 18px; border-radius:9px;
+  overflow-x:auto; font-size:12px; line-height:1.5; margin:14px 0;
+  font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;}
+pre code{background:none; color:inherit; padding:0; font-size:inherit;}
+
+/* Tables */
+table{border-collapse:collapse; width:100%; margin:15px 0; font-size:13.5px;}
+th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top;}
+th{background:#f3f6fb; color:var(--ink); font-weight:700; border-bottom:2px solid #dde4ef;}
+tbody tr:nth-child(even) td{background:#fafbfd;}
+
+/* Callouts */
+blockquote{margin:15px 0; padding:12px 16px 12px 15px; border-left:4px solid var(--note-edge);
+  background:var(--note-bg); border-radius:0 7px 7px 0;}
+blockquote.warn{border-left-color:var(--warn-edge); background:var(--warn-bg);}
+blockquote.think{border-left-color:var(--think-edge); background:var(--think-bg);}
+blockquote p:first-child{margin-top:0;} blockquote p:last-child{margin-bottom:0;}
+
+/* Figures */
+figure{margin:18px 0; text-align:center;}
+figure img{max-width:100%; border:1px solid var(--line); border-radius:10px;}
+figcaption{font-size:12.5px; color:var(--muted); font-style:italic; margin-top:8px;}
+img{max-width:100%;}
+
+/* Intro TOC block (markdown 'Contents' list) */
+h2#contents + ul, h2#table-of-contents + ol, h2#table-of-contents + ul{
+  background:#f6f8fc; border:1px solid var(--line); border-radius:9px; padding:14px 30px; list-style-position:inside;}
+
+/* Print */
+@page{ size:Letter; margin:16mm 15mm 18mm 15mm; }
+@media print{
+  body{background:#fff; font-size:11.4px;}
+  .sheet{box-shadow:none; margin:0; max-width:none; border-radius:0;}
+  .cover{padding:34px 40px 30px;}
+  .pad{padding:0 40px;}
+  a{color:var(--ink);}
+  h2,h3,h4{page-break-after:avoid;}
+  table,pre,blockquote,figure{page-break-inside:avoid;}
+  tr{page-break-inside:avoid;}
+  .footer{position:fixed; bottom:6mm; left:15mm; right:15mm;}
+}
+.footer{display:none;}
+@media print{ .footer{display:flex;} }
+.footer{justify-content:space-between; font-size:9px; color:var(--faint);
+  letter-spacing:.04em; text-transform:uppercase; border-top:1px solid var(--line2); padding-top:4px;}
+</style></head>
+<body><div class="sheet">
+<div class="cover">
+  <div class="brand">PRGR Launch Monitor</div>
+  <h1>Optics & Capture Guide</h1>
+  <p class="sub">A plain-language reference for the optical and capture concepts that determine whether a camera can accurately measure golf ball spin.</p>
+  <p class="date">Last updated 2026-07-02</p>
+</div>
+<div class="pad">
+<h2 id="contents">Contents</h2>
+<div class="toc">
+<ul>
+
+<li><a href="#what-this-document-covers">What This Document Covers</a></li>
+<li><a href="#1-ball-pixel-diameter-why-size-on-the-sensor-matters">1. Ball Pixel Diameter — Why Size on the Sensor Matters</a></li>
+<li><a href="#2-frame-rate-fps-catching-the-ball-in-flight">2. Frame Rate (FPS) — Catching the Ball in Flight</a></li>
+<li><a href="#3-exposure-time-shutter-speed-freezing-the-ball">3. Exposure Time (Shutter Speed) — Freezing the Ball</a></li>
+<li><a href="#4-aperture-f-number-the-lens-light-gate">4. Aperture (F-Number) — The Lens Light Gate</a></li>
+<li><a href="#5-resolution-and-roi-cropping-trading-pixels-for-speed">5. Resolution and ROI Cropping — Trading Pixels for Speed</a></li>
+<li><a href="#6-ir-pass-filters-and-daynight-lenses-seeing-invisible-light">6. IR-Pass Filters and Day/Night Lenses — Seeing Invisible Light</a></li>
+<li><a href="#7-global-shutter-vs-rolling-shutter-why-this-is-non-negotiable">7. Global Shutter vs Rolling Shutter — Why This is Non-Negotiable</a></li>
+<li><a href="#8-gain-electronic-amplification-turning-up-the-volume-on-light">8. Gain (Electronic Amplification) — Turning Up the Volume on Light</a></li>
+<li><a href="#9-putting-it-all-together-the-complete-capture-chain">9. Putting It All Together — The Complete Capture Chain</a></li>
+<li><a href="#10-exposure-presets-by-lighting-condition">10. Exposure Presets by Lighting Condition</a></li>
+<li><a href="#11-quick-reference-ball-pixel-diameter-at-common-distances">11. Quick Reference — Ball Pixel Diameter at Common Distances</a></li>
+<li><a href="#12-the-ideal-impact-camera-all-specs-combined">12. The Ideal Impact Camera — All Specs Combined</a></li>
+<li><a href="#13-glossary">13. Glossary</a></li>
+<li><a href="#14-source-traceability">14. Source Traceability</a></li>
+</ul>
+</div>
+<h2 id="what-this-document-covers">What This Document Covers</h2>
+<p>This is a plain-language explanation of the optical and capture concepts that determine whether a camera-based golf launch monitor can accurately measure ball spin. Every section builds on the previous one. No prior knowledge required.</p>
+<hr />
+<h2 id="1-ball-pixel-diameter-why-size-on-the-sensor-matters">1. Ball Pixel Diameter — Why Size on the Sensor Matters</h2>
+<h3 id="the-concept">The Concept</h3>
+<p>When a camera looks at a golf ball from several feet away, the ball only occupies a small portion of the image. "Ball pixel diameter" is how many pixels across the ball appears in the camera's frame.</p>
+<p>Think of it like a TV screen: if the golf ball only covers a 10x10 pixel area, you can barely tell it's round. If it covers 75x75 pixels, you can see details on its surface — logos, dots, dimple patterns. Those surface details are what the software uses to calculate spin.</p>
+<h3 id="why-it-matters-for-spin">Why It Matters for Spin</h3>
+<p>To measure spin, the software needs to track markers (dots, logos, lines) on the ball across multiple frames. If the ball is too small in the image, those markers are just 1-2 blurry pixels and the software can't distinguish them from noise.</p>
+<p><strong>Rule of thumb for fiducial (dot/marker) tracking:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Ball Diameter (pixels)</th>
+<th>Marker Resolution</th>
+<th>Spin Tracking Viability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt; 30 px</td>
+<td>Markers are ~2 px, unresolvable</td>
+<td>Not viable</td>
+</tr>
+<tr>
+<td>40-50 px</td>
+<td>Markers are ~4-5 px, minimum</td>
+<td>Marginal — works in ideal conditions</td>
+</tr>
+<tr>
+<td>60-80 px</td>
+<td>Markers are ~6-7 px, clear</td>
+<td>Good — reliable tracking</td>
+</tr>
+<tr>
+<td>80-120 px</td>
+<td>Markers are ~8-10 px, detailed</td>
+<td>Excellent — diminishing returns above this</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-controls-ball-pixel-diameter">What Controls Ball Pixel Diameter</h3>
+<p>Three things determine how big the ball appears on the sensor:</p>
+<ol>
+<li><strong>Focal length of the lens</strong> — Longer focal length = more zoom = bigger ball image. A 12mm lens shows the ball ~1.5x bigger than an 8mm lens.</li>
+<li><strong>Distance from the camera to the ball</strong> — Closer = bigger. Moving from 8ft to 5ft increases ball size by ~60%.</li>
+<li><strong>Pixel pitch of the sensor</strong> — Smaller pixels = more pixels across the same image. The OV9281's 3.0 micron pixels are standard for this class.</li>
+</ol>
+<h3 id="the-formula-pinhole-camera-model">The Formula (Pinhole Camera Model)</h3>
+<pre><code>ball_pixels = (ball_diameter_mm x focal_length_mm) / (distance_mm x pixel_pitch_mm)
+</code></pre>
+<p><strong>Golf ball = 42.67mm, OV9281 pixel pitch = 0.003mm</strong></p>
+<table>
+<thead>
+<tr>
+<th>Lens</th>
+<th>Distance</th>
+<th>Ball Diameter (px)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12mm</td>
+<td>8 ft (2438mm)</td>
+<td>~70 px</td>
+</tr>
+<tr>
+<td>12mm</td>
+<td>7 ft (2133mm)</td>
+<td>~80 px</td>
+</tr>
+<tr>
+<td>12mm</td>
+<td>5 ft (1524mm)</td>
+<td>~112 px</td>
+</tr>
+<tr>
+<td>8mm</td>
+<td>8 ft (2438mm)</td>
+<td>~47 px</td>
+</tr>
+<tr>
+<td>8mm</td>
+<td>7 ft (2133mm)</td>
+<td>~53 px</td>
+</tr>
+<tr>
+<td>8mm</td>
+<td>5 ft (1524mm)</td>
+<td>~75 px</td>
+</tr>
+<tr>
+<td>2.8mm</td>
+<td>7 ft (2133mm)</td>
+<td>~19 px</td>
+</tr>
+<tr>
+<td>2.8mm</td>
+<td>5 ft (1524mm)</td>
+<td>~26 px</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-tradeoff">The Tradeoff</h3>
+<p>A longer lens gives you more pixels on the ball, but it also narrows the camera's field of view. At some point, the view is so narrow that any slight misalignment means the ball isn't even in the frame. This is why lens choice depends on distance — what works at 8ft may be too tight at 5ft.</p>
+<h3 id="ideal-spec">Ideal Spec</h3>
+<ul>
+<li><strong>Target ball pixel diameter: 60-80 px</strong></li>
+<li>Below 50 px, fiducial markers become too small for reliable centroid tracking</li>
+<li>Above 100 px, you're trading field of view for pixels you don't need</li>
+<li>75 px is the sweet spot — each ~4mm fiducial dot resolves to ~7 pixels, enough for sub-pixel centroid algorithms</li>
+<li>Achieved with: <strong>8mm lens at 5ft</strong> or <strong>12mm lens at 7ft</strong></li>
+</ul>
+<hr />
+<h2 id="2-frame-rate-fps-catching-the-ball-in-flight">2. Frame Rate (FPS) — Catching the Ball in Flight</h2>
+<h3 id="the-concept_1">The Concept</h3>
+<p>Frames Per Second (FPS) is how many individual pictures the camera takes each second. At 30 FPS (a standard video camera), each frame is 33 milliseconds apart. At 240 FPS, each frame is only 4.17 milliseconds apart.</p>
+<h3 id="why-it-matters">Why It Matters</h3>
+<p>A golf ball hit by a 7-iron travels around 130 mph (58 meters per second). At that speed:</p>
+<table>
+<thead>
+<tr>
+<th>Frame Rate</th>
+<th>Time Between Frames</th>
+<th>Ball Movement Per Frame</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>30 FPS</td>
+<td>33.3 ms</td>
+<td>~77 inches (6.4 ft)</td>
+</tr>
+<tr>
+<td>120 FPS</td>
+<td>8.3 ms</td>
+<td>~19 inches</td>
+</tr>
+<tr>
+<td>180 FPS</td>
+<td>5.6 ms</td>
+<td>~13 inches</td>
+</tr>
+<tr>
+<td><strong>240 FPS</strong></td>
+<td><strong>4.17 ms</strong></td>
+<td><strong>~9.6 inches</strong></td>
+</tr>
+<tr>
+<td>320 FPS</td>
+<td>3.1 ms</td>
+<td>~7.2 inches</td>
+</tr>
+</tbody>
+</table>
+<p>Spin detection algorithms need at least 2-3 consecutive frames where the ball is visible and the markers are trackable. If your camera's field of view is 14 inches tall and the ball moves 13 inches per frame (180 FPS), you might only get 1-2 usable frames. At 240 FPS with 9.6 inches per frame, you're more likely to get 2-3 frames — enough for reliable spin calculation.</p>
+<h3 id="the-240-fps-target">The 240 FPS Target</h3>
+<p>The Rapsodo MLM2 Pro uses 240 FPS for its Impact Vision camera. This is the benchmark. Higher FPS gives more frames in the critical window, but the sensor has to sacrifice resolution to read data fast enough (see Section 5 on ROI cropping).</p>
+<h3 id="ideal-spec_1">Ideal Spec</h3>
+<ul>
+<li><strong>Target frame rate: 240 FPS</strong></li>
+<li>This is the MLM2 Pro benchmark and the non-negotiable target for spin detection</li>
+<li>Provides 2-3 usable frames of the ball in the spin-visible window at typical ball speeds</li>
+<li>Achievable on the OV9281 at 640x400 resolution via ROI cropping</li>
+<li>Going higher (320+ FPS) requires further resolution sacrifice with diminishing returns</li>
+</ul>
+<h3 id="fps-does-not-control-blur">FPS Does NOT Control Blur</h3>
+<p>A common misconception: higher FPS does not automatically mean sharper images. FPS controls how often you take a picture. Shutter speed (exposure time) controls how long each picture's "window" stays open. You can shoot 240 FPS with a slow shutter and get 240 blurry frames per second. FPS and exposure must be configured independently.</p>
+<hr />
+<h2 id="3-exposure-time-shutter-speed-freezing-the-ball">3. Exposure Time (Shutter Speed) — Freezing the Ball</h2>
+<h3 id="the-concept_2">The Concept</h3>
+<p>Exposure time is how long the camera sensor collects light for each frame. A longer exposure lets in more light (brighter image) but anything moving during that time gets smeared across the sensor, creating motion blur. A shorter exposure freezes motion but the image is darker.</p>
+<h3 id="the-motion-blur-math">The Motion Blur Math</h3>
+<p>At 160 mph (71.5 mm per millisecond), a golf ball moves:</p>
+<table>
+<thead>
+<tr>
+<th>Exposure Time</th>
+<th>Ball Movement During Exposure</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,000 us (1 ms)</td>
+<td>71.5 mm (2.8")</td>
+<td>Completely smeared — ball is an oval streak</td>
+</tr>
+<tr>
+<td>500 us</td>
+<td>35.7 mm</td>
+<td>Heavy blur — markers unreadable</td>
+</tr>
+<tr>
+<td>300 us</td>
+<td>21.5 mm</td>
+<td>Moderate blur — club data OK, spin marginal</td>
+</tr>
+<tr>
+<td><strong>200 us</strong></td>
+<td><strong>14.3 mm</strong></td>
+<td><strong>Manageable — starting point for spin</strong></td>
+</tr>
+<tr>
+<td><strong>100 us</strong></td>
+<td><strong>7.1 mm</strong></td>
+<td><strong>Good — standard prosumer target for spin</strong></td>
+</tr>
+<tr>
+<td>50 us</td>
+<td>3.6 mm</td>
+<td>Excellent — but needs intense light</td>
+</tr>
+<tr>
+<td>36 us</td>
+<td>2.6 mm</td>
+<td>OV9281 hardware minimum — needs extreme light</td>
+</tr>
+</tbody>
+</table>
+<p>("us" = microseconds = millionths of a second)</p>
+<h3 id="the-target-range-100-200-microseconds">The Target Range: 100-200 Microseconds</h3>
+<p>The Rapsodo MLM2 Pro does not publish its exact exposure time, but based on its behavior (works well in bright conditions, struggles in dark rooms), it operates somewhere in the 100-200 microsecond range. This produces 7-14mm of motion blur — enough that the ball isn't perfectly frozen, but the markers are still distinct enough for algorithms to track.</p>
+<h3 id="the-light-problem">The Light Problem</h3>
+<p>At 100 microseconds, the sensor is only open for 1/10,000th of a second. Very little light reaches the sensor. The image will be dark unless:
+- The environment is brightly lit (outdoor sunlight or strong indoor floods)
+- The sensor's electronic gain (amplification) is increased — but too much gain creates noise
+- The lens has a wide aperture (low F-number) to funnel more light in</p>
+<p>This is why the MLM2 Pro struggles in dark rooms — it relies entirely on ambient light, and at 100-200 microsecond exposures, a dim room simply doesn't provide enough photons.</p>
+<h3 id="ideal-spec_2">Ideal Spec</h3>
+<ul>
+<li><strong>Target exposure: 100-200 microseconds</strong></li>
+<li>100 us = 7.1mm blur at 160 mph — standard prosumer target, best balance of clarity and brightness</li>
+<li>200 us = 14.3mm blur — acceptable starting point, easier to achieve in lower light</li>
+<li>Below 50 us requires extreme illumination and provides diminishing returns</li>
+<li>The MLM2 Pro operates in this range (inferred from its ambient-light-only design and dark-room failures)</li>
+<li><strong>Always pair short exposure with maximum physical lighting and minimum electronic gain</strong></li>
+</ul>
+<h3 id="current-prgr-status">Current PRGR Status</h3>
+<p>The PRGR system defaults to <strong>4,000-8,000 microsecond</strong> exposure — 20-80x too slow for spin tracking. At 4,000 microseconds and 160 mph, the ball smears 286mm (11 inches). This must be reduced to 100-200 microseconds for spin-viable capture.</p>
+<hr />
+<h2 id="4-aperture-f-number-the-lens-light-gate">4. Aperture (F-Number) — The Lens Light Gate</h2>
+<h3 id="the-concept_3">The Concept</h3>
+<p>The aperture is the physical opening inside the lens that controls how much light passes through to the sensor. It's measured as an F-number (F-stop). Lower F-number = wider opening = more light.</p>
+<h3 id="why-f12-matters">Why F1.2 Matters</h3>
+<p>The relationship is exponential, not linear:</p>
+<table>
+<thead>
+<tr>
+<th>Aperture</th>
+<th>Relative Light (vs F1.2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>F1.2</strong></td>
+<td><strong>100%</strong> (maximum for these lenses)</td>
+</tr>
+<tr>
+<td>F1.4</td>
+<td>73%</td>
+</tr>
+<tr>
+<td>F2.0</td>
+<td>36%</td>
+</tr>
+<tr>
+<td>F2.8</td>
+<td>18%</td>
+</tr>
+<tr>
+<td>F4.0</td>
+<td>9%</td>
+</tr>
+</tbody>
+</table>
+<p>An F2.8 lens lets in only 18% of the light that an F1.2 lens does. When you're already fighting for photons at 100 microsecond exposures, that difference is the gap between a usable image and a black frame.</p>
+<h3 id="ideal-spec_3">Ideal Spec</h3>
+<ul>
+<li><strong>Target aperture: F1.2</strong></li>
+<li>This is the fastest commonly available aperture for M12 mount lenses</li>
+<li>Non-negotiable for ambient-light spin detection at 100-200 us exposures</li>
+<li>F1.4 is acceptable (73% of F1.2 light) but F2.0+ is not viable without supplemental illumination</li>
+<li>The MLM2 Pro relies on ambient light only — its lens aperture is a critical enabler</li>
+</ul>
+<h3 id="prgr-lens-selection">PRGR Lens Selection</h3>
+<p>Both the 12mm and 8mm lenses for the impact camera are F1.2 — the fastest commonly available aperture for M12 lenses. This is not optional for spin detection with ambient light at short exposures. An F2.0 or slower lens would require either longer exposure (more blur) or higher gain (more noise), both of which degrade spin tracking.</p>
+<hr />
+<h2 id="5-resolution-and-roi-cropping-trading-pixels-for-speed">5. Resolution and ROI Cropping — Trading Pixels for Speed</h2>
+<h3 id="the-concept_4">The Concept</h3>
+<p>A camera sensor has a fixed maximum data throughput — it can only push so many pixels per second through its interface. The OV9281 on a Raspberry Pi uses a 2-lane MIPI CSI connection.</p>
+<p>To increase frame rate, you must decrease the number of pixels read per frame. This is done through <strong>Region of Interest (ROI) cropping</strong> — telling the sensor to only read out a portion of its full pixel array.</p>
+<h3 id="ov9281-resolution-vs-frame-rate">OV9281 Resolution vs Frame Rate</h3>
+<table>
+<thead>
+<tr>
+<th>Resolution</th>
+<th>Total Pixels</th>
+<th>Max FPS</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1280 x 800</td>
+<td>1,024,000</td>
+<td>120</td>
+<td>Full sensor — maximum detail, half the target FPS</td>
+</tr>
+<tr>
+<td>1280 x 720</td>
+<td>921,600</td>
+<td>120</td>
+<td>HD crop — same bandwidth ceiling</td>
+</tr>
+<tr>
+<td>640 x 480</td>
+<td>307,200</td>
+<td>180-210</td>
+<td>VGA — good balance, current PRGR preview mode</td>
+</tr>
+<tr>
+<td><strong>640 x 400</strong></td>
+<td><strong>256,000</strong></td>
+<td><strong>240-260</strong></td>
+<td><strong>Target mode — matches MLM2 Pro frame rate</strong></td>
+</tr>
+<tr>
+<td>640 x 360</td>
+<td>230,400</td>
+<td>~280-320</td>
+<td>Slightly faster, marginal pixel loss</td>
+</tr>
+<tr>
+<td>320 x 240</td>
+<td>76,800</td>
+<td>420+</td>
+<td>Too low resolution for marker tracking</td>
+</tr>
+</tbody>
+</table>
+<h3 id="how-cropping-affects-field-of-view">How Cropping Affects Field of View</h3>
+<p>When the sensor crops to a smaller region, there are two possible behaviors depending on the sensor mode:</p>
+<p><strong>Center Crop (Windowing):</strong>
+The sensor only reads the center pixels at full native resolution. The field of view shrinks proportionally (like zooming in), but each pixel retains its full 3.0 micron detail. Ball pixel diameter stays the same as full resolution.</p>
+<p><strong>Subsampling (Binning):</strong>
+The sensor reads the full chip but skips every other pixel (2x2 binning). The field of view stays the same, but effective pixel pitch doubles to 6.0 microns. Ball pixel diameter halves compared to full resolution.</p>
+<p><strong>How to tell which your sensor is doing:</strong>
+Point the camera at a scene. Switch between 1280x800 and 640x400. If the view zooms in noticeably, it's center cropping. If the view stays the same but looks lower resolution, it's subsampling.</p>
+<h3 id="ideal-spec_4">Ideal Spec</h3>
+<ul>
+<li><strong>Target resolution: 640 x 400 (ROI crop)</strong></li>
+<li>This is the specific resolution that unlocks 240 FPS on the OV9281 via 2-lane MIPI CSI</li>
+<li>Provides enough pixel density for fiducial tracking at 5-8ft with appropriate lenses</li>
+<li>640 x 360 is also viable (gains ~40 FPS) but loses 10% vertical coverage</li>
+<li>1280 x 800 gives maximum detail but is hard-capped at 120 FPS — insufficient for spin</li>
+<li>320 x 240 achieves 420+ FPS but resolution is too low for marker detection</li>
+<li>After 90-degree CW rotation for portrait display: <strong>400 x 640</strong></li>
+</ul>
+<h3 id="recommended-mode-for-spin-detection">Recommended Mode for Spin Detection</h3>
+<p><strong>640 x 400 @ 240 FPS</strong> — This is the mode that achieves parity with the MLM2 Pro's frame rate while maintaining enough resolution for fiducial marker tracking at appropriate distances.</p>
+<hr />
+<h2 id="6-ir-pass-filters-and-daynight-lenses-seeing-invisible-light">6. IR-Pass Filters and Day/Night Lenses — Seeing Invisible Light</h2>
+<h3 id="the-concept_5">The Concept</h3>
+<p>Light exists on a spectrum. Human eyes see "visible light" (roughly 400-700 nanometer wavelengths). Beyond 700nm is "near-infrared" (NIR) — invisible to humans but perfectly real electromagnetic radiation that camera sensors can detect.</p>
+<h3 id="how-standard-cameras-handle-ir">How Standard Cameras Handle IR</h3>
+<p>Most consumer cameras (phones, webcams, GoPros) have an <strong>IR-cut filter</strong> — a thin piece of glass glued to the sensor that blocks all infrared light. This is done because IR light would corrupt color accuracy in photos and video. Without the filter, a green lawn would look washed out and reddish.</p>
+<h3 id="why-a-monochrome-sensor-is-different">Why a Monochrome Sensor is Different</h3>
+<p>The OV9281 is a monochrome (black and white) sensor. It has no color to corrupt. It also ships without a Bayer color filter array, meaning every pixel receives 100% of incoming light — visible AND near-infrared. This gives it roughly 3x the light sensitivity of an equivalent color sensor.</p>
+<h3 id="what-ir-correction-daynight-means-on-a-lens">What "IR Correction" / "Day/Night" Means on a Lens</h3>
+<p>A standard lens is optically designed so that visible light focuses sharply on the sensor. But infrared light has a different wavelength and bends differently through glass. On a regular lens, IR light focuses slightly in front of or behind the visible focal plane, producing a blurry haze.</p>
+<p>An <strong>IR-corrected (Day/Night)</strong> lens is designed so that both visible AND near-infrared light focus on the same plane. This means:
+- During the day: the lens works normally with visible light
+- In low light: the sensor can use both visible AND infrared light simultaneously, with everything in focus
+- With IR illumination: if you add invisible IR LED lights, the camera sees them as bright illumination while humans see nothing</p>
+<h3 id="why-this-matters-for-prgr">Why This Matters for PRGR</h3>
+<p>The OV9281 sensor is naturally sensitive to NIR light (850-940nm range). The IR-corrected lenses (both the 12mm and 8mm F1.2) allow the sensor to exploit this sensitivity without focus degradation. In practical terms:
+- Outdoors: sunlight contains significant NIR — the sensor captures more total light than a color camera would
+- Indoors: the sensor benefits from any incidental NIR in room lighting
+- The sensor gets more usable photons per frame, supporting shorter exposure times</p>
+<h3 id="ideal-spec_5">Ideal Spec</h3>
+<ul>
+<li><strong>Lens: IR-corrected (Day/Night) with no IR-cut filter on the sensor</strong></li>
+<li>The OV9281 ships without an IR-cut filter — do NOT add one</li>
+<li>Both lenses (8mm and 12mm F1.2) must be IR-corrected so NIR light focuses on the same plane as visible light</li>
+<li>This gives the sensor access to the full visible + NIR spectrum — more total photons per frame</li>
+<li>A non-IR-corrected lens will produce blurry images when NIR light is present (the IR focuses on a different plane)</li>
+</ul>
+<h3 id="prgr-lens-status">PRGR Lens Status</h3>
+<p>Both the 12mm F1.2 and 8mm F1.2 impact camera lenses are IR-corrected day/night lenses. No additional filter hardware is needed.</p>
+<hr />
+<h2 id="7-global-shutter-vs-rolling-shutter-why-this-is-non-negotiable">7. Global Shutter vs Rolling Shutter — Why This is Non-Negotiable</h2>
+<h3 id="the-concept_6">The Concept</h3>
+<p>The "shutter" mechanism determines HOW the sensor reads its pixels during an exposure.</p>
+<p><strong>Rolling Shutter:</strong> Reads the sensor row by row, top to bottom. Each row is exposed at a slightly different moment in time. On a 1280x800 sensor, the top row might be captured 1-2 milliseconds before the bottom row.</p>
+<p><strong>Global Shutter:</strong> Every pixel on the entire sensor is exposed at the exact same instant. The entire frame represents a single, precise moment in time.</p>
+<h3 id="why-rolling-shutter-fails-for-golf">Why Rolling Shutter Fails for Golf</h3>
+<p>A golf ball at 160 mph moves ~71mm per millisecond. If the sensor takes 1.5ms to read from top to bottom (rolling shutter), the ball has physically moved ~107mm between the first row and the last row. The result:
+- A perfectly round golf ball appears as a stretched, diagonal ellipse
+- Straight lines on the ball (alignment marks, logos) appear curved or skewed
+- The geometric distortion makes it mathematically impossible to calculate rotation accurately</p>
+<h3 id="why-global-shutter-works">Why Global Shutter Works</h3>
+<p>With global shutter, the entire sensor captures at one instant. The ball's shape, the position of every marker, and the geometric relationships are all frozen perfectly. This is the only architecture that allows accurate spin measurement from sequential frames.</p>
+<h3 id="ideal-spec_6">Ideal Spec</h3>
+<ul>
+<li><strong>Shutter type: Global shutter (mandatory, zero exceptions)</strong></li>
+<li>Rolling shutter distorts the ball's geometry at high speeds — spin math becomes impossible</li>
+<li>The OV9281's OmniPixel3-GS architecture satisfies this requirement</li>
+<li>No rolling shutter camera (GoPro, smartphone, standard webcam) can substitute for the impact camera, regardless of resolution or frame rate</li>
+</ul>
+<h3 id="prgr-status">PRGR Status</h3>
+<p>The OV9281 is a true global shutter sensor (OmniPixel3-GS technology). This requirement is already met. Never substitute a rolling shutter camera for the impact camera, regardless of how good its other specs may be.</p>
+<hr />
+<h2 id="8-gain-electronic-amplification-turning-up-the-volume-on-light">8. Gain (Electronic Amplification) — Turning Up the Volume on Light</h2>
+<h3 id="the-concept_7">The Concept</h3>
+<p>When the exposure time is very short (100-200 microseconds), very few photons reach each pixel. The electrical signal generated is extremely faint. "Gain" is electronic amplification — it multiplies the faint signal to produce a visible image. Think of it like turning up the volume on a quiet audio recording.</p>
+<h3 id="the-problem-with-gain">The Problem with Gain</h3>
+<p>Amplification doesn't just boost the signal — it equally boosts the noise. Every sensor has baseline electronic noise (random fluctuations in voltage). At low gain, this noise is invisible. At high gain, it manifests as "salt and pepper" speckles — random bright and dark pixels scattered across the image.</p>
+<p>This noise is destructive for spin detection because:
+- Edge detection algorithms (Canny, Hough) interpret noise speckles as edges
+- Blob detectors may confuse noise clusters with fiducial markers
+- The software generates false positives — tracking random noise instead of actual ball rotation</p>
+<h3 id="the-gain-sweet-spot">The Gain Sweet Spot</h3>
+<p>The goal is to use as little gain as possible while maintaining a bright enough image. The ball surface should reach approximately 80% luminance on the sensor without clipping (overexposing) the highlights. Overexposed highlights wash out the contrast between the white ball surface and the dark fiducial dots, making them invisible.</p>
+<table>
+<thead>
+<tr>
+<th>Gain Level</th>
+<th>Typical Use</th>
+<th>Noise Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.0x - 2.0x</td>
+<td>Bright outdoor sunlight</td>
+<td>Minimal — ideal</td>
+</tr>
+<tr>
+<td>4.0x - 6.0x</td>
+<td>Overcast / well-lit indoor</td>
+<td>Moderate — acceptable</td>
+</tr>
+<tr>
+<td>8.0x - 12.0x</td>
+<td>Indoor with supplemental lighting</td>
+<td>Noticeable — workable with good algorithms</td>
+</tr>
+<tr>
+<td>16.0x+</td>
+<td>Dim indoor</td>
+<td>Heavy — degrades marker detection significantly</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ideal-spec_7">Ideal Spec</h3>
+<ul>
+<li><strong>Target gain: 1.0x - 4.0x (outdoor), 4.0x - 8.0x (indoor with floods)</strong></li>
+<li>Lower gain = cleaner image = better marker detection</li>
+<li>Above 12.0x, noise begins to overwhelm edge detection and blob finding algorithms</li>
+<li>At 16.0x, salt-and-pepper noise generates false positives — software tracks noise instead of markers</li>
+<li><strong>Target ball surface luminance: ~80% brightness without clipping highlights</strong></li>
+<li>Clipped (overexposed) highlights wash out the contrast between white ball and dark dots</li>
+</ul>
+<h3 id="practical-strategy">Practical Strategy</h3>
+<p><strong>Maximize physical light first, use gain as a last resort.</strong> A $30 LED work light placed 3 feet from the impact zone does more for image quality than any amount of electronic gain. The camera settings priority should always be:</p>
+<ol>
+<li>Add more physical light to the hitting area</li>
+<li>Use the fastest lens available (F1.2)</li>
+<li>Set exposure to the longest acceptable duration (200us if blur is OK, 100us for maximum clarity)</li>
+<li>Only then increase gain to reach target brightness</li>
+</ol>
+<hr />
+<h2 id="9-putting-it-all-together-the-complete-capture-chain">9. Putting It All Together — The Complete Capture Chain</h2>
+<h3 id="the-signal-chain">The Signal Chain</h3>
+<pre><code>Sunlight/Lighting → Lens (F1.2, IR-corrected) → Sensor (OV9281, global shutter, monochrome)
+→ Exposure (100-200 us) → Gain (as low as possible) → ROI Crop (640x400) → 240 FPS output
+→ Software (detect ball, track markers, calculate spin)
+</code></pre>
+<p>Every link in this chain affects the final result. A weakness in any one link degrades the whole system.</p>
+<h3 id="recommended-configuration-summary">Recommended Configuration Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Recommended Setting</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sensor</strong></td>
+<td>OV9281 (monochrome, global shutter)</td>
+<td>3x light advantage, no rolling shutter distortion</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>640 x 400 (ROI crop)</td>
+<td>Enables 240 FPS on 2-lane MIPI</td>
+</tr>
+<tr>
+<td><strong>Frame Rate</strong></td>
+<td>240 FPS</td>
+<td>Matches MLM2 Pro, provides 2-3 frames in spin window</td>
+</tr>
+<tr>
+<td><strong>Exposure</strong></td>
+<td>100-200 us</td>
+<td>Freezes ball to 7-14mm blur (viable for marker tracking)</td>
+</tr>
+<tr>
+<td><strong>Gain</strong></td>
+<td>As low as conditions allow (1.0-8.0x)</td>
+<td>Minimize noise, maximize marker contrast</td>
+</tr>
+<tr>
+<td><strong>Lens Focal Length</strong></td>
+<td>8mm at 5ft distance, 12mm at 7-8ft</td>
+<td>Balance between ball pixel size and field of view</td>
+</tr>
+<tr>
+<td><strong>Lens Aperture</strong></td>
+<td>F1.2</td>
+<td>Maximum light gathering for short exposures</td>
+</tr>
+<tr>
+<td><strong>Lens Type</strong></td>
+<td>IR-corrected (Day/Night)</td>
+<td>Exploits sensor's NIR sensitivity without focus loss</td>
+</tr>
+<tr>
+<td><strong>Orientation</strong></td>
+<td>90 degrees CW (portrait)</td>
+<td>Maximizes vertical coverage for ball departure path</td>
+</tr>
+<tr>
+<td><strong>Ball Requirement</strong></td>
+<td>Fiducial-marked (RPT, Pix, or DIY dots)</td>
+<td>Plain white balls are algorithmically untrackable</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-exposure-presets-by-lighting-condition">10. Exposure Presets by Lighting Condition</h2>
+<p>These are starting-point configurations. Fine-tune gain until the ball surface reads ~80% brightness without clipping.</p>
+<h3 id="outdoor-bright-sun">Outdoor — Bright Sun</h3>
+<pre><code>Exposure:  100 us
+Gain:      1.0x - 2.0x
+Expected:  Excellent contrast, minimal noise, best spin accuracy
+Notes:     May need to decrease exposure further if image clips (overexposes)
+</code></pre>
+<h3 id="outdoor-overcast-shade">Outdoor — Overcast / Shade</h3>
+<pre><code>Exposure:  150-200 us
+Gain:      2.0x - 4.0x
+Expected:  Good contrast, low noise, reliable spin tracking
+Notes:     Standard outdoor operating condition
+</code></pre>
+<h3 id="indoor-bright-flood-lights-simulating-outdoor">Indoor — Bright Flood Lights (Simulating Outdoor)</h3>
+<pre><code>Exposure:  150-200 us
+Gain:      4.0x - 8.0x
+Expected:  Moderate noise, workable for spin tracking
+Notes:     Position LED floods 3-5 ft from impact zone, aimed directly at ball
+</code></pre>
+<h3 id="indoor-standard-room-lighting">Indoor — Standard Room Lighting</h3>
+<pre><code>Exposure:  300-500 us
+Gain:      8.0x - 12.0x
+Expected:  Increased blur and noise, spin tracking becomes unreliable
+Notes:     This is where the MLM2 Pro also struggles. Add more light.
+</code></pre>
+<h3 id="indoor-dim-simulator-bay">Indoor — Dim / Simulator Bay</h3>
+<pre><code>Exposure:  500+ us
+Gain:      12.0x - 16.0x
+Expected:  Heavy blur, heavy noise, spin tracking unlikely
+Notes:     Not viable for spin detection. Must add supplemental lighting.
+</code></pre>
+<hr />
+<h2 id="11-quick-reference-ball-pixel-diameter-at-common-distances">11. Quick Reference — Ball Pixel Diameter at Common Distances</h2>
+<h3 id="with-8mm-f12-lens-ov9281-native-pixel-pitch">With 8mm F1.2 Lens (OV9281, native pixel pitch)</h3>
+<table>
+<thead>
+<tr>
+<th>Distance</th>
+<th>Ball Diameter (px)</th>
+<th>Spin Viable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4 ft (1219mm)</td>
+<td>~93 px</td>
+<td>Excellent</td>
+</tr>
+<tr>
+<td><strong>5 ft (1524mm)</strong></td>
+<td><strong>~75 px</strong></td>
+<td><strong>Good (recommended distance)</strong></td>
+</tr>
+<tr>
+<td>6 ft (1829mm)</td>
+<td>~62 px</td>
+<td>Adequate</td>
+</tr>
+<tr>
+<td>7 ft (2133mm)</td>
+<td>~53 px</td>
+<td>Marginal</td>
+</tr>
+<tr>
+<td>8 ft (2438mm)</td>
+<td>~47 px</td>
+<td>Minimum viable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="with-12mm-f12-lens-ov9281-native-pixel-pitch">With 12mm F1.2 Lens (OV9281, native pixel pitch)</h3>
+<table>
+<thead>
+<tr>
+<th>Distance</th>
+<th>Ball Diameter (px)</th>
+<th>Spin Viable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4 ft (1219mm)</td>
+<td>~140 px</td>
+<td>Overkill (FOV too narrow)</td>
+</tr>
+<tr>
+<td>5 ft (1524mm)</td>
+<td>~112 px</td>
+<td>Excellent (but tight FOV at 640x400)</td>
+</tr>
+<tr>
+<td>6 ft (1829mm)</td>
+<td>~93 px</td>
+<td>Very good</td>
+</tr>
+<tr>
+<td><strong>7 ft (2133mm)</strong></td>
+<td><strong>~80 px</strong></td>
+<td><strong>Good (designed for this distance)</strong></td>
+</tr>
+<tr>
+<td>8 ft (2438mm)</td>
+<td>~70 px</td>
+<td>Good</td>
+</tr>
+</tbody>
+</table>
+<h3 id="with-28mm-lens-trajectory-camera">With 2.8mm Lens (Trajectory Camera)</h3>
+<table>
+<thead>
+<tr>
+<th>Distance</th>
+<th>Ball Diameter (px)</th>
+<th>Spin Viable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5 ft (1524mm)</td>
+<td>~26 px</td>
+<td>No — trajectory tracking only</td>
+</tr>
+<tr>
+<td>7 ft (2133mm)</td>
+<td>~19 px</td>
+<td>No — trajectory tracking only</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-the-ideal-impact-camera-all-specs-combined">12. The Ideal Impact Camera — All Specs Combined</h2>
+<p>This section brings every individual ideal spec together into one complete picture. This is the target configuration for a camera system that matches or exceeds the Rapsodo MLM2 Pro's spin detection capability.</p>
+<h3 id="the-complete-ideal-spec-sheet">The Complete Ideal Spec Sheet</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Ideal Value</th>
+<th>Acceptable Range</th>
+<th>Why This Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sensor</strong></td>
+<td>Monochrome, global shutter, 1MP+</td>
+<td>—</td>
+<td>Mono = 3x light; global shutter = no distortion</td>
+</tr>
+<tr>
+<td><strong>Sensor Model</strong></td>
+<td>OV9281 or equivalent</td>
+<td>Any GS mono with ≥3.0um pixels</td>
+<td>Proven, well-supported on Raspberry Pi</td>
+</tr>
+<tr>
+<td><strong>Pixel Pitch</strong></td>
+<td>3.0 um</td>
+<td>2.5 - 4.0 um</td>
+<td>Larger pixels = more light per pixel at short exposures</td>
+</tr>
+<tr>
+<td><strong>Interface</strong></td>
+<td>MIPI CSI (2-lane)</td>
+<td>CSI preferred over USB</td>
+<td>Lower latency, no frame drops, direct sensor control</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>640 x 400 (ROI crop)</td>
+<td>640 x 360 to 640 x 480</td>
+<td>Unlocks 240 FPS while maintaining usable pixel density</td>
+</tr>
+<tr>
+<td><strong>Frame Rate</strong></td>
+<td>240 FPS</td>
+<td>210-260 FPS</td>
+<td>MLM2 Pro benchmark; 2-3 frames in spin window</td>
+</tr>
+<tr>
+<td><strong>Exposure Time</strong></td>
+<td>100 us</td>
+<td>100 - 200 us</td>
+<td>7-14mm blur at 160 mph — viable for marker tracking</td>
+</tr>
+<tr>
+<td><strong>Gain</strong></td>
+<td>1.0x - 4.0x (outdoor)</td>
+<td>Up to 8.0x (indoor with floods)</td>
+<td>Minimize noise; maximize physical light instead</td>
+</tr>
+<tr>
+<td><strong>Lens Focal Length</strong></td>
+<td>8mm (at 5ft distance)</td>
+<td>6mm - 12mm depending on distance</td>
+<td>75px ball diameter with workable FOV</td>
+</tr>
+<tr>
+<td><strong>Lens Aperture</strong></td>
+<td>F1.2</td>
+<td>F1.2 - F1.4</td>
+<td>Maximum light gathering for ambient-light operation</td>
+</tr>
+<tr>
+<td><strong>Lens Type</strong></td>
+<td>IR-corrected, Day/Night</td>
+<td>Must pass NIR without focus shift</td>
+<td>Exploits sensor's full visible + NIR sensitivity</td>
+</tr>
+<tr>
+<td><strong>Lens Mount</strong></td>
+<td>M12</td>
+<td>—</td>
+<td>Standard for OV9281 boards, wide selection available</td>
+</tr>
+<tr>
+<td><strong>Shutter Type</strong></td>
+<td>Global shutter</td>
+<td>Global shutter only</td>
+<td>Non-negotiable — rolling shutter = unusable distortion</td>
+</tr>
+<tr>
+<td><strong>Camera Distance</strong></td>
+<td>5 ft from ball</td>
+<td>4 - 8 ft (lens dependent)</td>
+<td>Closer = more pixels on ball = better spin resolution</td>
+</tr>
+<tr>
+<td><strong>Ball Pixel Diameter</strong></td>
+<td>60 - 80 px</td>
+<td>50 - 120 px</td>
+<td>Each fiducial dot ≥ 5px for reliable centroid tracking</td>
+</tr>
+<tr>
+<td><strong>Orientation</strong></td>
+<td>90° CW (portrait)</td>
+<td>—</td>
+<td>Maximizes vertical coverage for ball departure path</td>
+</tr>
+<tr>
+<td><strong>Ball Marking</strong></td>
+<td>Fiducial dots (RPT/Pix/DIY)</td>
+<td>Any high-contrast pattern</td>
+<td>Plain white balls are algorithmically untrackable</td>
+</tr>
+<tr>
+<td><strong>Lighting</strong></td>
+<td>Bright ambient (outdoor sun or indoor floods)</td>
+<td>—</td>
+<td>MLM2 Pro approach — no flash, no strobe, no IR LEDs</td>
+</tr>
+<tr>
+<td><strong>Target Luminance</strong></td>
+<td>Ball surface at ~80% brightness</td>
+<td>70% - 85%</td>
+<td>Avoids clipping (which kills dot contrast)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="how-each-spec-depends-on-the-others">How Each Spec Depends on the Others</h3>
+<p>No single spec exists in isolation. They form an interconnected system:</p>
+<pre><code>Distance (5ft) ──determines──&gt; Ball Pixel Size (75px with 8mm lens)
+                                    │
+Lens Focal Length (8mm) ──────────────┘
+                                    │
+Lens Aperture (F1.2) ──determines──&gt; Available Light Budget
+                                    │
+Ambient Lighting ─────────────────────┘
+                                    │
+Exposure Time (100-200 us) &lt;────────┘ (light budget determines how short you can go)
+                                    │
+Motion Blur (7-14mm) &lt;──────────────┘ (exposure determines blur)
+                                    │
+Gain (1-4x outdoor) &lt;──────────────── (exposure + light determine required gain)
+                                    │
+Image Noise Level &lt;─────────────────── (gain determines noise)
+                                    │
+Marker Detectability &lt;──────────────── (noise + ball size + blur determine if spin works)
+</code></pre>
+<p><strong>The chain in plain English:</strong>
+You pick a distance and lens, which determines how big the ball appears. Your lens aperture and ambient lighting determine how much light reaches the sensor. That light budget determines how short your exposure can be. Exposure determines blur. If there isn't enough light, you increase gain, which increases noise. Noise and blur together determine whether the software can find and track the fiducial markers. If any link in this chain fails, spin detection fails.</p>
+<h3 id="the-prgr-target-configuration-5ft-outdoor-primary">The PRGR Target Configuration (5ft, Outdoor Primary)</h3>
+<pre><code>Hardware:
+  Sensor:       OV9281 (monochrome, global shutter, 3.0um pixels)
+  Lens:         8mm F1.2, IR-corrected, M12 mount
+  Interface:    MIPI CSI to Raspberry Pi 5
+  Orientation:  90° CW rotation (portrait)
+  Distance:     5 feet from ball
+
+Software Settings:
+  Resolution:   640 x 400 (ROI crop → 400 x 640 portrait display)
+  Frame Rate:   240 FPS
+  Exposure:     100 us (outdoor bright) / 150-200 us (overcast/indoor floods)
+  Gain:         1.0-2.0x (outdoor) / 4.0-8.0x (indoor with flood lights)
+  Auto-Exp:     Bounded — never exceed 200 us, never below 50 us
+
+Expected Performance:
+  Ball size:    ~75 px diameter (at 5ft with 8mm)
+  FOV:          ~9&quot; wide x ~14.4&quot; tall (portrait, center crop)
+  Blur:         7.1mm at 100us / 14.3mm at 200us (at 160 mph)
+  Dot size:     ~7 px per fiducial dot (sufficient for centroid tracking)
+  Spin frames:  2-3 usable frames per shot in the spin-visible window
+
+Required:
+  Ball:         Fiducial-marked (RPT, TP5x Pix, or DIY dot pattern)
+  Lighting:     Bright ambient — outdoor sun, or indoor LED floods at 3-5ft from impact zone
+</code></pre>
+<h3 id="what-the-mlm2-pro-does-for-comparison">What the MLM2 Pro Does (For Comparison)</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>MLM2 Pro</th>
+<th>PRGR Target</th>
+<th>Match?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frame Rate</td>
+<td>240 FPS</td>
+<td>240 FPS</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Shutter Type</td>
+<td>Global shutter</td>
+<td>Global shutter (OV9281)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Exposure</td>
+<td>~100-200 us (inferred)</td>
+<td>100-200 us</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Illumination</td>
+<td>Ambient only (no flash/strobe)</td>
+<td>Ambient only</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Ball Requirement</td>
+<td>RPT fiducial balls</td>
+<td>Fiducial-marked balls</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Sensor Type</td>
+<td>Likely monochrome GS</td>
+<td>OV9281 monochrome GS</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Lens Aperture</td>
+<td>Unknown (likely fast)</td>
+<td>F1.2</td>
+<td>Matched or better</td>
+</tr>
+<tr>
+<td>Distance</td>
+<td>~6.5-8.5 ft</td>
+<td>5 ft</td>
+<td>Closer = more pixels</td>
+</tr>
+<tr>
+<td>Color/Mono</td>
+<td>Monochrome (inferred)</td>
+<td>Monochrome (confirmed)</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13-glossary">13. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ball Pixel Diameter</strong></td>
+<td>How many pixels across the golf ball appears in the camera frame</td>
+</tr>
+<tr>
+<td><strong>FPS (Frames Per Second)</strong></td>
+<td>How many individual images the camera captures each second</td>
+</tr>
+<tr>
+<td><strong>Exposure Time</strong></td>
+<td>How long the sensor collects light for each frame (measured in microseconds)</td>
+</tr>
+<tr>
+<td><strong>Motion Blur</strong></td>
+<td>Smearing caused by object movement during the exposure window</td>
+</tr>
+<tr>
+<td><strong>Global Shutter</strong></td>
+<td>Sensor architecture that exposes all pixels simultaneously</td>
+</tr>
+<tr>
+<td><strong>Rolling Shutter</strong></td>
+<td>Sensor architecture that exposes pixels row-by-row (causes distortion on fast objects)</td>
+</tr>
+<tr>
+<td><strong>Gain</strong></td>
+<td>Electronic amplification of the sensor signal (higher = brighter but noisier)</td>
+</tr>
+<tr>
+<td><strong>ROI Crop</strong></td>
+<td>Reading only a portion of the sensor to increase frame rate</td>
+</tr>
+<tr>
+<td><strong>Aperture (F-number)</strong></td>
+<td>Size of the lens opening; lower number = more light</td>
+</tr>
+<tr>
+<td><strong>IR-Corrected Lens</strong></td>
+<td>Lens designed to focus both visible and infrared light on the same plane</td>
+</tr>
+<tr>
+<td><strong>Monochrome Sensor</strong></td>
+<td>Black-and-white sensor with no color filter; captures ~3x more light than color</td>
+</tr>
+<tr>
+<td><strong>Fiducial Marker</strong></td>
+<td>A high-contrast visual pattern on the ball used as a tracking anchor for spin detection</td>
+</tr>
+<tr>
+<td><strong>RPT</strong></td>
+<td>Rapsodo Precision Technology — printed dot pattern on golf balls for spin tracking</td>
+</tr>
+<tr>
+<td><strong>NIR</strong></td>
+<td>Near-Infrared — light wavelengths (700-1000nm) invisible to humans but visible to the OV9281</td>
+</tr>
+<tr>
+<td><strong>Pixel Pitch</strong></td>
+<td>Physical size of each pixel on the sensor (OV9281 = 3.0 microns)</td>
+</tr>
+<tr>
+<td><strong>Pinhole Camera Model</strong></td>
+<td>Mathematical formula relating object size, distance, focal length, and pixel size</td>
+</tr>
+<tr>
+<td><strong>MIPI CSI</strong></td>
+<td>Camera Serial Interface — high-speed digital connection between sensor and processor</td>
+</tr>
+<tr>
+<td><strong>Centroid</strong></td>
+<td>The calculated center point of a detected marker or dot in the image</td>
+</tr>
+<tr>
+<td><strong>Bayer Filter</strong></td>
+<td>Color filter mosaic on consumer cameras that blocks ~65% of incoming light</td>
+</tr>
+<tr>
+<td><strong>Clipping</strong></td>
+<td>Overexposure where pixel values hit maximum (255), losing all detail in bright areas</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14-source-traceability">14. Source Traceability</h2>
+<ul>
+<li>MLM2 Pro 240 FPS and global shutter: Rapsodo product specifications, FCC filing 2AH3O-MLM2PRO</li>
+<li>MLM2 Pro ambient light reliance: FCC internal photos analysis (no flash/strobe hardware), confirmed by user reports of dark-room failures</li>
+<li>OV9281 specifications: OmniVision OV9281 product page and datasheet</li>
+<li>OV9281 FPS vs resolution: Datasheet max frame rates, confirmed by Raspberry Pi community benchmarks</li>
+<li>Exposure/blur calculations: Standard physics (distance = velocity x time)</li>
+<li>Monochrome ~3x advantage: Bayer filter blocks ~65% of light per pixel (red/blue pixels see only ~1/3 of spectrum, green ~1/3)</li>
+<li>Ball pixel diameter calculations: Pinhole camera model with verified sensor and lens specifications</li>
+<li>36.4 microsecond OV9281 floor: Linux kernel driver analysis (4 readout lines minimum)</li>
+<li>Fiducial marker requirement: MLM2 Pro returns "N/A" for spin without RPT balls; confirmed by Rapsodo support documentation</li>
+</ul>
+</div>
+<div class="footer"><span>PRGR Launch Monitor — Optics & Capture Guide</span><span>Last updated 2026-07-02</span></div>
+</div></body></html>
