@@ -1,6 +1,10 @@
-name: PR Checks
+name: CI
 
 on:
+  push:
+    branches:
+      - 'claude/**'
+      - main
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
@@ -8,6 +12,7 @@ jobs:
   pr-title:
     name: Enforce conventional commit title
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - name: Check PR title format
         uses: actions/github-script@v7
@@ -23,11 +28,54 @@ jobs:
               );
             }
 
+  cpp-build:
+    name: C++ build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for C++ / build changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            cpp:
+              - 'src/**'
+              - 'include/**'
+              - 'screens/**'
+              - 'CMakeLists.txt'
+              - '**/*.qrc'
+              - '.github/workflows/**'
+
+      - name: Install Qt 6 + OpenCV + build tools
+        if: steps.filter.outputs.cpp == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
+            qml6-module-qtquick-controls libopencv-dev \
+            cmake ninja-build build-essential
+
+      - name: Configure (CMake)
+        if: steps.filter.outputs.cpp == 'true'
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        if: steps.filter.outputs.cpp == 'true'
+        run: cmake --build build -j
+
+      - name: Skip (no C++ changes)
+        if: steps.filter.outputs.cpp != 'true'
+        run: echo "No C++/CMake files changed — skipping C++ build."
+
   python-tests:
     name: Python tests (radar)
     runs-on: ubuntu-latest
-    if: ${{ true }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check for radar changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -35,10 +83,6 @@ jobs:
           filters: |
             radar:
               - 'radar/**'
-
-      - name: Checkout
-        if: steps.filter.outputs.radar == 'true'
-        uses: actions/checkout@v4
 
       - name: Set up Python
         if: steps.filter.outputs.radar == 'true'
@@ -61,8 +105,10 @@ jobs:
   python-lint:
     name: Python lint (radar)
     runs-on: ubuntu-latest
-    if: ${{ true }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check for radar changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -70,10 +116,6 @@ jobs:
           filters: |
             radar:
               - 'radar/**'
-
-      - name: Checkout
-        if: steps.filter.outputs.radar == 'true'
-        uses: actions/checkout@v4
 
       - name: Set up Python
         if: steps.filter.outputs.radar == 'true'
